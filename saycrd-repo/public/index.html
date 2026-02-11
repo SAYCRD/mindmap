@@ -3350,13 +3350,16 @@ async function runPatternEngine(container) {
 
     /* ── Takeaway button ── */
     var takeawayWrap = document.createElement("div");
-    takeawayWrap.style.cssText = "text-align:center;padding:2.5rem 0 1.5rem";
+    takeawayWrap.style.cssText = "text-align:center;padding:3rem 1.5rem 2rem;margin-top:1.5rem;border-top:1px solid rgba(244,241,234,.06);background:linear-gradient(180deg,transparent,rgba(214,178,109,.03))";
+    var takeawayHint = document.createElement("div");
+    takeawayHint.style.cssText = "font-size:.85rem;color:var(--ink-soft);margin-bottom:1rem;opacity:.5";
+    takeawayHint.textContent = "See everything in one place";
     var takeawayBtn = document.createElement("button");
     takeawayBtn.className = "cta";
-    takeawayBtn.style.cssText = "font-size:.92rem;padding:.65rem 2rem";
+    takeawayBtn.style.cssText = "font-size:1rem;padding:.85rem 2.8rem;box-shadow:0 12px 30px rgba(214,178,109,.25)";
     takeawayBtn.textContent = "View your reading \u2192";
     takeawayBtn.addEventListener("click", function() { generateTakeawayCard(); });
-    takeawayWrap.appendChild(takeawayBtn);
+    takeawayWrap.append(takeawayHint, takeawayBtn);
     container.appendChild(takeawayWrap);
 
   } catch(err) {
@@ -4164,6 +4167,21 @@ async function generateTakeawayCard(storedReading) {
       if (actionsEl) actionsEl.style.display = "none";
       if (closeEl) closeEl.style.display = "none";
 
+      /* Force all animated elements to be fully visible for capture */
+      var animated = card.querySelectorAll(".tk-s, .takeaway-card, .tk-unsaid::before, .tk-unsaid::after, .tk-hold-dot");
+      var savedStyles = [];
+      animated.forEach(function(el) {
+        savedStyles.push(el.style.cssText);
+        el.style.opacity = "1";
+        el.style.transform = "none";
+        el.style.animation = "none";
+      });
+      /* Also force the card itself */
+      var cardSaved = card.style.cssText;
+      card.style.opacity = "1";
+      card.style.transform = "none";
+      card.style.animation = "none";
+
       var canvas = await html2canvas(card, {
         backgroundColor: "#060910",
         scale: 2,
@@ -4172,6 +4190,9 @@ async function generateTakeawayCard(storedReading) {
         allowTaint: true
       });
 
+      /* Restore styles */
+      animated.forEach(function(el, i) { el.style.cssText = savedStyles[i]; });
+      card.style.cssText = cardSaved;
       if (actionsEl) actionsEl.style.display = "";
       if (closeEl) closeEl.style.display = "";
 
