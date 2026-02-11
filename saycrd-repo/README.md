@@ -1,4 +1,3 @@
 # SAYCRD
-Clarity, not control.
-v2
+v4
 
