@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vercel dev"
+    "build": "mkdir -p dist && cp public/index.html dist/index.html"
   }
 }
