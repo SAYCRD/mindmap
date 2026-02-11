@@ -1,5 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "echo ok",
-  "outputDirectory": "public"
+  "buildCommand": "mkdir -p dist && cp public/* dist/",
+  "outputDirectory": "dist"
 }
