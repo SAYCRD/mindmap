@@ -1,4 +1,5 @@
 {
+  "buildCommand": "echo done",
   "outputDirectory": "public",
   "functions": {
     "api/claude.js": {
