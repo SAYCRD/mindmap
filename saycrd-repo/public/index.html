@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SAYCRD</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body, #root { width: 100%; height: 100%; overflow: hidden; background: #000; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// AI helpers
+var _lastCallTime = 0;
+var _CLAUDE_KEY = "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";
+async function callClaude(sys, usr, max) {
+  try {
+    var now = Date.now(), gap = now - _lastCallTime;
+    if (gap < 800) await new Promise(function(r) { setTimeout(r, 800 - gap); });
+    _lastCallTime = Date.now();
+
+    var maxInput = 18000;
+    if ((sys.length + (usr||"").length) > maxInput) usr = (usr||"").slice(0, maxInput - sys.length);
+
+    var body = JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: max || 1000,
+      messages: [{ role: "user", content: sys + "\n\n---\n\nUser text:\n\n" + (usr || "") }] });
+
+    console.log("[SAYCRD] API call:", body.length, "chars");
+
+    // Try /api/claude proxy first, then direct with key
+    var r;
+    try {
+      r = await fetch("/api/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: body });
+      if (!r.ok && r.status !== 429) throw new Error("proxy " + r.status);
+    } catch (e) {
+      console.log("[SAYCRD] Proxy unavailable, using direct API");
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _CLAUDE_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: body
+      });
+    }
+
+    if (r.status === 429) {
+      console.log("[SAYCRD] Rate limited, retry in 3s");
+      await new Promise(function(w) { setTimeout(w, 3000); });
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _CLAUDE_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: body
+      });
+    }
+
+    if (!r.ok) {
+      var errText = await r.text().catch(function() { return ""; });
+      console.error("[SAYCRD] API error:", r.status, errText.slice(0, 200));
+      return "";
+    }
+
+    var d = await r.json();
+    var result = (d.content || []).map(function(b) { return b.text || ""; }).join("\n");
+    console.log("[SAYCRD] Response:", result.length, "chars");
+    return result;
+  } catch (e) { console.error("[SAYCRD] API error:", e); return ""; }
+}
+function parseJSON(raw) {
+  if (!raw) return null;
+  try { var c = raw.replace(/```json|```/g, "").trim(); var m = c.match(/\{[\s\S]*\}/) || c.match(/\[[\s\S]*\]/); return m ? JSON.parse(m[0]) : null; } catch (e) { return null; }
+}
+var NC = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#FFD700","#E84393","#7DB7AE"];
+
+const FD = "'DM Serif Display', Georgia, serif";
+const FB = "'DM Sans', sans-serif";
+const PHASES = ["pour", "synthesize", "map", "session", "field"];
+const GRADIENTS = {
+  pour: "linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",
+  synthesize: "linear-gradient(160deg, #1A0A2E 0%, #3D1D6B 40%, #E84393 100%)",
+  map: "linear-gradient(160deg, #060810 0%, #0B1020 40%, #111830 100%)",
+  session: "linear-gradient(160deg, #0A0A1E 0%, #1A1A3B 40%, #2D1B5B 100%)",
+  field: "#000",
+};
+
+// ═══════ SHARED COMPONENTS ═══════
+
+function FloatingWords({ words, color = "#6BB8FF" }) {
+  const v = [...new Set(words.filter(w => w.length > 4))].slice(-12);
+  if (!v.length) return null;
+  return <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+    {v.map((w, i) => <span key={`${w}-${i}`} style={{ position: "absolute", left: `${10+(i/Math.max(v.length-1,1))*80}%`, top: `${45+(Math.sin(i*0.8)*15+(i%3)*10)}%`, fontSize: 13+(i%3)*2, color, opacity: 0.04+(i/v.length)*0.08, fontFamily: FD, fontStyle: "italic", animation: `floatWord ${18+(i%4)*3}s ease-in-out infinite`, animationDelay: `${-i*1.5}s`, whiteSpace: "nowrap" }}>{w}</span>)}
+  </div>;
+}
+
+function Particles({ color, count = 20 }) {
+  return <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+    {Array.from({length:count}).map((_,i) => { const s=(i*37+13)%100; return <div key={i} style={{ position: "absolute", left: `${s}%`, top: `${(s*53)%100}%`, width: 2+(s%4), height: 2+(s%4), borderRadius: "50%", background: color, opacity: 0.12+(s%20)*0.015, animation: `floatParticle ${5+s%6}s ease-in-out infinite`, animationDelay: `${-(s%5)}s` }}/>; })}
+  </div>;
+}
+
+function FieldParticles({ color, count = 20 }) {
+  const particles = useMemo(() =>
+    Array.from({ length: count }).map(() => ({
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      size: 2 + Math.random() * 3,
+      opacity: 0.15 + Math.random() * 0.25,
+      dur: 4 + Math.random() * 6,
+      delay: Math.random() * 5,
+    })), [count]);
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+      {particles.map((p, i) => (
+        <div key={i} style={{
+          position: "absolute", left: `${p.left}%`, top: `${p.top}%`,
+          width: p.size, height: p.size, borderRadius: "50%",
+          background: color, opacity: p.opacity,
+          animation: `fieldFloat ${p.dur}s ease-in-out infinite`,
+          animationDelay: `${p.delay}s`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function BreathingOrb({ color, size = 80 }) {
+  return <svg viewBox="0 0 160 160" style={{ width: size, height: size }}>
+    {[50,40,30,20].map((r,i) => <circle key={i} cx="80" cy="80" r={r} fill="none" stroke={color} strokeWidth={i===3?2:0.8} opacity={0.08+i*0.06}><animate attributeName="r" values={`${r};${r+5};${r}`} dur={`${3+i*0.4}s`} repeatCount="indefinite"/></circle>)}
+    <circle cx="80" cy="80" r="6" fill={color} opacity="0.7"><animate attributeName="r" values="6;8;6" dur="2.5s" repeatCount="indefinite"/></circle>
+  </svg>;
+}
+
+function PhaseIndicator({ current, phases }) {
+  return <div style={{ display: "flex", gap: 3, padding: "14px 20px 0", position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}>
+    {phases.map((p, i) => <div key={p} style={{ flex: 1, height: 3, borderRadius: 2, background: i<current?"rgba(255,255,255,0.6)":i===current?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.1)" }}/>)}
+  </div>;
+}
+
+// ═══════ PHASE 1: POUR ═══════
+function PourPhase({ onComplete }) {
+  const [text, setText] = useState("");
+  const [words, setWords] = useState([]);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { setWords(text.split(/\s+/).filter(x => x.length > 3)); }, [text]);
+  const wc = text.split(/\s+/).filter(Boolean).length;
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", padding: "80px 24px 40px", overflow: "hidden" }}>
+      <FloatingWords words={words} color="#6BB8FF"/><Particles color="#6BB8FF" count={15}/>
+      <div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>
+      <h1 style={{ fontSize: 36, fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
+      <p style={{ fontSize: 15, color: "rgba(255,255,255,0.35)", fontFamily: FB, margin: "0 0 32px", textAlign: "center", zIndex: 1 }}>Don't think. Just pour.</p>
+      <div style={{ width: "100%", maxWidth: 380, flex: 1, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2 }}>
+        <textarea value={text} onChange={e=>setText(e.target.value)} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} placeholder="Start writing..." style={{ width: "100%", height: "100%", background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.85)", fontSize: 17, fontFamily: FD, fontStyle: "italic", padding: 20, lineHeight: 1.7 }}/>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 380, marginTop: 16, zIndex: 1 }}>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
+        {wc>=20&&<button onClick={() => onComplete(text)} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "10px 28px", color: "white", fontSize: 14, fontFamily: FB, fontWeight: 500, cursor: "pointer", animation: "riseUp 0.4s ease" }}>Synthesize →</button>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════ PHASE 2: SYNTHESIZE — calls AI, auto-advances ═══════
+function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
+  const [step, setStep] = useState(0);
+  const [err, setErr] = useState(null);
+  const ran = useRef(false);
+  useEffect(() => {
+    if (ran.current) return; ran.current = true;
+    var t1 = setTimeout(function() { setStep(1); }, 800);
+    var prompt = "You are the AI engine behind SAYCRD, a reflective clarity tool. The user has written a stream-of-consciousness dump. Do ALL of the following:\n\n" +
+      "1. THEMES: Extract 3-7 core themes. LABELS MUST USE THEIR OWN WORDS. Each 2-6 words, weight 1-5.\n" +
+      "2. CONNECTIONS: 3-5 connections between themes. Every theme connects to at least one other. Each has a short label (1-2 words) and one-sentence insight naming the deeper pattern.\n" +
+      "3. SYNTHESIS: 1-2 sentences naming something they might not see. Not a summary — an INSIGHT.\n" +
+      "4. GUIDE: 3-5 items. Types: act, notice, deepen, release. Max 15 words each. Psychologically activating.\n" +
+      "5. MAP_TITLE: Poetic name, 3-8 words.\n" +
+      "6. NOTICING: One structural observation. Spare, clinical. Observe structure not meaning.\n" +
+      "7. UNDERNEATH: Array of 2-3 strings about what lives below the surface.\n" +
+      "8. TENSION: Primary tension — {\"a\":\"force1\",\"b\":\"force2\",\"text\":\"1 sentence\"}.\n" +
+      "9. OPENING: 1-2 sentences about what is trying to emerge.\n" +
+      "10. DESCENT_CARDS: Array of 6 cards. Types: energy {\"type\":\"energy\",\"phrase\":\"4-8 words\"}, binary {\"type\":\"binary\",\"option_a\":\"3-6 words\",\"option_b\":\"3-6 words\",\"prompt\":\"under 8 words\"}, spectrum {\"type\":\"spectrum\",\"prompt\":\"under 8 words\",\"pole_a\":\"2-4 words\",\"pole_b\":\"2-4 words\"}. Mix 2+ energy, 2 binary, 1-2 spectrum.\n\n" +
+      "BANNED WORDS: navigating, intentional, sacred, container, grounding, healing, inner work, your journey.\n" +
+      "CRITICAL: \"from\" and \"to\" in connections must EXACTLY match a theme label.\n" +
+      'Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1}],"connections":[{"from":"exact label","to":"exact label","label":"...","insight":"..."}],"synthesis":"...","guide":[{"type":"act","text":"..."}],"map_title":"...","noticing":"...","underneath":["...","..."],"tension":{"a":"...","b":"...","text":"..."},"opening":"...","descent_cards":[]}';
+    console.log("[SAYCRD] Synthesizing dump:", (rawText||"").slice(0,80) + "...");
+    (async function() {
+      try {
+        var raw = await callClaude(prompt, rawText || "", 2500);
+        console.log("[SAYCRD] AI raw response:", (raw||"").slice(0, 200));
+        setStep(2);
+        var data = parseJSON(raw);
+        console.log("[SAYCRD] Parsed data:", data ? "OK - " + (data.themes||[]).length + " themes" : "FAILED");
+        if (data && data.themes && data.themes.length > 0) {
+          data.themes = data.themes.map(function(t, i) { return Object.assign({}, t, { color: NC[i % NC.length] }); });
+          if (data.connections) data.connections = data.connections.map(function(c) {
+            var ft = (data.themes || []).find(function(t) { return t.label === c.from; });
+            return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
+          });
+          onSynthesis(data);
+          setTimeout(onComplete, 1200);
+        } else { throw new Error("No themes parsed from AI response"); }
+      } catch (e) {
+        console.error("[SAYCRD] Synthesis error:", e);
+        setErr(e.message || "API error");
+        setStep(2);
+        onSynthesis(null);
+        setTimeout(onComplete, 2500);
+      }
+    })();
+    return function() { clearTimeout(t1); };
+  }, []);
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", overflow: "hidden" }}>
+      <Particles color="#E84393" count={25}/>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+        <div style={{ textAlign: "center" }}>
+          <BreathingOrb color="#E84393" size={100}/>
+          <div style={{ marginTop: 28, fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "white", animation: "pulse 2s ease infinite" }}>
+            {step===0&&"Reading your words..."}
+            {step===1&&"Finding what's underneath..."}
+            {step===2&&(err?"Using demo map…":"Building your map...")}
+          </div>
+          <div style={{ marginTop: 16, fontSize: 13, color: err?"rgba(255,107,107,0.5)":"rgba(255,255,255,0.25)", fontFamily: FB }}>
+            {err ? err.slice(0,60) : step < 2 ? "analyzing patterns…" : "themes found"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════ INSIGHT DRAWER ═══════
+function InsightDrawer({ connection, position, onClose, onRespond }) {
+  const [response, setResponse] = useState(null);
+  const [correction, setCorrection] = useState("");
+  const [showCorr, setShowCorr] = useState(false);
+  const [done, setDone] = useState(false);
+  const ref = useRef(null);
+  const [dragOff, setDragOff] = useState(null);
+  const [dragPos, setDragPos] = useState(null);
+  const handlePD = (e) => { if(e.target.tagName==="BUTTON"||e.target.tagName==="TEXTAREA")return; const r=ref.current?.getBoundingClientRect(); if(!r)return; setDragOff({x:e.clientX-r.left,y:e.clientY-r.top}); };
+  useEffect(() => { if(!dragOff)return; const m=e=>setDragPos({x:e.clientX-dragOff.x,y:e.clientY-dragOff.y}); const u=()=>setDragOff(null); window.addEventListener("pointermove",m); window.addEventListener("pointerup",u); return()=>{window.removeEventListener("pointermove",m);window.removeEventListener("pointerup",u);}; }, [dragOff]);
+  const handleChoice = (v) => { setResponse(v); if(v==="no"||v==="partly"){setShowCorr(true);}else{onRespond(v,null);setDone(true);setTimeout(()=>onClose(),2200);} };
+  const submit = () => { if(correction.trim()){onRespond(response,correction.trim());setDone(true);setTimeout(()=>onClose(),2200);} };
+  const accent = connection.color || "#6BB8FF";
+  const s = dragPos ? { left: dragPos.x, top: dragPos.y, transform: "none" }
+    : { left: "50%", top: Math.max(10, Math.min(position.y - 60, 240)), transform: "translate(-50%, 0)" };
+  return (
+    <div ref={ref} onPointerDown={handlePD} onClick={e=>e.stopPropagation()} style={{
+      position: "absolute", ...s, width: 320, maxWidth: "94%",
+      background: `linear-gradient(160deg, rgba(10,12,20,0.98), rgba(20,15,35,0.96))`,
+      border: `1.5px solid ${accent}55`, borderRadius: 18, backdropFilter: "blur(20px)",
+      zIndex: 30, cursor: dragOff?"grabbing":"grab",
+      animation: "drawerIn 0.4s cubic-bezier(.25,.46,.45,.94) forwards",
+      touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.6)`,
+    }}>
+      <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 2, background: `linear-gradient(90deg, transparent, ${accent}88, transparent)`, borderRadius: 1 }}/>
+      <button onClick={e=>{e.stopPropagation();onClose();}} style={{ position: "absolute", top: 12, right: 14, width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "grid", placeItems: "center" }}>✕</button>
+      <div style={{ padding: "22px 22px 18px" }}>
+        <div style={{ fontSize: 10, letterSpacing: "0.2em", color: `${accent}99`, fontFamily: FB, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>{connection.nodeA} ↔ {connection.nodeB}</div>
+        <div style={{ fontSize: 18, color: "rgba(255,255,255,0.9)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.55, marginBottom: 18 }}>{connection.insight}</div>
+        {!done&&!showCorr&&<>
+          <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.15em", color: accent, fontFamily: FB, fontWeight: 600, marginBottom: 12 }}>Does this land?</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[{icon:"✦",label:"Yes",value:"yes"},{icon:"◇",label:"Partly",value:"partly"},{icon:"—",label:"Not quite",value:"no"}].map(o=>(
+              <button key={o.value} onClick={e=>{e.stopPropagation();handleChoice(o.value);}} style={{ flex:1,padding:"12px 8px",borderRadius:12, border:`1px solid ${response===o.value?`${accent}66`:"rgba(255,255,255,0.08)"}`, background:response===o.value?`${accent}18`:"rgba(255,255,255,0.03)", color:response===o.value?accent:"rgba(255,255,255,0.6)", fontFamily:FB,fontSize:14,cursor:"pointer",transition:"all 0.25s",textAlign:"center" }}>
+                <span style={{display:"block",fontSize:16,marginBottom:3}}>{o.icon}</span>{o.label}
+              </button>))}
+          </div>
+        </>}
+        {showCorr&&!done&&<div style={{animation:"riseUp 0.4s ease"}}>
+          <div style={{fontSize:15,color:"rgba(255,255,255,0.65)",fontFamily:FB,marginBottom:10}}>{response==="no"?"What's more accurate?":"What would make it closer?"}</div>
+          <textarea value={correction} onChange={e=>setCorrection(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&correction.trim()){e.preventDefault();submit();}}} placeholder="In your words…" rows={2} autoFocus style={{width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${accent}33`,borderRadius:10,color:"rgba(255,255,255,0.8)",padding:"10px 14px",fontFamily:FB,fontSize:14,resize:"none",outline:"none",lineHeight:1.5}}/>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.2)",fontFamily:FB,marginTop:6}}>Enter to save · This sharpens future readings</div>
+        </div>}
+        {done&&<div style={{textAlign:"center",padding:"8px 0",fontSize:15,fontFamily:FB,color:accent,animation:"riseUp 0.5s ease"}}>{response==="yes"?"Noted. The system is learning you.":`Heard. \u201C${correction.slice(0,60)}${correction.length>60?"\u2026":""}\u201D \u2014 saved.`}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════ PHASE 3: MAP ═══════
+function MapPhase({ onComplete, synthesisData, rawText }) {
+  const [activeConn, setActiveConn] = useState(null);
+  const [responses, setResponses] = useState({});
+  const [dragging, setDragging] = useState(null);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [discoveredConns, setDiscoveredConns] = useState([]);
+  const [snapTarget, setSnapTarget] = useState(null);
+  const SNAP_DIST = 90;
+
+  // Use AI data or demo fallback
+  const sd = synthesisData;
+  const nodes = useMemo(() => {
+    if (sd && sd.themes) return sd.themes.map(function(t, i) { return { key: t.label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1) }; });
+    return [
+      { key: "SAYCRD", color: "#FF6B9D", w: 0.94 }, { key: "Money", color: "#FFB86B", w: 0.78 },
+      { key: "Making", color: "#6BFFB8", w: 0.72 }, { key: "Trust", color: "#6BB8FF", w: 0.52 },
+      { key: "Control", color: "#B86BFF", w: 0.65 }, { key: "Proof", color: "#FFD700", w: 0.45 },
+    ];
+  }, [sd]);
+
+  const conns = useMemo(() => {
+    if (sd && sd.connections) return sd.connections.map(function(c) { return { from: c.from, to: c.to, label: (c.label || "linked").toUpperCase(), insight: c.insight || "", color: c.color || NC[0] }; });
+    return [
+      { from: "SAYCRD", to: "Money", label: "SURVIVAL ↔ CREATION", insight: "SAYCRD is your attempt to solve the money question through creation.", color: "#FF6B9D" },
+      { from: "SAYCRD", to: "Making", label: "THE SAME FORCE", insight: "Building SAYCRD IS the making — they're not two things.", color: "#6BFFB8" },
+      { from: "SAYCRD", to: "Proof", label: "LEGITIMACY", insight: "You need SAYCRD to work as proof that you can do this.", color: "#FFD700" },
+      { from: "Money", to: "Proof", label: "THE PROXY", insight: "Money is the proof you're looking for. Or is proof the real money?", color: "#FFB86B" },
+      { from: "Making", to: "Control", label: "THE GRIP", insight: "Your need to control the making might be limiting what gets made.", color: "#B86BFF" },
+      { from: "Trust", to: "Control", label: "CORE TENSION", insight: "Trust and control are in direct tension — one grows as the other shrinks.", color: "#6BB8FF" },
+      { from: "Money", to: "Trust", label: "THE LEAP", insight: "Can you trust that the money will follow?", color: "#6BB8FF" },
+    ];
+  }, [sd]);
+
+  // Auto-layout positions — fills available space
+  const [pos, setPos] = useState({});
+  const [fieldSize, setFieldSize] = useState({ w: 380, h: 520 });
+  const fieldRef = useRef(null);
+  const NR = 30;
+
+  // Measure field container
+  useEffect(() => {
+    if (!fieldRef.current) return;
+    const r = fieldRef.current.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) setFieldSize({ w: r.width, h: r.height });
+  }, []);
+
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    var positions = {};
+    var pad = 50;
+    var cx = fieldSize.w / 2;
+    var cy = fieldSize.h / 2 - 10;
+    var rx = (fieldSize.w / 2) - pad;
+    var ry = (fieldSize.h / 2) - pad;
+    nodes.forEach(function(n, i) {
+      var angle = (i / nodes.length) * Math.PI * 2 - Math.PI / 2;
+      // Heavier themes sit closer to center, lighter ones orbit wider
+      var ws = 0.4 + (1 - n.w) * 0.6;
+      positions[n.key] = { x: cx + Math.cos(angle) * rx * ws - NR, y: cy + Math.sin(angle) * ry * ws - NR };
+    });
+    setPos(positions);
+  }, [nodes, fieldSize]);
+
+  const hasConn = (a, b) => conns.some(c => (c.from===a&&c.to===b)||(c.from===b&&c.to===a));
+  const hasDiscovered = (a, b) => discoveredConns.some(c => (c.from===a&&c.to===b)||(c.from===b&&c.to===a));
+  const anyConn = (a, b) => hasConn(a, b) || hasDiscovered(a, b);
+  const getDiscovered = (a, b) => discoveredConns.find(c => (c.from===a&&c.to===b)||(c.from===b&&c.to===a));
+
+  // AI connection insight generation
+  const makeConn = async (a, b) => {
+    var nodeB = nodes.find(function(n) { return n.key === b; });
+    var col = nodeB ? nodeB.color : "#7DB7AE";
+    var temp = { from: a, to: b, label: "READING…", insight: "…", color: col, discovered: true };
+    setDiscoveredConns(function(prev) { return prev.concat([temp]); });
+    setActiveConn(temp);
+    var ctx = rawText ? "\nContext: " + rawText.slice(0, 400) : "";
+    var p = "The user connected two themes on their map: \"" + a + "\" and \"" + b + "\"." + ctx + "\nGenerate a 2-4 word label and 1-2 sentence insight. JSON only: {\"label\":\"...\",\"insight\":\"...\"}";
+    try {
+      var raw = await callClaude(p, "Themes: " + a + " + " + b, 300);
+      var d = parseJSON(raw);
+      if (d && d.label) {
+        var real = { from: a, to: b, label: d.label.toUpperCase(), insight: d.insight || "", color: col, discovered: true };
+        setDiscoveredConns(function(prev) { return prev.map(function(c) { return (c.from===a && c.to===b) ? real : c; }); });
+        setActiveConn(real);
+        return;
+      }
+    } catch (e) {}
+    // Fallback
+    var fb = { from: a, to: b, label: "LINKED", insight: a + " and " + b + " — you see a relationship here. What does one reveal about the other?", color: col, discovered: true };
+    setDiscoveredConns(function(prev) { return prev.map(function(c) { return (c.from===a && c.to===b) ? fb : c; }); });
+    setActiveConn(fb);
+  };
+
+  const handleNodeTap = (key) => {
+    if (dragging) return;
+    if (!selectedNode) { setSelectedNode(key); return; }
+    if (selectedNode === key) { setSelectedNode(null); return; }
+    const a = selectedNode, b = key;
+    if (hasConn(a, b)) {
+      const c = conns.find(c => (c.from===a&&c.to===b)||(c.from===b&&c.to===a));
+      if (c) setActiveConn(c);
+      setSelectedNode(null);
+      return;
+    }
+    if (!anyConn(a, b)) makeConn(a, b);
+    setSelectedNode(null);
+  };
+  const ctr = (key) => { const p=pos[key]; return p ? { x: p.x+NR, y: p.y+NR } : {x:0,y:0}; };
+  const mid = (c) => { const a=ctr(c.from),b=ctr(c.to); return {x:(a.x+b.x)/2,y:(a.y+b.y)/2}; };
+  const edgePt = (from, to) => { const a=ctr(from),b=ctr(to); const dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1; return { x1: a.x+(dx/d)*NR, y1: a.y+(dy/d)*NR, x2: b.x-(dx/d)*NR, y2: b.y-(dy/d)*NR }; };
+  const allConns = [...conns, ...discoveredConns];
+  const K = (c) => `${c.from}::${c.to}`;
+  const explored = Object.keys(responses).length + discoveredConns.length;
+  const didDrag = useRef(false);
+  const snapRef = useRef(null); // track snap target in the effect closure
+  const startDrag = (key, e) => { e.stopPropagation(); e.preventDefault(); didDrag.current = false; snapRef.current = null; const r=fieldRef.current?.getBoundingClientRect(); if(!r)return; const p=pos[key]; setDragging({key,ox:(e.clientX||e.touches?.[0]?.clientX)-r.left-p.x,oy:(e.clientY||e.touches?.[0]?.clientY)-r.top-p.y}); };
+  useEffect(() => {
+    if(!dragging) return;
+    const m = e => {
+      didDrag.current = true;
+      const r = fieldRef.current?.getBoundingClientRect(); if(!r) return;
+      const cx = (e.clientX||e.touches?.[0]?.clientX) - r.left - dragging.ox;
+      const cy = (e.clientY||e.touches?.[0]?.clientY) - r.top - dragging.oy;
+      const newX = Math.max(0, Math.min(cx, r.width - NR*2));
+      const newY = Math.max(0, Math.min(cy, r.height - NR*2));
+      setPos(p => ({...p, [dragging.key]: {x: newX, y: newY}}));
+      // Snap detection — find closest unlinked node within range
+      const dragCtr = { x: newX + NR, y: newY + NR };
+      let closest = null, closeDist = Infinity;
+      nodes.forEach(n => {
+        if (n.key === dragging.key) return;
+        const np = pos[n.key]; if(!np) return;
+        const nc = { x: np.x + NR, y: np.y + NR };
+        const dist = Math.hypot(nc.x - dragCtr.x, nc.y - dragCtr.y);
+        if (dist < SNAP_DIST && dist < closeDist && !anyConn(dragging.key, n.key)) {
+          closeDist = dist; closest = n.key;
+        }
+      });
+      snapRef.current = closest;
+      setSnapTarget(closest);
+    };
+    const u = () => {
+      if (!didDrag.current) {
+        handleNodeTap(dragging.key);
+      } else if (snapRef.current) {
+        // Snap-to-connect: AI-generated insight
+        const a = dragging.key, b = snapRef.current;
+        if (!anyConn(a, b)) makeConn(a, b);
+      }
+      setDragging(null);
+      setSnapTarget(null);
+      snapRef.current = null;
+    };
+    window.addEventListener("pointermove", m);
+    window.addEventListener("pointerup", u);
+    return () => { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
+  }, [dragging, selectedNode]);
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "38px 2px 8px", overflow: "hidden" }}>
+      <Particles color="rgba(107,184,255,0.25)" count={6}/>
+      <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0 }}>
+        <div style={{ fontSize: 10, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", fontFamily: FB }}>{sd && sd.map_title ? sd.map_title.toUpperCase() : "YOUR CONSTELLATION"}</div>
+        <p style={{ fontSize: 11, color: snapTarget?"#7DB7AE":selectedNode?"#6BFFB8":explored===0?"rgba(107,184,255,0.8)":"rgba(255,255,255,0.35)", fontFamily: FB, margin: "1px 0 0", fontWeight: snapTarget||selectedNode||explored===0?600:400, transition: "color 0.3s" }}>
+          {snapTarget ? `Release to connect → ${snapTarget}` : selectedNode ? `${selectedNode} selected — tap another node to link` : explored===0 ? "Tap a connection · drag nodes together to link" : `${explored} connections explored`}
+        </p>
+      </div>
+      <div ref={fieldRef} onClick={()=>{setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0 }}>
+        {Object.keys(pos).length > 0 && <><svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
+          {/* Predefined connection lines */}
+          {conns.map(c => {
+            const k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
+            const isAct = activeConn && K(activeConn)===k;
+            let stroke="rgba(255,255,255,0.18)", sw=2, dash="8 5", op=1;
+            if(resp?.value==="yes"){stroke="rgba(107,211,198,0.7)";sw=3;dash="none";}
+            else if(resp?.value==="partly"){stroke="rgba(165,235,220,0.5)";sw=2.5;dash="none";}
+            else if(resp?.value==="no"){stroke="rgba(255,255,255,0.04)";sw=0.5;dash="4 6";op=0.2;}
+            if(isAct){stroke=`${c.color}88`;sw=3;dash="none";}
+            return <line key={k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/>;
+          })}
+          {/* Discovered connection lines */}
+          {discoveredConns.map(c => {
+            const k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
+            const isAct = activeConn && K(activeConn)===k;
+            return <line key={`d-${k}`} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2}
+              stroke={isAct ? `${c.color}88` : `${c.color}55`} strokeWidth={isAct ? 3 : 2}
+              strokeDasharray={isAct ? "none" : "4 8"} opacity={0.8}
+              style={{transition:"all 0.6s ease", animation: "riseUp 0.6s ease"}}/>;
+          })}
+          {/* Selection preview line */}
+          {selectedNode && (() => {
+            const sc = ctr(selectedNode);
+            return <circle cx={sc.x} cy={sc.y} r={NR+8} fill="none" stroke="#6BFFB8" strokeWidth="1.5" opacity="0.5" strokeDasharray="4 4">
+              <animate attributeName="r" values={`${NR+6};${NR+12};${NR+6}`} dur="1.5s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite" />
+            </circle>;
+          })()}
+          {/* Snap preview line */}
+          {snapTarget && dragging && (() => {
+            const ep = edgePt(dragging.key, snapTarget);
+            return <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#7DB7AE" strokeWidth="2.5" strokeDasharray="6 4" opacity="0.7" style={{animation:"connBlink 1s ease-in-out infinite"}}/>;
+          })()}
+        </svg>
+        {conns.map(c => {
+          const m=mid(c), k=K(c), resp=responses[k];
+          const isAct = activeConn && K(activeConn)===k;
+          if(resp?.value==="no") return null;
+          const isExp = !!resp; const accent = c.color;
+          return (
+            <div key={k} onClick={e=>{e.stopPropagation();setActiveConn(c);}} style={{
+              position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
+              padding: "4px 10px", borderRadius: 6, fontSize: 9, fontWeight: 700, fontFamily: FB,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              color: isAct ? "white" : isExp ? `${accent}cc` : accent,
+              background: isAct ? `${accent}33` : `rgba(8,10,20,0.85)`,
+              border: `1.5px solid ${isAct ? accent : isExp ? `${accent}44` : `${accent}66`}`,
+              cursor: "pointer", whiteSpace: "nowrap", zIndex: isAct ? 15 : 5,
+              transition: "all 0.3s ease",
+              animation: !isExp ? "connBlink 2s ease-in-out infinite" : "none",
+              boxShadow: isAct ? `0 0 20px ${accent}33` : !isExp ? `0 0 12px ${accent}15` : "none",
+            }}>
+              {!isExp && <div style={{ position: "absolute", inset: -5, borderRadius: 10, border: `1px solid ${accent}44`, animation: "ringPulse 2s ease-in-out infinite", pointerEvents: "none" }}/>}
+              {c.label}
+            </div>
+          );
+        })}
+        {conns.map(c => {
+          const m=mid(c), k=K(c), resp=responses[k];
+          if(!resp?.correction) return null;
+          return <div key={`a-${k}`} style={{ position:"absolute",left:m.x,top:m.y+16,transform:"translate(-50%,0)",fontSize:10,fontFamily:FD,fontStyle:"italic",color:"rgba(165,235,220,0.65)",maxWidth:140,textAlign:"center",lineHeight:1.3,animation:"riseUp 0.5s ease" }}>"{resp.correction.length>45?resp.correction.slice(0,43)+"…":resp.correction}"</div>;
+        })}
+        {/* Discovered connection labels */}
+        {discoveredConns.map(c => {
+          const m=mid(c), k=K(c), resp=responses[k];
+          const isAct = activeConn && K(activeConn)===k;
+          const isExp = !!resp;
+          return (
+            <div key={`dl-${k}`} onClick={e=>{e.stopPropagation();setActiveConn(c);}} style={{
+              position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
+              padding: "4px 10px", borderRadius: 6, fontSize: 9, fontWeight: 700, fontFamily: FB,
+              letterSpacing: "0.06em", textTransform: "uppercase",
+              color: isAct ? "white" : `${c.color}`,
+              background: isAct ? `${c.color}33` : `rgba(8,10,20,0.85)`,
+              border: `1.5px solid ${isAct ? c.color : `${c.color}66`}`,
+              cursor: "pointer", whiteSpace: "nowrap", zIndex: isAct ? 15 : 5,
+              transition: "all 0.3s ease", animation: "riseUp 0.5s ease",
+              boxShadow: isAct ? `0 0 20px ${c.color}33` : `0 0 12px ${c.color}15`,
+            }}>
+              <div style={{ position: "absolute", left: -3, top: "50%", transform: "translateY(-50%)", width: 6, height: 6, borderRadius: "50%", background: c.color, opacity: 0.6 }}/>
+              ✦ {c.label}
+            </div>
+          );
+        })}
+        {nodes.map((n, ni) => {
+          const p=pos[n.key]; if(!p) return null; const isDrag=dragging?.key===n.key; const sz = NR * 2;
+          const isSel = selectedNode === n.key;
+          const isSnap = snapTarget === n.key;
+          const canLink = selectedNode && selectedNode !== n.key && !hasConn(selectedNode, n.key) && !hasDiscovered(selectedNode, n.key);
+          return (
+            <div key={n.key} onPointerDown={e=>startDrag(n.key,e)} style={{
+              position: "absolute", left: p.x, top: p.y, width: sz, height: sz,
+              borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 13, fontWeight: 700, fontFamily: FB, color: "white",
+              background: isSnap
+                ? `radial-gradient(circle at 40% 35%, rgba(125,183,174,0.5), rgba(125,183,174,0.15) 60%, transparent 100%)`
+                : `radial-gradient(circle at 40% 35%, ${n.color}55, ${n.color}22 60%, transparent 100%)`,
+              border: `2.5px solid ${isSnap ? "#7DB7AE" : isSel ? "#6BFFB8" : canLink ? `${n.color}cc` : `${n.color}88`}`,
+              cursor: isDrag?"grabbing":"pointer", zIndex: isDrag?20: isSel||isSnap?10 :3,
+              transition: isDrag?"none":"all 0.4s cubic-bezier(.25,.46,.45,.94)",
+              transform: isDrag?"scale(1.12)": isSnap?"scale(1.15)": isSel?"scale(1.08)" :"scale(1)",
+              boxShadow: isSnap
+                ? `0 0 30px rgba(125,183,174,0.5), 0 0 60px rgba(125,183,174,0.2)`
+                : isSel
+                ? `0 0 30px #6BFFB844, 0 0 60px #6BFFB822, inset 0 0 25px ${n.color}12`
+                : canLink
+                ? `0 0 25px ${n.color}44, inset 0 0 25px ${n.color}12`
+                : `0 0 ${isDrag?35:20}px ${n.color}${isDrag?"55":"25"}, inset 0 0 25px ${n.color}12`,
+              touchAction: "none", userSelect: "none",
+              animation: isDrag||isSel||isSnap ? "none" : `nodeBreathe 6s ease-in-out infinite`,
+              animationDelay: `${ni*-1}s`,
+            }}>{n.key}</div>
+          );
+        })}
+        {activeConn && <InsightDrawer
+          connection={{nodeA:activeConn.from,nodeB:activeConn.to,label:activeConn.label,insight:activeConn.insight,color:activeConn.color}}
+          position={mid(activeConn)}
+          onClose={()=>setActiveConn(null)}
+          onRespond={(v,c)=>setResponses(prev=>({...prev,[K(activeConn)]:{value:v,correction:c}}))}
+        />}
+        </>}
+      </div>
+      {explored>=3&&<button onClick={onComplete} style={{ width:"100%",maxWidth:360,margin:"4px auto 0",background:"linear-gradient(135deg, #6BB8FF, #3D8BFF)",border:"none",borderRadius:24,padding:"13px 28px",color:"white",fontSize:14,fontFamily:FB,fontWeight:500,cursor:"pointer",zIndex:2,animation:"riseUp 0.5s ease",flexShrink:0 }}>Run Session →</button>}
+    </div>
+  );
+}
+
+// ═══════ PHASE 4: SESSION — Full report with reading, guide, descent, clarity, noticing ═══════
+
+const GUIDE_TYPES = {
+  act: { color: "#6BFFB8", icon: "→" },
+  sit: { color: "#6BB8FF", icon: "◎" },
+  deepen: { color: "#FFB86B", icon: "◇" },
+  release: { color: "#FF6B9D", icon: "↺" },
+  notice: { color: "#9FB2D8", icon: "◈" },
+};
+
+const GUIDE_ITEMS = [
+  { type: "act", text: "Write down the one thing you'd build if money were irrelevant. Put it somewhere you'll see it tomorrow." },
+  { type: "sit", text: "Sit with the question: when you say 'proof,' who are you proving it to? Don't answer. Just hold it." },
+  { type: "deepen", text: "The word 'control' appeared 12 times. Ask yourself — what am I actually afraid of losing?" },
+  { type: "release", text: "Name one expectation about SAYCRD you're ready to set down. You don't have to drop it — just set it down." },
+  { type: "notice", text: "This week, notice when you use the word 'should.' Write down what you actually feel instead." },
+];
+
+
+function SpectrumSlider({ color, poleA, poleB, onSet, value }) {
+  const [p, setP] = useState(value ?? 50);
+  const tr = useRef(null);
+  const [d, setD] = useState(false);
+  const upd = (e) => { const r = tr.current?.getBoundingClientRect(); if (!r) return; setP(Math.max(0, Math.min(100, ((e.clientX || e.touches?.[0]?.clientX) - r.left) / r.width * 100))); };
+  const hd = (e) => { e.preventDefault(); setD(true); upd(e); };
+  useEffect(() => { if (!d) return; const m = e => upd(e); const u = e => { setD(false); upd(e); onSet(Math.round(p)); }; window.addEventListener("pointermove", m); window.addEventListener("pointerup", u); return () => { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); }; }, [d, p]);
+  return <div>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
+      <span style={{ fontSize: 13, color: p < 40 ? color : "rgba(255,255,255,0.35)", fontFamily: FB, fontWeight: 500, transition: "color 0.3s" }}>{poleA}</span>
+      <span style={{ fontSize: 13, color: p > 60 ? color : "rgba(255,255,255,0.35)", fontFamily: FB, fontWeight: 500, transition: "color 0.3s" }}>{poleB}</span>
+    </div>
+    <div ref={tr} onPointerDown={hd} style={{ position: "relative", height: 32, display: "flex", alignItems: "center", cursor: "pointer", touchAction: "none" }}>
+      <div style={{ position: "absolute", left: 0, right: 0, height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2 }} />
+      <div style={{ position: "absolute", left: 0, height: 3, width: `${p}%`, background: `linear-gradient(90deg,${color}33,${color}88)`, borderRadius: 2, transition: d ? "none" : "width 0.15s" }} />
+      <div style={{ position: "absolute", left: `${p}%`, transform: "translateX(-50%)", width: 26, height: 26, borderRadius: "50%", background: value !== undefined ? `${color}44` : "rgba(255,255,255,0.08)", border: `2px solid ${value !== undefined ? `${color}88` : "rgba(255,255,255,0.15)"}`, cursor: d ? "grabbing" : "grab", boxShadow: value !== undefined ? `0 0 16px ${color}22` : "none", transition: d ? "none" : "left 0.15s, background 0.3s", zIndex: 2 }} />
+    </div>
+    {value !== undefined && <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: `${color}66`, fontFamily: FB, letterSpacing: "0.1em" }}>SET</div>}
+  </div>;
+}
+
+function GuideItem({ item, index }) {
+  const [expanded, setExpanded] = useState(false);
+  const [response, setResponse] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [echo, setEcho] = useState(null);
+  const gt = GUIDE_TYPES[item.type] || GUIDE_TYPES.act;
+  const submit = async () => {
+    if (!response.trim()) return;
+    setSaved(true);
+    try {
+      var p = "You are the reflective voice of SAYCRD. The user responded to a guide prompt. Return ONE mirror, tension, or question. Max 30 words. No praise. JSON: {\"echo\":\"...\"}";
+      var raw = await callClaude(p, "Guide: \"" + item.text + "\"\nResponse: \"" + response.trim() + "\"", 200);
+      var d = parseJSON(raw);
+      if (d && d.echo) setEcho(d.echo);
+    } catch (e) {}
+  };
+  return (
+    <div onClick={() => !expanded && !saved && setExpanded(true)} style={{
+      padding: "16px 18px", borderRadius: 14, background: "rgba(16,20,26,0.8)",
+      border: `1px solid ${saved ? `${gt.color}33` : expanded ? `${gt.color}22` : "rgba(255,255,255,0.06)"}`,
+      cursor: expanded || saved ? "default" : "pointer", transition: "all 0.3s",
+      animation: `riseUp 0.5s ease ${0.1 + index * 0.15}s both`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 14, color: gt.color }}>{gt.icon}</span>
+        <span style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: gt.color, fontFamily: FB }}>{item.type}</span>
+        {saved && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: FB, marginLeft: "auto" }}>responded</span>}
+        {!expanded && !saved && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.1)", fontFamily: FB, marginLeft: "auto" }}>tap to respond</span>}
+      </div>
+      <p style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>{item.text}</p>
+      {expanded && !saved && (
+        <div style={{ marginTop: 14, animation: "riseUp 0.3s ease" }}>
+          <textarea value={response} onChange={e => setResponse(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && response.trim()) { e.preventDefault(); submit(); } }}
+            placeholder="In your words…" rows={2} autoFocus
+            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: `1px solid ${gt.color}33`, borderRadius: 10, color: "rgba(255,255,255,0.8)", padding: "10px 14px", fontFamily: FB, fontSize: 14, resize: "none", outline: "none", lineHeight: 1.5 }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.15)", fontFamily: FB }}>Enter to save</span>
+            {response.trim() && <button onClick={submit} style={{ background: `${gt.color}33`, border: `1px solid ${gt.color}55`, borderRadius: 20, padding: "6px 16px", color: gt.color, fontSize: 12, fontFamily: FB, cursor: "pointer" }}>Save</button>}
+          </div>
+        </div>
+      )}
+      {saved && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ padding: "10px 14px", borderRadius: 10, background: `${gt.color}08`, border: `1px solid ${gt.color}15`, animation: "riseUp 0.4s ease" }}>
+            <p style={{ fontSize: 14, color: `${gt.color}cc`, fontFamily: FB, margin: 0, lineHeight: 1.5 }}>{response}</p>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.15)", fontFamily: FB, marginTop: 6 }}>This carries forward.</div>
+          </div>
+          {echo && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.5s ease" }}>
+              <p style={{ fontSize: 14, color: "rgba(125,183,174,0.6)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>{echo}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DescentGame({ cards: propCards, onDone }) {
+  const DESCENT_CARDS = (propCards || [
+    { type: "energy", phrase: "wanting to be seen but not watched", color: "#FFB86B" },
+    { type: "binary", prompt: "lately you seem drawn to", option_a: "building slowly", option_b: "leaping first", color: "#FF6B9D" },
+    { type: "spectrum", prompt: "where does this live?", pole_a: "still forming", pole_b: "ready to move", color: "#6BFFB8" },
+    { type: "energy", phrase: "proving it to yourself before anyone else", color: "#B86BFF" },
+    { type: "binary", prompt: "the tension feels more like", option_a: "two things pulling apart", option_b: "one thing trying to split", color: "#6BB8FF" },
+    { type: "spectrum", prompt: "right now you're closer to", pole_a: "holding on", pole_b: "letting go", color: "#FFD700" },
+  ]).map(function(c,i){return Object.assign({},c,{color:c.color||NC[i%NC.length]});});
+  const [ci, setCi] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const c = DESCENT_CARDS[ci], ans = answers[ci] !== undefined;
+  const record = (v) => { setAnswers(p => ({ ...p, [ci]: v })); setTimeout(() => { if (ci < DESCENT_CARDS.length - 1) setCi(ci + 1); }, 800); };
+  const allDone = Object.keys(answers).length >= DESCENT_CARDS.length - 1 && ans;
+  useEffect(() => { if (allDone) setTimeout(() => onDone(), 1200); }, [allDone]);
+
+  return (
+    <div style={{ padding: "20px 0" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, justifyContent: "center" }}>
+        {DESCENT_CARDS.map((_, i) => <div key={i} style={{ width: i === ci ? 12 : 7, height: 7, borderRadius: 4, background: i < ci ? `${DESCENT_CARDS[i].color}88` : i === ci ? "white" : "rgba(255,255,255,0.1)", transition: "all 0.4s" }} />)}
+      </div>
+      <div style={{ fontSize: 10, letterSpacing: "0.2em", color: `${c.color}88`, fontFamily: FB, textTransform: "uppercase", marginBottom: 12, textAlign: "center", fontWeight: 600 }}>
+        {c.type === "energy" ? "how alive is this" : c.type === "binary" ? "which pulls more" : "place yourself"}
+      </div>
+      <div key={ci} style={{ animation: "slideIn 0.4s ease" }}>
+        <div style={{ borderRadius: 22, padding: "32px 24px", background: `linear-gradient(160deg,${c.color}12,rgba(10,10,30,0.9),${c.color}08)`, border: `1px solid ${c.color}22`, boxShadow: `0 0 40px ${c.color}08`, position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 1, background: `linear-gradient(90deg,transparent,${c.color}55,transparent)`, animation: "sweep 3.5s ease-in-out infinite" }} />
+          <div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, textAlign: "center", marginBottom: 24 }}>{c.phrase || c.prompt}</div>
+          {c.type === "energy" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontFamily: FB }}>how much does this resonate?</div>
+            <div style={{ display: "flex", gap: 12 }}>{[1, 2, 3, 4, 5].map(n => <div key={n} onClick={() => record(n)} style={{ width: 36, height: 36, borderRadius: "50%", border: `2px solid ${answers[ci] >= n ? `${c.color}88` : "rgba(255,255,255,0.1)"}`, background: answers[ci] >= n ? `${c.color}25` : "rgba(255,255,255,0.02)", cursor: "pointer", transition: "all 0.3s", display: "grid", placeItems: "center", boxShadow: answers[ci] >= n ? `0 0 12px ${c.color}22` : "none", transform: answers[ci] >= n ? "scale(1.1)" : "scale(1)" }}><div style={{ width: answers[ci] >= n ? 12 : 5, height: answers[ci] >= n ? 12 : 5, borderRadius: "50%", background: answers[ci] >= n ? c.color : "rgba(255,255,255,0.15)", transition: "all 0.3s" }} /></div>)}</div>
+          </div>}
+          {c.type === "binary" && <div>
+            <div style={{ display: "flex", gap: 12 }}>{["a", "b"].map(s => { const t = s === "a" ? c.option_a : c.option_b; const ch = answers[ci] === s; const fd = answers[ci] && answers[ci] !== s && answers[ci] !== "neither"; return <div key={s} onClick={() => record(s)} style={{ flex: 1, padding: "18px 12px", borderRadius: 14, border: `1px solid ${ch ? `${c.color}44` : "rgba(255,255,255,0.08)"}`, background: ch ? `${c.color}12` : "rgba(255,255,255,0.015)", cursor: "pointer", textAlign: "center", transition: "all 0.3s", opacity: fd ? 0.25 : 1, transform: ch ? "scale(1.03)" : fd ? "scale(0.96)" : "scale(1)" }}><div style={{ fontSize: 15, fontWeight: 600, color: ch ? c.color : "rgba(255,255,255,0.75)", fontFamily: FB, lineHeight: 1.4 }}>{t}</div></div>; })}</div>
+            <div onClick={() => record("neither")} style={{ textAlign: "center", marginTop: 14, fontSize: 12, fontFamily: FB, color: answers[ci] === "neither" ? c.color : "rgba(255,255,255,0.2)", cursor: "pointer", letterSpacing: "0.06em", transition: "color 0.3s" }}>neither quite fits</div>
+          </div>}
+          {c.type === "spectrum" && <SpectrumSlider color={c.color} poleA={c.pole_a} poleB={c.pole_b} onSet={v => record(v)} value={answers[ci]} />}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 12, marginTop: 14, justifyContent: "space-between" }}>
+        {ci > 0 && <button onClick={() => setCi(ci - 1)} style={{ padding: "8px 16px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: FB, cursor: "pointer" }}>← Back</button>}
+        <div style={{ flex: 1 }} />
+        {ans && ci < DESCENT_CARDS.length - 1 && <button onClick={() => setCi(ci + 1)} style={{ padding: "8px 20px", borderRadius: 20, border: "none", background: `${c.color}33`, color: "white", fontSize: 12, fontFamily: FB, fontWeight: 500, cursor: "pointer" }}>Next →</button>}
+      </div>
+    </div>
+  );
+}
+
+function SessionPhase({ onComplete, synthesisData }) {
+  const [descentOpen, setDescentOpen] = useState(false);
+  const [descentDone, setDescentDone] = useState(false);
+  const [clarity, setClarity] = useState("");
+  const [claritySaved, setClaritySaved] = useState(false);
+  const [showNoticing, setShowNoticing] = useState(false);
+  const scrollRef = useRef(null);
+
+  const saveClarity = () => {
+    if (clarity.trim()) {
+      setClaritySaved(true);
+      setTimeout(() => setShowNoticing(true), 1200);
+    }
+  };
+
+  const sd = synthesisData || {};
+  const THEMES = (sd.themes || [
+    { label: "SAYCRD", weight: 5, color: "#FF6B9D" }, { label: "Money", weight: 4, color: "#FFB86B" },
+    { label: "Making", weight: 3.5, color: "#6BFFB8" }, { label: "Control", weight: 3, color: "#B86BFF" },
+    { label: "Trust", weight: 2.5, color: "#6BB8FF" },
+  ]).map(function(t, i) { return { name: t.label, color: t.color || NC[i % NC.length], weight: Math.min((t.weight || 1) / 5, 1) }; });
+  const GUIDE_ITEMS = (sd.guide || [
+    { type: "act", text: "Write down the one thing you'd build if money were irrelevant." },
+    { type: "deepen", text: "Sit with the question: when you say 'proof,' who are you proving it to?" },
+    { type: "deepen", text: "What am I actually afraid of losing if I let go of control?" },
+    { type: "release", text: "Name one expectation you're ready to set down." },
+    { type: "notice", text: "Notice when you use the word 'should.' Write what you actually feel." },
+  ]).map(function(g) { return { type: g.type || "notice", text: g.text || "" }; });
+  const synthesis = sd.synthesis || "You're building something that matters — but the question underneath isn't \"will it work?\" It's \"will it prove I can do this?\"";
+  const underneath = sd.underneath || [
+    "Trust is the quietest force but it touches everything",
+    "Money and Proof are almost interchangeable in your language",
+    "There's a version of this where SAYCRD isn't the proof — it's just what you made because you had to",
+  ];
+  var tension = sd.tension || { a: "Control", b: "Trust", text: "These two are pulling in opposite directions. One grows as the other shrinks." };
+  var opening = sd.opening || "What changes if you let go of what it needs to prove?";
+  var noticing = sd.noticing || "you named what you're carrying in fewer words than before. That's not simplification — that's distillation.";
+  var mapTitle = sd.map_title || "";
+  var descentCards = sd.descent_cards || null;
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
+      <Particles color="rgba(214,178,109,0.15)" count={8} />
+      <div style={{ maxWidth: 380, margin: "0 auto", padding: "60px 20px 40px", position: "relative", zIndex: 1 }}>
+
+        {/* Session header */}
+        <div style={{ marginBottom: 28, animation: "riseUp 0.5s ease" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.2)", fontFamily: FB, marginBottom: 4 }}>SESSION · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" }).toUpperCase()}</div>
+        </div>
+
+        {/* ── WHAT EMERGED — themes from the map ── */}
+        <div style={{ marginBottom: 32, animation: "riseUp 0.5s ease 0.05s both" }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#E84393", marginBottom: 8, fontFamily: FB }}>WHAT EMERGED</div>
+          <h2 style={{ fontSize: 26, fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 20px", fontWeight: 400 }}>{THEMES.length} forces found</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 0 }}>
+            {THEMES.map((t, i) => (
+              <div key={t.name} style={{ display: "flex", alignItems: "center", gap: 12, animation: `riseUp 0.5s ease ${i * 0.08}s both` }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: `${t.color}18`, border: `2px solid ${t.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 5 + t.weight * 12, height: 5 + t.weight * 12, borderRadius: "50%", background: t.color, opacity: 0.6 + t.weight * 0.4 }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, color: "white", fontFamily: FD, fontStyle: "italic", marginBottom: 3 }}>{t.name}</div>
+                  <div style={{ height: 3, background: "rgba(255,255,255,0.04)", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ width: `${t.weight * 100}%`, height: "100%", background: `linear-gradient(90deg, ${t.color}44, ${t.color})`, borderRadius: 2, animation: `growWidth 1s ease ${0.3 + i * 0.1}s both` }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── THE READING ── */}
+        <div style={{ marginBottom: 32, animation: "riseUp 0.6s ease 0.1s both" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 14, fontFamily: FB }}>THE READING</div>
+          {mapTitle && <div style={{ fontSize: 13, color: "rgba(214,178,109,0.4)", fontFamily: FD, fontStyle: "italic", marginBottom: 10 }}>{mapTitle}</div>}
+          <p style={{ fontSize: 19, color: "rgba(255,255,255,0.85)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.7, margin: 0 }}>
+            {synthesis}
+          </p>
+        </div>
+
+        {/* ── WHAT'S UNDERNEATH ── */}
+        <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.2s both" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", fontWeight: 600, color: "#B86BFF", marginBottom: 14, fontFamily: FB }}>WHAT'S UNDERNEATH</div>
+          {underneath.map((t, i) => (
+            <div key={i} style={{ padding: "12px 14px 12px 20px", borderRadius: 12, background: "rgba(183,107,255,0.03)", border: "1px solid rgba(183,107,255,0.06)", marginBottom: 8, position: "relative", animation: `riseUp 0.5s ease ${0.3 + i * 0.1}s both` }}>
+              <div style={{ position: "absolute", left: 10, top: 16, width: 4, height: 4, borderRadius: "50%", background: "#B86BFF", opacity: 0.4 }} />
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>{t}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── THE TENSION ── */}
+        <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.3s both" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", fontWeight: 600, color: "#FFB86B", marginBottom: 14, fontFamily: FB }}>THE TENSION</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 12, background: "rgba(255,184,107,0.04)", border: "1px solid rgba(255,184,107,0.08)" }}>
+            <span style={{ fontSize: 15, color: "#FFB86B", fontFamily: FB, fontWeight: 600 }}>{tension.a}</span>
+            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, #FFB86B44, #6BB8FF44)" }} />
+            <span style={{ fontSize: 15, color: "#6BB8FF", fontFamily: FB, fontWeight: 600 }}>{tension.b}</span>
+          </div>
+          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.45)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.5, margin: "10px 0 0" }}>
+            {tension.text}
+          </p>
+        </div>
+
+        {/* ── WHAT'S OPENING ── */}
+        <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.35s both" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", fontWeight: 600, color: "#6BFFB8", marginBottom: 14, fontFamily: FB }}>WHAT'S OPENING</div>
+          <p style={{ fontSize: 17, color: "rgba(107,255,184,0.7)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>
+            {opening}
+          </p>
+        </div>
+
+        {/* ── YOUR GUIDE ── */}
+        <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.4s both" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", fontWeight: 600, color: "#7DB7AE", marginBottom: 14, fontFamily: FB }}>YOUR GUIDE</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {GUIDE_ITEMS.map((item, i) => <GuideItem key={i} item={item} index={i} />)}
+          </div>
+        </div>
+
+        {/* ── DESCENT ── */}
+        <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          {!descentOpen && !descentDone && (
+            <div onClick={() => setDescentOpen(true)} style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              fontFamily: FB, fontSize: 15, color: "rgba(214,178,109,0.7)", textAlign: "center",
+              cursor: "pointer", padding: "18px 20px", borderRadius: 14,
+              border: "1px solid rgba(214,178,109,0.08)", background: "rgba(214,178,109,0.015)",
+              transition: "all 0.3s", fontWeight: 600, letterSpacing: "0.03em",
+              animation: "riseUp 0.5s ease 0.6s both",
+            }}>
+              <span style={{ fontSize: 16 }}>◆</span> See what's underneath
+            </div>
+          )}
+          {descentOpen && !descentDone && (
+            <div style={{ animation: "riseUp 0.5s ease" }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 8, fontFamily: FB, textAlign: "center" }}>THE DESCENT</div>
+              <DescentGame cards={descentCards} onDone={() => setDescentDone(true)} />
+            </div>
+          )}
+          {descentDone && (
+            <div style={{ textAlign: "center", padding: "16px 0", animation: "riseUp 0.5s ease" }}>
+              <div style={{ fontSize: 13, color: "rgba(214,178,109,0.5)", fontFamily: FB }}>◆ Descent complete</div>
+            </div>
+          )}
+        </div>
+
+        {/* ── CLARITY ── */}
+        <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", fontWeight: 600, color: "rgba(214,178,109,0.35)", marginBottom: 14, fontFamily: FB }}>WHAT ARE YOU TAKING WITH YOU?</div>
+          {!claritySaved ? (
+            <div>
+              <input type="text" value={clarity} onChange={e => setClarity(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && clarity.trim()) saveClarity(); }}
+                placeholder="Name it plainly…" maxLength={140}
+                style={{ width: "100%", background: "transparent", border: "none", borderBottom: "1px solid rgba(214,178,109,0.15)", borderRadius: 0, color: "rgba(255,255,255,0.9)", padding: "12px 0", fontFamily: FB, fontSize: 16, outline: "none", letterSpacing: "0.02em" }} />
+              {clarity.trim() && <button onClick={saveClarity} style={{ marginTop: 12, background: "rgba(214,178,109,0.12)", border: "1px solid rgba(214,178,109,0.25)", borderRadius: 20, padding: "8px 20px", color: "#D6B26D", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>Save</button>}
+            </div>
+          ) : (
+            <div style={{ animation: "riseUp 0.5s ease" }}>
+              <div style={{ fontSize: 16, color: "#D6B26D", fontFamily: FB, lineHeight: 1.55, letterSpacing: "0.02em" }}>{clarity}</div>
+              <div style={{ fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: "#7DB7AE", marginTop: 8, opacity: 0.4 }}>SAVED</div>
+            </div>
+          )}
+        </div>
+
+        {/* ── AI NOTICING ── */}
+        {showNoticing && (
+          <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 1s ease" }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FB, lineHeight: 1.7, opacity: 0.5 }}>
+              ✦ The system notices: {noticing}
+            </div>
+          </div>
+        )}
+
+        {/* ── CONTINUE ── */}
+        <button onClick={onComplete} style={{
+          width: "100%", background: claritySaved ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
+          border: claritySaved ? "none" : "1px solid rgba(107,255,184,0.15)",
+          borderRadius: 24, padding: "14px 28px",
+          color: claritySaved ? "#0A2E1A" : "rgba(107,255,184,0.3)",
+          fontSize: 15, fontFamily: FB, fontWeight: claritySaved ? 600 : 400,
+          cursor: "pointer", transition: "all 0.4s",
+        }}>
+          {claritySaved ? "See Your Field →" : "Continue to What's Growing →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// PHASE 5: THE FIELD v5.1
+// 16 cards. Each its own universe.
+// ═══════════════════════════════════════════════
+
+// ── Field SVG Illustrations ──
+
+function ChrysalisButterfly({ morphed }) {
+  return (
+    <svg viewBox="0 0 280 240" style={{ width: "100%", maxWidth: 260 }}>
+      {!morphed ? (
+        <g>
+          <path d="M 140 30 Q 143 50 138 70" stroke="#8B7355" strokeWidth="2.5" fill="none" />
+          <ellipse cx="138" cy="115" rx="24" ry="44" fill="url(#cocoon)" />
+          <path d="M 138 70 Q 135 82 138 92" stroke="#A09070" strokeWidth="1.5" fill="none" />
+          {[0,1,2].map(i => (
+            <ellipse key={i} cx="138" cy="115" rx={28+i*6} ry={48+i*6} fill="none"
+              stroke="rgba(196,160,232,0.1)" strokeWidth="0.5">
+              <animate attributeName="rx" values={`${28+i*6};${32+i*6};${28+i*6}`} dur={`${3+i}s`} repeatCount="indefinite" />
+            </ellipse>
+          ))}
+        </g>
+      ) : (
+        <g style={{ animation: "riseUp 1s ease" }}>
+          <path d="M 140 120 Q 65 65 50 100 Q 30 135 65 165 Q 95 185 140 145" fill="url(#wL)" opacity="0.9">
+            <animateTransform attributeName="transform" type="rotate" values="-4 140 120;4 140 120;-4 140 120" dur="2.2s" repeatCount="indefinite" />
+          </path>
+          <path d="M 140 120 Q 215 65 230 100 Q 250 135 215 165 Q 185 185 140 145" fill="url(#wR)" opacity="0.9">
+            <animateTransform attributeName="transform" type="rotate" values="4 140 120;-4 140 120;4 140 120" dur="2.2s" repeatCount="indefinite" />
+          </path>
+          {[[95,118,10],[185,118,10],[80,140,7],[200,140,7]].map(([cx,cy,r],i) => (
+            <circle key={i} cx={cx} cy={cy} r={r} fill="rgba(255,255,255,0.2)" />
+          ))}
+          <ellipse cx="140" cy="132" rx="3.5" ry="18" fill="#2A1A3A" />
+          <path d="M 138 115 Q 125 95 120 90" stroke="#2A1A3A" strokeWidth="1.5" fill="none" />
+          <path d="M 142 115 Q 155 95 160 90" stroke="#2A1A3A" strokeWidth="1.5" fill="none" />
+          <circle cx="120" cy="90" r="2.5" fill="#FFD700" />
+          <circle cx="160" cy="90" r="2.5" fill="#FFD700" />
+        </g>
+      )}
+      <defs>
+        <radialGradient id="cocoon"><stop offset="0%" stopColor="#8B7B5B" /><stop offset="100%" stopColor="#5B4B35" /></radialGradient>
+        <linearGradient id="wL" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#E8A0D4" /><stop offset="50%" stopColor="#C470E8" /><stop offset="100%" stopColor="#8844CC" /></linearGradient>
+        <linearGradient id="wR" x1="1" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#E8A0D4" /><stop offset="50%" stopColor="#C470E8" /><stop offset="100%" stopColor="#8844CC" /></linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function TensionPull({ clicked }) {
+  return (
+    <svg viewBox="0 0 320 180" style={{ width: "100%", maxWidth: 320 }}>
+      {[80,60,40].map((r,i) => (
+        <ellipse key={i} cx="160" cy="90" rx={clicked ? r+60 : r} ry={clicked ? r*0.45+10 : r*0.45}
+          fill="none" stroke="url(#tf)" strokeWidth="0.8" opacity={0.15-i*0.04}
+          style={{ transition: "all 0.8s ease" }} />
+      ))}
+      <g style={{ transform: `translateX(${clicked ? -35 : 0}px)`, transition: "transform 0.8s ease" }}>
+        <circle cx="75" cy="90" r="28" fill="url(#pL)" />
+        <circle cx="75" cy="90" r="34" fill="none" stroke="#FF6B6B" strokeWidth="0.5" opacity="0.3">
+          <animate attributeName="r" values="34;40;34" dur="2s" repeatCount="indefinite" />
+        </circle>
+      </g>
+      <g style={{ transform: `translateX(${clicked ? 35 : 0}px)`, transition: "transform 0.8s ease" }}>
+        <circle cx="245" cy="90" r="28" fill="url(#pR)" />
+        <circle cx="245" cy="90" r="34" fill="none" stroke="#6BC5FF" strokeWidth="0.5" opacity="0.3">
+          <animate attributeName="r" values="34;40;34" dur="2.3s" repeatCount="indefinite" />
+        </circle>
+      </g>
+      {clicked && (
+        <g style={{ animation: "riseUp 0.6s ease" }}>
+          <circle cx="160" cy="50" r="22" fill="url(#gG)" />
+          <text x="160" y="56" textAnchor="middle" fontSize="18" fill="#FFD700" fontFamily="serif">✦</text>
+        </g>
+      )}
+      {clicked && [0,1,2].map(i => (
+        <line key={i} x1={120+i*20} y1={75+i*5} x2={135+i*18} y2={80+i*3}
+          stroke="#FFD700" strokeWidth="1.5" opacity="0.5" fill="none">
+          <animate attributeName="opacity" values="0.3;0.7;0.3" dur={`${0.6+i*0.2}s`} repeatCount="indefinite" />
+        </line>
+      ))}
+      <defs>
+        <linearGradient id="tf"><stop offset="0%" stopColor="#FF6B6B" /><stop offset="50%" stopColor="#FFD700" /><stop offset="100%" stopColor="#6BC5FF" /></linearGradient>
+        <radialGradient id="pL"><stop offset="0%" stopColor="#FF8888" /><stop offset="100%" stopColor="#CC3333" /></radialGradient>
+        <radialGradient id="pR"><stop offset="0%" stopColor="#88CCFF" /><stop offset="100%" stopColor="#3388CC" /></radialGradient>
+        <radialGradient id="gG"><stop offset="0%" stopColor="rgba(255,215,0,0.4)" /><stop offset="100%" stopColor="rgba(255,215,0,0)" /></radialGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function SessionPortrait() {
+  const rings = [
+    { r: 100, color: "#FF6B9D", width: 4, dash: "8 4", speed: 60 },
+    { r: 78, color: "#FFB86B", width: 3, dash: "12 8", speed: 45 },
+    { r: 56, color: "#6BFFB8", width: 2.5, dash: "4 12", speed: 80 },
+    { r: 38, color: "#B86BFF", width: 2, dash: "20 4", speed: 35 },
+    { r: 22, color: "#FFD700", width: 6, dash: "2 6", speed: 50 },
+  ];
+  return (
+    <svg viewBox="0 0 260 260" style={{ width: "100%", maxWidth: 240 }}>
+      {rings.map((ring, i) => (
+        <circle key={i} cx="130" cy="130" r={ring.r} fill="none"
+          stroke={ring.color} strokeWidth={ring.width}
+          strokeDasharray={ring.dash} strokeLinecap="round" opacity="0.7">
+          <animateTransform attributeName="transform" type="rotate"
+            from={`0 130 130`} to={`${i%2===0?360:-360} 130 130`} dur={`${ring.speed}s`} repeatCount="indefinite" />
+        </circle>
+      ))}
+      <circle cx="130" cy="130" r="6" fill="white" opacity="0.8" />
+      <circle cx="130" cy="130" r="12" fill="none" stroke="white" strokeWidth="0.5" opacity="0.3">
+        <animate attributeName="r" values="12;18;12" dur="3s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+}
+
+function ThreadTimeline() {
+  const points = [
+    { s: 3, strength: 0.2 }, { s: 7, strength: 0.3 }, { s: 12, strength: 0.1 },
+    { s: 18, strength: 0.15 }, { s: 28, strength: 0.6 }, { s: 29, strength: 0.7 },
+    { s: 30, strength: 0.8 }, { s: 32, strength: 0.9 },
+  ];
+  const w = 300, h = 100;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", maxWidth: 300 }}>
+      <line x1="0" y1={h-10} x2={w} y2={h-10} stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+      <path d={points.map((p, i) => {
+        const x = (p.s / 32) * w; const y = h - 10 - (p.strength * (h - 20));
+        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+      }).join(' ')} fill="none" stroke="url(#threadG)" strokeWidth="2.5" strokeLinecap="round" />
+      {points.map((p, i) => {
+        const x = (p.s / 32) * w; const y = h - 10 - (p.strength * (h - 20));
+        return <circle key={i} cx={x} cy={y} r={3 + p.strength * 4} fill="#FFB86B" opacity={0.4 + p.strength * 0.6} />;
+      })}
+      <text x="0" y={h} fontSize="10" fill="rgba(255,255,255,0.3)" fontFamily={FB}>1</text>
+      <text x={w-10} y={h} fontSize="10" fill="#FFB86B" fontFamily={FB}>32</text>
+      <defs>
+        <linearGradient id="threadG" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="rgba(255,184,107,0.3)" /><stop offset="100%" stopColor="#FFB86B" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
+function SeedToTree({ morphed }) {
+  return (
+    <svg viewBox="0 0 280 300" style={{ width: "100%", maxWidth: 260 }}>
+      <ellipse cx="140" cy="260" rx={morphed ? 100 : 40} ry="8" fill="rgba(107,255,184,0.1)" style={{ transition: "all 1.2s ease" }} />
+      {!morphed ? (
+        <g>
+          <ellipse cx="140" cy="240" rx="14" ry="10" fill="#8B7B5B" />
+          <ellipse cx="140" cy="238" rx="10" ry="6" fill="#A09070" opacity="0.5" />
+          <path d="M 140 230 Q 140 222 142 218" stroke="#6BFFB8" strokeWidth="2" fill="none" opacity="0.5" />
+          <ellipse cx="140" cy="240" rx="24" ry="18" fill="none" stroke="#6BFFB8" strokeWidth="0.5" opacity="0.2">
+            <animate attributeName="rx" values="24;30;24" dur="3s" repeatCount="indefinite" />
+          </ellipse>
+        </g>
+      ) : (
+        <g style={{ animation: "riseUp 1.2s ease" }}>
+          <path d="M 140 258 Q 138 200 140 140" stroke="#6B8B5B" strokeWidth="5" fill="none" strokeLinecap="round" />
+          <path d="M 140 180 Q 110 160 90 150" stroke="#6B8B5B" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <path d="M 140 180 Q 170 155 195 148" stroke="#6B8B5B" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <path d="M 140 155 Q 120 135 100 128" stroke="#6B8B5B" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+          <path d="M 140 155 Q 165 130 180 125" stroke="#6B8B5B" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+          <path d="M 140 140 Q 130 120 125 108" stroke="#6B8B5B" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M 140 140 Q 155 118 162 108" stroke="#6B8B5B" strokeWidth="2" fill="none" strokeLinecap="round" />
+          {[[90,145,22],[195,143,20],[100,122,18],[180,120,18],[125,102,16],[162,102,16],[140,90,20]].map(([cx,cy,r],i) => (
+            <circle key={i} cx={cx} cy={cy} r={r} fill={`rgba(107,255,184,${0.12+i*0.02})`}>
+              <animate attributeName="r" values={`${r};${r+2};${r}`} dur={`${2.5+i*0.3}s`} repeatCount="indefinite" />
+            </circle>
+          ))}
+          {[[95,140],[188,138],[105,118],[175,116],[130,98],[155,98],[140,85]].map(([x,y],i) => (
+            <circle key={i} cx={x} cy={y} r="2" fill="#6BFFB8" opacity="0.6">
+              <animate attributeName="opacity" values="0.3;0.8;0.3" dur={`${1.5+i*0.4}s`} repeatCount="indefinite" />
+            </circle>
+          ))}
+          <path d="M 136 258 Q 120 268 105 272" stroke="#5B7B4B" strokeWidth="2" fill="none" opacity="0.5" />
+          <path d="M 144 258 Q 160 268 175 272" stroke="#5B7B4B" strokeWidth="2" fill="none" opacity="0.5" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function SunriseViz() {
+  return (
+    <svg viewBox="0 0 320 200" style={{ width: "100%", maxWidth: 320 }}>
+      <rect x="0" y="0" width="320" height="200" fill="url(#sky)" rx="8" />
+      <circle cx="160" cy="110" r="35" fill="url(#sun)">
+        <animate attributeName="cy" values="110;95;110" dur="6s" repeatCount="indefinite" />
+      </circle>
+      {[0,30,60,90,120,150,180,210,240,270,300,330].map((angle, i) => {
+        const rad = (angle * Math.PI) / 180;
+        const x1 = 160 + 42 * Math.cos(rad), y1 = 105 + 42 * Math.sin(rad);
+        const x2 = 160 + (55 + i%3*8) * Math.cos(rad), y2 = 105 + (55 + i%3*8) * Math.sin(rad);
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#FFD700" strokeWidth="1.5" opacity="0.3" strokeLinecap="round">
+          <animate attributeName="opacity" values="0.15;0.4;0.15" dur={`${2+i*0.2}s`} repeatCount="indefinite" />
+        </line>;
+      })}
+      <line x1="0" y1="145" x2="320" y2="145" stroke="rgba(255,215,0,0.2)" strokeWidth="1" />
+      <ellipse cx="160" cy="170" rx="60" ry="8" fill="rgba(255,215,0,0.08)" />
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(30,20,60,0.8)" /><stop offset="50%" stopColor="rgba(80,40,20,0.4)" /><stop offset="100%" stopColor="rgba(255,180,80,0.15)" />
+        </linearGradient>
+        <radialGradient id="sun"><stop offset="0%" stopColor="#FFE44D" /><stop offset="60%" stopColor="#FFB830" /><stop offset="100%" stopColor="#FF8800" /></radialGradient>
+      </defs>
+    </svg>
+  );
+}
+
+// ── Field Tiny Components ──
+
+function FC({ children }) {
+  return <div style={{ display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", height:"100%", padding:"60px 28px", textAlign:"center", position:"relative" }}>{children}</div>;
+}
+function FLabel({ color, children }) {
+  return <div style={{ fontSize:12, letterSpacing:"0.35em", fontWeight:600, color, marginBottom:24, fontFamily:FB, zIndex:1 }}>{children}</div>;
+}
+function FHero({ size=42, color="white", children }) {
+  return <h1 style={{ fontSize:size, fontWeight:400, lineHeight:1.15, margin:0, color, fontFamily:FD, fontStyle:"italic", zIndex:1 }}>{children}</h1>;
+}
+function FBody({ color, style={}, children }) {
+  return <p style={{ fontSize:20, margin:0, lineHeight:1.5, fontFamily:FD, fontStyle:"italic", color, zIndex:1, ...style }}>{children}</p>;
+}
+function FTap({ color, children }) {
+  return <div style={{ fontSize:15, marginTop:24, fontFamily:FB, color, opacity:0.7, zIndex:1 }}>{children}</div>;
+}
+function FOrb({ color, children }) {
+  return <div style={{ width:72, height:72, borderRadius:"50%", background:`${color}22`, border:`2px solid ${color}55`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color, fontFamily:FB, fontWeight:500 }}>{children}</div>;
+}
+
+// ── Field: Spotify-Wrapped-style reveal, powered by session data ──
+
+function DataPortrait({ themes }) {
+  const rings = (themes || []).slice(0, 7).map(function(t, i) {
+    var base = 110 - i * 16;
+    return { r: Math.max(16, base), color: t.color || NC[i % NC.length], width: 2 + (t.weight || 1) * 0.8, dash: [8, 12, 4, 20, 6, 14][i % 6] + " " + [4, 8, 12, 4, 10, 6][i % 6], speed: 30 + i * 12 };
+  });
+  return (
+    <svg viewBox="0 0 260 260" style={{ width: "100%", maxWidth: 240 }}>
+      {rings.map(function(ring, i) {
+        return <circle key={i} cx="130" cy="130" r={ring.r} fill="none" stroke={ring.color} strokeWidth={ring.width} strokeDasharray={ring.dash} strokeLinecap="round" opacity="0.7">
+          <animateTransform attributeName="transform" type="rotate" from="0 130 130" to={(i%2===0?"360":"-360")+" 130 130"} dur={ring.speed+"s"} repeatCount="indefinite" />
+        </circle>;
+      })}
+      <circle cx="130" cy="130" r="6" fill="white" opacity="0.8" />
+      <circle cx="130" cy="130" r="12" fill="none" stroke="white" strokeWidth="0.5" opacity="0.3">
+        <animate attributeName="r" values="12;18;12" dur="3s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+}
+
+function FieldPhase({ synthesisData, rawText }) {
+  const sd = synthesisData || {};
+  const themes = (sd.themes || []).map(function(t, i) { return { label: t.label, weight: t.weight || 1, color: t.color || NC[i % NC.length] }; });
+  const conns = sd.connections || [];
+  const tension = sd.tension || null;
+  const synthesis = sd.synthesis || "";
+  const underneath = sd.underneath || [];
+  const opening = sd.opening || "";
+  const mapTitle = sd.map_title || "";
+  const noticing = sd.noticing || "";
+
+  // Computed stats from raw text
+  var words = (rawText || "").split(/\s+/).filter(Boolean);
+  var wordCount = words.length;
+  var uniqueWords = [...new Set(words.map(function(w) { return w.toLowerCase().replace(/[^a-z]/g, ""); }))].filter(function(w) { return w.length > 0; });
+  var firstWord = words[0] || "—";
+  var lastWord = words[words.length - 1] || "—";
+  // Find most repeated meaningful word (4+ chars)
+  var freq = {};
+  words.forEach(function(w) { var k = w.toLowerCase().replace(/[^a-z]/g, ""); if (k.length >= 4) freq[k] = (freq[k] || 0) + 1; });
+  var topWord = Object.keys(freq).sort(function(a, b) { return freq[b] - freq[a]; })[0] || "this";
+  var topWordCount = freq[topWord] || 0;
+
+  // Strongest connection
+  var strongConn = conns[0] || null;
+
+  const CARDS = [
+    { type: "title", bg: "linear-gradient(160deg, #1A0A2E 0%, #3D1D6B 40%, #E84393 100%)" },
+    { type: "words", bg: "linear-gradient(160deg, #0A2E1A 0%, #1B6B3D 40%, #6BFF9D 100%)" },
+    { type: "top_themes", bg: "linear-gradient(160deg, #2E0A1A 0%, #6B1D3D 40%, #FF6B9D 100%)" },
+    { type: "synthesis", bg: "linear-gradient(160deg, #2E1A0A 0%, #6B3D1D 40%, #D6B26D 100%)" },
+    { type: "connection", bg: "linear-gradient(160deg, #0D0D2B 0%, #1A1A4B 40%, #6BB8FF 100%)" },
+    { type: "bigword", bg: "linear-gradient(160deg, #0A2E2E 0%, #1D4B4B 40%, #7ECABA 100%)" },
+    { type: "tension", bg: "linear-gradient(160deg, #0A1A2E 0%, #1D3D6B 40%, #6BB8FF 100%)", interactive: true },
+    { type: "underneath", bg: "linear-gradient(160deg, #1A0A2E 0%, #2D1B4B 40%, #B86BFF 100%)" },
+    { type: "portrait", bg: "linear-gradient(160deg, #1A0A2E 0%, #3D1D6B 40%, #E84393 100%)" },
+    { type: "opening", bg: "linear-gradient(160deg, #0A2E1A 0%, #1B4B3D 40%, #6BFFB8 100%)" },
+    { type: "closing", bg: "linear-gradient(160deg, #0A2E1A 0%, #1B6B3D 40%, #6BFFB8 100%)" },
+  ];
+
+  const [current, setCurrent] = useState(0);
+  const [clicked, setClicked] = useState(false);
+  const containerRef = useRef(null);
+  const card = CARDS[current];
+
+  const advance = () => {
+    if (card.interactive && !clicked) { setClicked(true); return; }
+    if (current < CARDS.length - 1) { setCurrent(function(c) { return c + 1; }); setClicked(false); }
+  };
+  const goBack = () => { if (current > 0) { setCurrent(function(c) { return c - 1; }); setClicked(false); } };
+  const handleClick = (e) => {
+    var rect = containerRef.current ? containerRef.current.getBoundingClientRect() : null;
+    if (!rect) return;
+    var x = (e.clientX || (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : 0)) - rect.left;
+    x < rect.width * 0.25 ? goBack() : advance();
+  };
+
+  useEffect(() => {
+    var handler = function(e) {
+      if (e.key === "ArrowRight" || e.key === " ") advance();
+      else if (e.key === "ArrowLeft") goBack();
+    };
+    window.addEventListener("keydown", handler);
+    return function() { window.removeEventListener("keydown", handler); };
+  }, [current, clicked]);
+
+  const renderCard = () => {
+    switch (card.type) {
+
+      case "title": return (
+        <FC>
+          <FieldParticles color="#E84393" count={30} />
+          <FLabel color="#E84393">THIS SESSION</FLabel>
+          <FHero size={52}>Your Field</FHero>
+          {mapTitle ? (
+            <FBody color="rgba(232,67,147,0.6)" style={{ marginTop: 16, fontSize: 18 }}>{mapTitle}</FBody>
+          ) : (
+            <FBody color="rgba(255,255,255,0.5)" style={{ marginTop: 16, fontSize: 20 }}>What emerged from<br/>your words</FBody>
+          )}
+          <FBody color="rgba(255,255,255,0.25)" style={{ marginTop: 60, fontSize: 14 }}>tap to begin →</FBody>
+        </FC>
+      );
+
+      case "words": return (
+        <FC>
+          <FieldParticles color="#6BFFB8" count={25} />
+          <FLabel color="#6BFFB8">YOU POURED</FLabel>
+          <div style={{ fontSize: wordCount > 999 ? 100 : 130, fontWeight: 300, color: "white", lineHeight: 1, fontFamily: FD, letterSpacing: "-0.04em" }}>
+            {wordCount.toLocaleString()}
+          </div>
+          <FBody color="rgba(255,255,255,0.5)" style={{ fontSize: 20, marginBottom: 28 }}>words out</FBody>
+          <div style={{ display: "flex", gap: 20, marginTop: 8 }}>
+            {[
+              ["💬", Math.round(wordCount / 50) + " texts"],
+              ["📧", Math.round(wordCount / 200) + " emails"],
+              ["🧠", uniqueWords.length + " unique"],
+            ].map(function(pair, i) {
+              return <div key={i} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 28 }}>{pair[0]}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: FB, marginTop: 4 }}>{pair[1]}</div>
+              </div>;
+            })}
+          </div>
+        </FC>
+      );
+
+      case "top_themes": return (
+        <FC>
+          <FieldParticles color="#FF6B9D" count={15} />
+          <FLabel color="#FF6B9D">YOUR FORCES</FLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, width: "100%", maxWidth: 300 }}>
+            {themes.slice(0, 5).map(function(t, i) {
+              var pct = Math.min(100, Math.round((t.weight / 5) * 100));
+              return <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, animation: "riseUp 0.5s ease " + (i * 0.12) + "s both" }}>
+                <span style={{ fontSize: 32, color: t.color, fontFamily: FD, fontWeight: 400, width: 32, textAlign: "center" }}>{i + 1}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 20, color: "white", fontFamily: FD, fontStyle: "italic" }}>{t.label}</span>
+                  </div>
+                  <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ width: pct + "%", height: "100%", background: "linear-gradient(90deg, " + t.color + "66, " + t.color + ")", borderRadius: 3, animation: "growWidth 1s ease " + (i * 0.15) + "s both" }} />
+                  </div>
+                </div>
+              </div>;
+            })}
+          </div>
+          <FBody color="#FF6B9D" style={{ marginTop: 24, fontSize: 16 }}>{themes.length} forces shaping this session</FBody>
+        </FC>
+      );
+
+      case "synthesis": return (
+        <FC>
+          <FieldParticles color="#D6B26D" count={12} />
+          <FLabel color="#D6B26D">THE READING</FLabel>
+          <div style={{ fontSize: 26, color: "white", fontFamily: FD, fontStyle: "italic", lineHeight: 1.4, textAlign: "center", maxWidth: 320, animation: "riseUp 0.8s ease" }}>
+            {synthesis || "Something is moving underneath your words."}
+          </div>
+          {noticing && <FBody color="rgba(255,255,255,0.25)" style={{ marginTop: 32, fontSize: 13, maxWidth: 280 }}>
+            ✦ {noticing}
+          </FBody>}
+        </FC>
+      );
+
+      case "connection": return (
+        <FC>
+          <FieldParticles color="#6BB8FF" count={15} />
+          <FLabel color="#6BB8FF">THE LINK</FLabel>
+          {strongConn ? (<>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "20px 0" }}>
+              <FOrb color={themes.find(function(t) { return t.label === strongConn.from; })?.color || "#FFB86B"}>{strongConn.from.length > 10 ? strongConn.from.slice(0, 9) + "…" : strongConn.from}</FOrb>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <div style={{ width: 50, height: 2, background: "linear-gradient(90deg, #FFB86B, #6BB8FF)" }} />
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>{strongConn.label}</span>
+              </div>
+              <FOrb color={themes.find(function(t) { return t.label === strongConn.to; })?.color || "#6BB8FF"}>{strongConn.to.length > 10 ? strongConn.to.slice(0, 9) + "…" : strongConn.to}</FOrb>
+            </div>
+            <FBody color="#6BB8FF" style={{ fontSize: 20, maxWidth: 300 }}>{strongConn.insight}</FBody>
+          </>) : (
+            <FHero size={34}>Connections are<br/>still forming</FHero>
+          )}
+        </FC>
+      );
+
+      case "bigword": return (
+        <FC>
+          <FieldParticles color="#7ECABA" count={20} />
+          <FLabel color="#7ECABA">HIDDEN PATTERN</FLabel>
+          <FBody color="rgba(255,255,255,0.4)" style={{ fontSize: 18, marginBottom: 8 }}>you wrote the word</FBody>
+          <div style={{ fontSize: 52, color: "#7ECABA", fontFamily: FD, fontStyle: "italic", marginBottom: 4 }}>{topWord}</div>
+          <div style={{ fontSize: 120, fontWeight: 300, color: "white", lineHeight: 1, fontFamily: FD }}>{topWordCount}</div>
+          <FBody color="rgba(255,255,255,0.4)" style={{ fontSize: 16 }}>times</FBody>
+        </FC>
+      );
+
+      case "tension": {
+        var tA = tension ? tension.a : "one force";
+        var tB = tension ? tension.b : "another";
+        var tText = tension ? tension.text : "";
+        return (
+          <FC>
+            <FLabel color="#6BB8FF">YOUR TENSION</FLabel>
+            <div style={{ display: "flex", justifyContent: "space-between", width: "100%", maxWidth: 300, marginBottom: 4 }}>
+              <span style={{ fontSize: 26, color: "#FF6B6B", fontFamily: FD, fontStyle: "italic" }}>{tA}</span>
+              <span style={{ fontSize: 26, color: "#6BC5FF", fontFamily: FD, fontStyle: "italic" }}>{tB}</span>
+            </div>
+            <TensionPull clicked={clicked} />
+            {!clicked ? (
+              <FTap color="#6BB8FF">tap to see what lives in the tension →</FTap>
+            ) : (
+              <div style={{ animation: "riseUp 0.6s ease", textAlign: "center" }}>
+                <FBody color="rgba(255,255,255,0.5)" style={{ fontSize: 16, maxWidth: 300 }}>{tText}</FBody>
+              </div>
+            )}
+          </FC>
+        );
+      }
+
+      case "underneath": return (
+        <FC>
+          <FieldParticles color="#B86BFF" count={12} />
+          <FLabel color="#B86BFF">WHAT'S UNDERNEATH</FLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 320, width: "100%" }}>
+            {underneath.map(function(t, i) {
+              return <div key={i} style={{ padding: "16px 20px", borderRadius: 16, background: "rgba(183,107,255,0.06)", border: "1px solid rgba(183,107,255,0.12)", animation: "riseUp 0.5s ease " + (i * 0.15) + "s both" }}>
+                <p style={{ fontSize: 17, color: "rgba(255,255,255,0.65)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.5, margin: 0 }}>{t}</p>
+              </div>;
+            })}
+          </div>
+        </FC>
+      );
+
+      case "portrait": return (
+        <FC>
+          <FLabel color="#E84393">YOUR SESSION PORTRAIT</FLabel>
+          <FBody color="rgba(255,255,255,0.4)" style={{ fontSize: 15, marginBottom: 20 }}>
+            {themes.length} forces rendered as one shape
+          </FBody>
+          <DataPortrait themes={themes} />
+          <FBody color="rgba(255,255,255,0.4)" style={{ fontSize: 14, marginTop: 20, maxWidth: 260 }}>
+            Each ring is a force in your field.<br/>Speed, thickness, and color from your data.<br/>This shape is yours alone.
+          </FBody>
+        </FC>
+      );
+
+      case "opening": return (
+        <FC>
+          <FieldParticles color="#6BFFB8" count={20} />
+          <FLabel color="#6BFFB8">WHAT'S OPENING</FLabel>
+          <div style={{ fontSize: 28, color: "#6BFFB8", fontFamily: FD, fontStyle: "italic", lineHeight: 1.4, textAlign: "center", maxWidth: 300, animation: "riseUp 0.8s ease" }}>
+            {opening || "Something is trying to emerge."}
+          </div>
+          <div style={{ marginTop: 40, textAlign: "center" }}>
+            <FBody color="rgba(255,255,255,0.3)" style={{ fontSize: 14, marginBottom: 8 }}>Your first word:</FBody>
+            <div style={{ fontSize: 28, color: "rgba(255,255,255,0.3)", fontFamily: FD, fontStyle: "italic", marginBottom: 20 }}>{firstWord}</div>
+            <FBody color="rgba(255,255,255,0.3)" style={{ fontSize: 14, marginBottom: 8 }}>Your last word:</FBody>
+            <div style={{ fontSize: 34, color: "#6BFFB8", fontFamily: FD, fontStyle: "italic" }}>{lastWord}</div>
+          </div>
+        </FC>
+      );
+
+      case "closing": return (
+        <FC>
+          <FieldParticles color="#6BFFB8" count={40} />
+          <div style={{ marginBottom: 24 }}>
+            <svg viewBox="0 0 160 160" style={{ width: 120, height: 120 }}>
+              {[50,40,30,20].map(function(r,i) {
+                var col = themes[i] ? themes[i].color : "#6BFFB8";
+                return <circle key={i} cx="80" cy="80" r={r} fill="none" stroke={col} strokeWidth={i===3?2:0.8} opacity={0.1+i*0.08}>
+                  <animate attributeName="r" values={r+";"+(r+6)+";"+r} dur={(3+i*0.5)+"s"} repeatCount="indefinite" />
+                </circle>;
+              })}
+              <circle cx="80" cy="80" r="8" fill={themes[0] ? themes[0].color : "#6BFFB8"} opacity="0.8">
+                <animate attributeName="r" values="8;10;8" dur="2.5s" repeatCount="indefinite" />
+              </circle>
+            </svg>
+          </div>
+          <div style={{ fontSize: 16, color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 20, letterSpacing: "0.3em", zIndex: 1 }}>THE FIELD</div>
+          <FHero size={44}>You named<br/>what you're<br/>carrying</FHero>
+          {mapTitle && <FBody color="rgba(107,255,184,0.5)" style={{ marginTop: 20, fontSize: 18 }}>{mapTitle}</FBody>}
+          <FBody color="rgba(255,255,255,0.25)" style={{ marginTop: 32, fontSize: 15 }}>
+            That's the first move.
+          </FBody>
+          <FBody color="rgba(255,255,255,0.15)" style={{ marginTop: 24, fontSize: 14 }}>
+            Next session whenever you're ready.
+          </FBody>
+        </FC>
+      );
+
+      default: return null;
+    }
+  };
+
+  return (
+    <div ref={containerRef} onClick={handleClick} style={{
+      width: "100%", height: "100%", background: card.bg,
+      position: "absolute", inset: 0,
+      cursor: "pointer", userSelect: "none", transition: "background 0.6s ease",
+    }}>
+      <div style={{ display: "flex", gap: 2.5, padding: "12px 14px 0", position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 }}>
+        {CARDS.map(function(_, i) {
+          return <div key={i} style={{
+            flex: 1, height: 2.5, borderRadius: 2,
+            background: i < current ? "rgba(255,255,255,0.6)" : i === current ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.12)",
+          }} />;
+        })}
+      </div>
+      <div key={current + "-" + clicked} style={{ width: "100%", height: "100%", animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out" }}>
+        {renderCard()}
+      </div>
+    </div>
+  );
+}
+
+// ═══════ MAIN ═══════
+function SAYCRDFlow() {
+  const [phase, setPhase] = useState(0);
+  const [rawText, setRawText] = useState("");
+  const [synthesisData, setSynthesisData] = useState(null);
+  const cp = PHASES[phase];
+  return (
+    <div style={{width:"100%",height:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"center"}}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet"/>
+      <div style={{width:"100%",maxWidth:420,height:"100vh",maxHeight:860,background:GRADIENTS[cp],position:"relative",overflow:"hidden",transition:"background 0.8s ease"}}>
+        {phase<4&&<PhaseIndicator current={phase} phases={PHASES.slice(0,4)}/>}
+        <div key={phase} style={{width:"100%",height:"100%",animation:"slideIn 0.4s ease-out"}}>
+          {cp==="pour"&&<PourPhase onComplete={(t)=>{setRawText(t);setPhase(1);}}/>}
+          {cp==="synthesize"&&<SynthesizePhase rawText={rawText} onComplete={()=>setPhase(2)} onSynthesis={setSynthesisData}/>}
+          {cp==="map"&&<MapPhase onComplete={()=>setPhase(3)} synthesisData={synthesisData} rawText={rawText}/>}
+          {cp==="session"&&<SessionPhase onComplete={()=>setPhase(4)} synthesisData={synthesisData}/>}
+          {cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText}/>}
+        </div>
+      </div>
+      <style>{`
+        @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes morphIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+        @keyframes riseUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:0.7}50%{opacity:1}}
+        @keyframes growWidth{from{width:0%}}
+        @keyframes floatParticle{0%,100%{transform:translateY(0) translateX(0)}33%{transform:translateY(-10px) translateX(5px)}66%{transform:translateY(5px) translateX(-7px)}}
+        @keyframes fieldFloat{0%,100%{transform:translateY(0) translateX(0)}33%{transform:translateY(-12px) translateX(6px)}66%{transform:translateY(6px) translateX(-8px)}}
+        @keyframes floatWord{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+        @keyframes connBlink{0%,100%{opacity:0.65;filter:brightness(1)}50%{opacity:1;filter:brightness(1.4)}}
+        @keyframes ringPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.15)}}
+        @keyframes nodeBreathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
+        @keyframes drawerIn{from{opacity:0;transform:translate(-50%,24px) scale(0.95)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+        @keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+        *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
+        body{margin:0;background:#000;overflow:hidden}
+        textarea::placeholder{color:rgba(255,255,255,0.15)}
+        textarea{caret-color:#6BB8FF}
+        button:active{transform:scale(0.97)}
+        ::-webkit-scrollbar{width:3px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+      `}</style>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<SAYCRDFlow />);
+</script>
+</body>
+</html>
