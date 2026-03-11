@@ -1,7 +1,7 @@
 const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = React;
 
 async function callClaudeClient(sys, usr, max) {
-  if (window.callClaude) return window.callClaudeClient(sys, usr, max);
+  if (window.callClaude) return window.callClaude(sys, usr, max);
   throw new Error("API unavailable. Please sign in and try again.");
 }
 
