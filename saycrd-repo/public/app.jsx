@@ -1191,9 +1191,21 @@ return () => { window.removeEventListener("pointermove", m); window.removeEventL
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "22px 0 0", overflow: "hidden" }}>
 <Particles color="rgba(107,184,255,0.25)" count={6}/>
-<div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 8px", height: 36 }}>
-<div style={{ fontSize: 9, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", fontFamily: FB }}>{sd && sd.map_title ? sd.map_title.toUpperCase() : "YOUR CONSTELLATION"}</div>
-<p style={{ fontSize: 10, color: snapTarget?"#7DB7AE":selectedNode?"#6BFFB8":explored===0?"rgba(107,184,255,0.8)":"rgba(255,255,255,0.35)", fontFamily: FB, margin: "1px 0 0", fontWeight: snapTarget||selectedNode||explored===0?600:400, transition: "color 0.3s" }}>
+<div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 8px", height: 44 }}>
+<div style={{ fontSize: 9, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", fontFamily: FB }}>
+{sd && sd.map_title ? sd.map_title.toUpperCase() : "YOUR CONSTELLATION"}
+</div>
+{sd && sd.tension && sd.tension.a && sd.tension.b && (
+<div style={{ marginTop: 4, fontSize: 10, fontFamily: FB, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(197,227,255,0.85)" }}>
+{sd.tension.a} &nbsp;↔&nbsp; {sd.tension.b}
+</div>
+)}
+{sd && sd.tension && sd.tension.text && (
+<div style={{ marginTop: 4, fontSize: 10, fontFamily: FB, fontStyle: "italic", color: "rgba(220,235,255,0.75)" }}>
+{sd.tension.text}
+</div>
+)}
+<p style={{ fontSize: 10, color: snapTarget?"#7DB7AE":selectedNode?"#6BFFB8":explored===0?"rgba(107,184,255,0.8)":"rgba(255,255,255,0.35)", fontFamily: FB, margin: "4px 0 0", fontWeight: snapTarget||selectedNode||explored===0?600:400, transition: "color 0.3s" }}>
 {snapTarget ? `Release to connect → ${snapTarget}` : selectedNode ? `${selectedNode} selected — tap another node to link` : explored===0 ? "Tap a connection · drag nodes together to link" : `${explored} connections explored`}
 </p>
 </div>
