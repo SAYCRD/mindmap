@@ -1,9 +1,10 @@
 const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = React;
 
-async function callClaude(sys, usr, max) {
-if (window.callClaude) return window.callClaude(sys, usr, max);
-throw new Error("API unavailable. Please sign in and try again.");
+async function callClaudeClient(sys, usr, max) {
+  if (window.callClaude) return window.callClaudeClient(sys, usr, max);
+  throw new Error("API unavailable. Please sign in and try again.");
 }
+
 
 
 function parseJSON(raw) {
@@ -713,7 +714,7 @@ if (userSignalParts.length > 0) {
 userSignals = "\n\n" + userSignalParts.join("\n\n") + "\n══ END USER AUTHORITY ══";
 }
 console.log("[SAYCRD] Sending to Claude, awaiting response...");
-var raw = await callClaude(prompt, (rawText || "") + temporalContext + userSignals, 3500);
+var raw = await callClaudeClient(prompt, (rawText || "") + temporalContext + userSignals, 3500);
 console.log("[SAYCRD] AI raw response:", (raw||"").slice(0, 200));
 setStep(2);
 var data = parseJSON(raw);
@@ -738,7 +739,7 @@ console.warn("[SAYCRD] Retrying synthesis in 2s...");
 setStep(1);
 await new Promise(function(w) { setTimeout(w, 2000); });
 try {
-var retryResponse = await callClaude(prompt, rawText, 4000);
+var retryResponse = await callClaudeClient(prompt, rawText, 4000);
 var retryData = parseJSON(retryResponse);
 if (retryData && retryData.themes && retryData.themes.length > 0) {
 retryData.themes = retryData.themes.map(function(t, i) { return Object.assign({}, t, { color: NC[i % NC.length] }); });
@@ -1094,7 +1095,7 @@ setDiscoveredConns(function(prev) { return prev.concat([temp]); });
 var ctx = rawText ? "\nContext: " + rawText.slice(0, 400) : "";
 var p = "The user connected two themes on their map: \"" + a + "\" and \"" + b + "\"." + ctx + "\nGenerate a 2-4 word label and 1-2 sentence insight. JSON only: {\"label\":\"...\",\"insight\":\"...\"}";
 try {
-var raw = await callClaude(p, "Themes: " + a + " + " + b, 300);
+var raw = await callClaudeClient(p, "Themes: " + a + " + " + b, 300);
 var d = parseJSON(raw);
 if (d && d.label) {
 var real = { from: a, to: b, label: d.label.toUpperCase(), insight: d.insight || "", color: col, discovered: true };
@@ -1344,7 +1345,7 @@ try{
 var pr="User corrected an AI connection reading. Their words are PRIMARY — reflect them back, do not reinterpret.\n"
 +"USER SAID the connection between ["+fn+"] and ["+tn+"] is: \""+uw+"\"\n"
 +"Write ONE sentence (max 18 words) that mirrors their words as the connection insight. JSON: {\"insight\":\"...\"}";
-var rw=await callClaude(pr,"Connection: "+fn+" + "+tn+"\nUser said: "+uw,150);
+var rw=await callClaudeClient(pr,"Connection: "+fn+" + "+tn+"\nUser said: "+uw,150);
 var dw=parseJSON(rw);
 if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insight,label:activeConn.label,userAuthored:true}]});
 }catch(e){}
@@ -1469,7 +1470,7 @@ try {
 var p = "User responded to a guide suggestion. Their response is primary truth.\n"
 + "Do not praise. Do not validate. Mirror or sharpen. If they correct or reframe — honor the correction.\n"
 + "ONE sentence, max 25 words. JSON: {\"echo\":\"...\"}";
-var raw = await callClaude(p, "Suggestion: \""+item.text+"\"\nUser said: \""+ur+"\"", 180);
+var raw = await callClaudeClient(p, "Suggestion: \""+item.text+"\"\nUser said: \""+ur+"\"", 180);
 var d = parseJSON(raw);
 var echoText = d && d.echo ? d.echo : null;
 if (echoText) setEcho(echoText);
@@ -2015,7 +2016,7 @@ setSignalStatus("recomputing");
 try {
 var themes = (sd.themes||[]).map(function(t){return t.label;}).join(", ");
 var tension = sd.tension ? sd.tension.a + " vs " + sd.tension.b : "none";
-var raw = await callClaude(
+var raw = await callClaudeClient(
 "The user has pushed back on part of your reading. Their pushback is the truth — not counter-evidence to be managed, but correction to be honored.\n"
 + "RULE: The resisted sentence was YOUR interpretation. The user knows their experience better than you do.\n"
 + "RULE: Do not defend or reframe the original reading. Update it.\n"
@@ -2977,7 +2978,7 @@ var prompt = "You are reading someone's psychological sessions over time.\n\n" +
 "If too sparse (only 1 prior session or no clear signal): respond {\"has_insight\":false}\n\n" +
 "Respond ONLY with valid JSON, no markdown.";
 
-callClaude(prompt, "", 400)
+callClaudeClient(prompt, "", 400)
 .then(function(res) {
 var d = parseJSON(res);
 if (d && d.has_insight && d.insight) { setInsight(d); setView("poster"); }
@@ -4212,7 +4213,7 @@ var cancelled = false;
 try {
 var themeList = themes.map(function(t){return t.label+"("+t.weight+")";}).join(", ");
 var p = "Field quality in 2-4 words (not generic). Themes: "+themeList+". JSON: {\"phrase\":\"words\",\"undercurrent\":\"sentence 10-14 words\"}";
-var rr = await callClaude(p, "fc", 80);
+var rr = await callClaudeClient(p, "fc", 80);
 if (!cancelled) { var dd = parseJSON(rr); if (dd) { if (dd.phrase && !dd.condition) dd.condition = dd.phrase; _fcSetPhrase(dd); } }
 } catch(e) {} finally { if (!cancelled) _fcSetLoading(false); }
 })();
@@ -4406,7 +4407,7 @@ var themeCtx = themes.slice(0,4).map(function(t){return t.label;}).join(", ");
 var _prevArchName2 = prevArch ? prevArch.name : "";
 var _shifted2 = _prevArchName2 && _prevArchName2 !== _abName;
 var p = "Archetype: "+_abName+". Prev: "+(_prevArchName2||"none")+". Themes: "+themeCtx+". Write a recognition sentence (10-16 words, bold, use 'You') and a shift phrase (3-5 words). JSON: {\"recognition\":\"...\",\"shift\":\"...\",\"shifted\":"+(_shifted2?"true":"false")+"}";
-var rr = await callClaude(p, "arch", 120);
+var rr = await callClaudeClient(p, "arch", 120);
 if (!cancelled) {
 var dd = parseJSON(rr);
 _abSetLine(dd&&dd.recognition ? dd : null);
@@ -4575,7 +4576,7 @@ try {
 var under = typeof (sd&&sd.underneath)==="string" ? sd.underneath : "";
 var blind = typeof (sd&&sd.blind_spot)==="string" ? sd.blind_spot : "";
 var p = "One sentence (10-14 words): what is just out of sight in this person's field? From: underneath="+under+" blind_spot="+blind+". JSON: {\"revelation\":\"sentence\"}";
-var rr = await callClaude(p, "df", 80);
+var rr = await callClaudeClient(p, "df", 80);
 if (!cancelled) { var dd = parseJSON(rr); if (dd&&dd.revelation) _dSetLine(dd.revelation); }
 } catch(e) {} finally { if (!cancelled) _dSetReady(true); }
 })();
@@ -4789,7 +4790,7 @@ var p = "Someone's inner life. The themes growing most in recent sessions: " + t
 + "Write ONE sentence (8-12 words). Not advice. Not analysis.\n"
 + "What is this person's life reaching toward? Poetic, warm, surprising. No clichés.\n"
 + 'JSON only: {"line":"sentence here"}';
-var rr = await callClaude(p, "whats growing", 80);
+var rr = await callClaudeClient(p, "whats growing", 80);
 if (cancelled) return;
 var dd = parseJSON(rr);
 _wgSetLine(dd && dd.line ? dd.line : null);
@@ -4964,7 +4965,7 @@ var ctx = "Previous session: arch="+_prevArch+" themes="+prevThemes;
 ctx += " | This session: arch="+_currArch+" themes="+currThemes;
 if (sd.blind_spot) ctx += " blind_spot="+String(sd.blind_spot).slice(0,60);
 var p = "One sentence (10-15 words): what specifically shifted internally between these two sessions? Plain, direct, third person.\n"+ctx+"\nJSON: {\"shift\":\"...\"}";
-var rr = await callClaude(p, "mirror", 80);
+var rr = await callClaudeClient(p, "mirror", 80);
 if (!cancelled) {
 var dd = parseJSON(rr);
 if (dd && dd.shift) _setShift(dd.shift);
@@ -5124,7 +5125,7 @@ var cancelled = false;
 try {
 var themeStr = themes.slice(0,4).map(function(t){return t.label;}).join(", ");
 var p = "Place this person's soul in the vertical landscape of consciousness. Themes: "+themeStr+". Realms: THE FORGE(0.1), THE STORM(0.3), THE THRESHOLD(0.5), THE CHRYSALIS(0.7), THE DAWN(0.9). JSON: {\"realmName\":\"THE X\",\"realmPosition\":0.5,\"witness\":\"10-14 words\",\"declaration\":\"3-6 words\"}";
-var rr = await callClaude(p, "realm", 120);
+var rr = await callClaudeClient(p, "realm", 120);
 if (!cancelled) {
 var dd = parseJSON(rr);
 if (dd&&dd.realmName) { dd.realmPosition=Math.max(0.05,Math.min(0.95,parseFloat(dd.realmPosition)||0.5)); _setRData(dd); }
@@ -5578,7 +5579,7 @@ var p = "You are the cinematographer for someone's inner journey across "+totalS
 + "WINTER_CLEARING — snow, stars, bare trees, cold clarity, everything stripped to essential truth\n\n"
 + 'JSON only: {"scene":"SCENE_NAME"}';
 
-var rr = await callClaude(p, "landscape closing", 80);
+var rr = await callClaudeClient(p, "landscape closing", 80);
 if (cancelled) return;
 var dd = parseJSON(rr);
 _setScene(dd && dd.scene ? dd.scene : "DAWN_MOUNTAINS");
@@ -6005,7 +6006,7 @@ var op=typeof s.opening==="string"?s.opening:"";
 return "S"+(si+1)+": arch="+a+" blind="+bl.slice(0,60)+" opening="+op.slice(0,60);
 }).join("\n");
 var p = "What is the ONE question this person has been living inside? 8-14 words. Make them catch their breath.\n"+bio+"\nJSON: {\"question\":\"...\",\"toward\":\"4-7 words\"}";
-var rr = await callClaude(p, "underdrawing", 150);
+var rr = await callClaudeClient(p, "underdrawing", 150);
 if (!cancelled) {
 var dd = parseJSON(rr);
 if (dd&&dd.question) { _setQuestion(dd.question); _setSubtitle(dd.toward||null); }
@@ -6218,7 +6219,7 @@ var prompt = "You are writing a confidential field report. Third person only. Al
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
 + 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}';
 
-var rr = await callClaude(prompt, "field_report", 700);
+var rr = await callClaudeClient(prompt, "field_report", 700);
 if (cancelled) return;
 var dd = parseJSON(rr);
 if (dd && dd.sections && dd.sections.length >= 3) {
@@ -6636,7 +6637,7 @@ var p = "You are the most perceptive analyst this person has ever encountered.\n
 + "pivotalLine: the single most piercing line from the entire synthesis. Their truth, precisely.\n"
 + 'JSON only — no markdown:\n{"fieldCondition":"...","undercurrent":"...","depths":"...","growing":"...","mirrorShift":"...","realmWitness":"...","realmDeclaration":"...","archetypeRecognition":"...","archetypeShift":"...","question":"...","toward":"...","pivotalLine":"..."}';
 
-var rr = await callClaude(p, "portrait", 600);
+var rr = await callClaudeClient(p, "portrait", 600);
 if (cancelled) return;
 var dd = parseJSON(rr);
 if (dd && dd.fieldCondition) {
@@ -8286,7 +8287,7 @@ var userInput = (rawText || "") + "\n\n" +
 pastContext;
 
 setStatus("building");
-var response = await callClaude(prompt, userInput, 3500);
+var response = await callClaudeClient(prompt, userInput, 3500);
 var data = parseJSON(response);
 
 if (data && data.themes && data.themes.length > 0) {
