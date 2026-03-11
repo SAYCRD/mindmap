@@ -184,6 +184,14 @@ window.onerror = function(msg, url, line, col, err) {
   console.error("SAYCRD ERROR:", msg, "line:", line);
   var errBox = document.getElementById("auth-error");
   if (errBox) errBox.textContent = "JS Error: " + msg + " (line " + line + ")";
+  try {
+    var root = document.getElementById("root");
+    if (root && (!root.innerHTML || root.innerHTML.trim() === "")) {
+      var details = "JS Error: " + msg + " (line " + line + ")";
+      if (err && err.stack) details += "\n\n" + String(err.stack).slice(0, 2000);
+      root.innerHTML = '<pre style="color:#ff6b6b;padding:20px;font-size:13px;white-space:pre-wrap">' + details.replace(/</g, "&lt;") + "</pre>";
+    }
+  } catch(e) {}
 };
 
 /* ====================================================================
