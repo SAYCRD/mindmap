@@ -833,26 +833,26 @@ touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.
 <div style={{ fontSize:17, color:"rgba(255,255,255,0.85)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>{connection.insight}</div>
 </div>
 {!done && <div data-slider="true">
-<div style={{ fontSize: 11, color: `${accent}88`, fontFamily: FB, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14, textAlign: "center" }}>how much does this land?</div>
-<SpectrumSlider color={accent} poleA="not at all" poleB="deeply" onSet={handleSet} value={value} />
+<div style={{ fontSize: 11, color: `${accent}88`, fontFamily: FB, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14, textAlign: "center" }}>how much does this feel like your life?</div>
+<SpectrumSlider color={accent} poleA="not how it lives in me" poleB="very alive in me" onSet={handleSet} value={value} />
 </div>}
 {done && !showComment && <div style={{textAlign:"center",padding:"8px 0",animation:"riseUp 0.5s ease"}}>
 {value > 66
-? <div style={{fontSize:14,fontFamily:FB,color:accent,fontWeight:600}}>deep resonance ✓</div>
+? <div style={{fontSize:14,fontFamily:FB,color:accent,fontWeight:600}}>very alive right now ✓</div>
 : value > 33
-? <div style={{fontSize:14,fontFamily:FB,color:accent,fontWeight:600}}>something's there ✓</div>
-: <div style={{fontSize:13,fontFamily:FB,color:"rgba(214,178,100,0.8)",fontWeight:600}}>your read carries this now</div>
+? <div style={{fontSize:14,fontFamily:FB,color:accent,fontWeight:600}}>there's something real here ✓</div>
+: <div style={{fontSize:13,fontFamily:FB,color:"rgba(214,178,100,0.8)",fontWeight:600}}>not quite how it lives in you</div>
 }
 {value >= 33 && <button onClick={function(e){e.stopPropagation();setShowComment(true);}} style={{display:"block",margin:"10px auto 0",fontSize:11,color:"rgba(255,255,255,0.22)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.08em",textDecoration:"underline",textUnderlineOffset:3}}>add a note →</button>}
 </div>}
 {done && showComment && <div style={{animation:"riseUp 0.4s ease",marginTop:8}}>
 {value <= 33
-? <div style={{fontSize:11,color:"rgba(214,178,100,0.7)",fontFamily:FB,letterSpacing:"0.1em",marginBottom:10}}>YOUR READ — this replaces mine:</div>
-: <div style={{fontSize:11,color:accent+"88",fontFamily:FB,letterSpacing:"0.1em",marginBottom:10}}>what's the actual connection?</div>
+? <div style={{fontSize:11,color:"rgba(214,178,100,0.7)",fontFamily:FB,letterSpacing:"0.1em",marginBottom:10}}>in your words, what’s here between these?</div>
+: <div style={{fontSize:11,color:accent+"88",fontFamily:FB,letterSpacing:"0.1em",marginBottom:10}}>anything you’d add to this pull?</div>
 }
 <textarea value={comment} onChange={function(e){setComment(e.target.value);}}
 onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();submitComment();}}}
-placeholder={value<=33?"what connects these, in your words...":"anything to add..."}
+placeholder={value<=33?"put the connection in your own words...":"small note, if anything wants to be said..."}
 style={{width:"100%",minHeight:64,
 background:value<=33?"rgba(40,30,8,0.6)":"rgba(255,255,255,0.04)",
 border:"1px solid "+(value<=33?"rgba(214,178,100,0.3)":accent+"33"),
@@ -862,7 +862,7 @@ lineHeight:1.6,boxSizing:"border-box"}}
 />
 <div style={{display:"flex",justifyContent:"space-between",marginTop:8,alignItems:"center"}}>
 {value<=33
-? <div style={{fontSize:10,color:"rgba(214,178,100,0.4)",fontFamily:FB}}>your words carry this connection</div>
+? <div style={{fontSize:10,color:"rgba(214,178,100,0.4)",fontFamily:FB}}>your words are how this lives in you</div>
 : <button onClick={onClose} style={{fontSize:11,color:"rgba(255,255,255,0.22)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.06em"}}>close without note</button>
 }
 <button onClick={submitComment}
@@ -870,7 +870,7 @@ style={{fontSize:12,fontFamily:FB,background:"transparent",
 border:"1px solid "+(comment.trim()?(value<=33?"rgba(214,178,100,0.6)":accent+"44"):"rgba(255,255,255,0.1)"),
 borderRadius:16,padding:"6px 18px",cursor:"pointer",
 color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.2)"
-}}>{value<=33?"this is the connection":"noted"}</button>
+}}>{value<=33?"this is how it lives":"noted"}</button>
 </div>
 </div>}
 </div>
