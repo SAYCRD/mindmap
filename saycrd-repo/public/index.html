@@ -539,16 +539,30 @@ window._localBypass = function() {
       });
       var endpoint = (window.SAYCRD_CONFIG && window.SAYCRD_CONFIG.API_ENDPOINT) || "/api/claude";
       var headers = { "Content-Type": "application/json" };
-      if (!window._saycrdToken && window.sbClient && window.sbClient.auth) {
-        try {
-          var ss = await window.sbClient.auth.getSession();
-          if (ss && ss.data && ss.data.session && ss.data.session.access_token) {
-            window._saycrdToken = ss.data.session.access_token;
-          }
-        } catch(e) {}
-      }
+      var ensureToken = async function() {
+        if (window._saycrdToken) return window._saycrdToken;
+        if (window.sbClient && window.sbClient.auth) {
+          try {
+            var ss = await window.sbClient.auth.getSession();
+            if (ss && ss.data && ss.data.session && ss.data.session.access_token) {
+              window._saycrdToken = ss.data.session.access_token;
+              return window._saycrdToken;
+            }
+          } catch(e) {}
+        }
+        return null;
+      };
+      await ensureToken();
       if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
       var r = await fetch(endpoint, { method: "POST", headers: headers, body: body });
+      if (r.status === 401) {
+        // Token race after refresh: try once more.
+        headers = { "Content-Type": "application/json" };
+        await new Promise(function(res){ setTimeout(res, 180); });
+        await ensureToken();
+        if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
+        r = await fetch(endpoint, { method: "POST", headers: headers, body: body });
+      }
       if (!r.ok) {
         var errText = await r.text().catch(function(){ return ""; });
         throw new Error("Proxy " + r.status + ": " + errText.slice(0, 400));
@@ -591,20 +605,33 @@ try {
       var endpoint = (window.SAYCRD_CONFIG && window.SAYCRD_CONFIG.API_ENDPOINT) || "/api/claude";
 
       var headers = { "Content-Type": "application/json" };
-      if (!window._saycrdToken && window.sbClient && window.sbClient.auth) {
-        try {
-          var ss = await window.sbClient.auth.getSession();
-          if (ss && ss.data && ss.data.session && ss.data.session.access_token) {
-            window._saycrdToken = ss.data.session.access_token;
-          }
-        } catch(e) {}
-      }
+      var ensureToken = async function() {
+        if (window._saycrdToken) return window._saycrdToken;
+        if (window.sbClient && window.sbClient.auth) {
+          try {
+            var ss = await window.sbClient.auth.getSession();
+            if (ss && ss.data && ss.data.session && ss.data.session.access_token) {
+              window._saycrdToken = ss.data.session.access_token;
+              return window._saycrdToken;
+            }
+          } catch(e) {}
+        }
+        return null;
+      };
+      await ensureToken();
       if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
       var r = await fetch(endpoint, {
         method: "POST",
         headers: headers,
         body: body
       });
+      if (r.status === 401) {
+        headers = { "Content-Type": "application/json" };
+        await new Promise(function(res){ setTimeout(res, 180); });
+        await ensureToken();
+        if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
+        r = await fetch(endpoint, { method: "POST", headers: headers, body: body });
+      }
 
       if (!r.ok) {
         var errText = await r.text().catch(function(){ return ""; });
