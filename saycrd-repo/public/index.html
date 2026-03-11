@@ -539,6 +539,14 @@ window._localBypass = function() {
       });
       var endpoint = (window.SAYCRD_CONFIG && window.SAYCRD_CONFIG.API_ENDPOINT) || "/api/claude";
       var headers = { "Content-Type": "application/json" };
+      if (!window._saycrdToken && window.sbClient && window.sbClient.auth) {
+        try {
+          var ss = await window.sbClient.auth.getSession();
+          if (ss && ss.data && ss.data.session && ss.data.session.access_token) {
+            window._saycrdToken = ss.data.session.access_token;
+          }
+        } catch(e) {}
+      }
       if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
       var r = await fetch(endpoint, { method: "POST", headers: headers, body: body });
       if (!r.ok) {
@@ -583,6 +591,14 @@ try {
       var endpoint = (window.SAYCRD_CONFIG && window.SAYCRD_CONFIG.API_ENDPOINT) || "/api/claude";
 
       var headers = { "Content-Type": "application/json" };
+      if (!window._saycrdToken && window.sbClient && window.sbClient.auth) {
+        try {
+          var ss = await window.sbClient.auth.getSession();
+          if (ss && ss.data && ss.data.session && ss.data.session.access_token) {
+            window._saycrdToken = ss.data.session.access_token;
+          }
+        } catch(e) {}
+      }
       if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
       var r = await fetch(endpoint, {
         method: "POST",
