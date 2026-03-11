@@ -782,11 +782,11 @@ return (
 );
 }
 
-function InsightDrawer({ connection, position, onClose, onRespond }) {
-const [value, setValue] = useState(null);
-const [done, setDone] = useState(false);
-const [comment, setComment] = useState("");
-const [showComment, setShowComment] = useState(false);
+function InsightDrawer({ connection, position, onClose, onRespond, initialResponse }) {
+const [value, setValue] = useState(initialResponse ? (typeof initialResponse.slider === "number" ? initialResponse.slider : (initialResponse.value==="yes"?80:initialResponse.value==="partly"?50:20)) : null);
+const [done, setDone] = useState(!!initialResponse);
+const [comment, setComment] = useState(initialResponse && initialResponse.comment ? initialResponse.comment : "");
+const [showComment, setShowComment] = useState(!!(initialResponse && (initialResponse.comment || initialResponse.correction)));
 const ref = useRef(null);
 const [dragOff, setDragOff] = useState(null);
 const [dragPos, setDragPos] = useState(null);
@@ -799,9 +799,7 @@ var mapped = v < 33 ? "no" : v < 66 ? "partly" : "yes";
 onRespond(mapped, null, v, "");
 setDone(true);
 if (v < 33) {
-setShowComment(true);
-} else {
-setTimeout(function(){ onClose(); }, 1800);
+ setShowComment(true);
 }
 }
 function submitComment() {
@@ -809,7 +807,6 @@ var mapped = value < 33 ? "no" : value < 66 ? "partly" : "yes";
 var userWord = comment.trim();
 
 onRespond(mapped, userWord||null, value, userWord);
-onClose();
 }
 
 const accent = connection.color || "#6BB8FF";
@@ -1396,6 +1393,7 @@ animationDelay: `${ni*-1.5}s`,
 {activeConn && <InsightDrawer
 connection={{nodeA:activeConn.from,nodeB:activeConn.to,label:activeConn.label,insight:activeConn.insight,color:activeConn.color}}
 position={mid(activeConn)}
+initialResponse={responses[K(activeConn)]}
 onClose={function(){setActiveConn(null);}}
 onRespond={function(v,c,slider,cmt){
 setResponses(function(prev){
@@ -6272,15 +6270,29 @@ if (uniqueArchs.length) stats += " Archetype progression: "+uniqueArchs.join(" >
 if (allCorrections.length) stats += " Subject said in their own words: "+allCorrections.slice(0,3).map(function(c){return '"'+c+'"';}).join(", ")+".";
 if (topResist.length) stats += " Kept pushing back on: "+topResist.join("; ")+".";
 
+var underList = [];
+allSessions.forEach(function(s) {
+var u = s.underneath;
+if (Array.isArray(u)) u.forEach(function(x){ if (typeof x==="string"&&x.trim()) underList.push(x.trim()); });
+else if (typeof u==="string"&&u.trim()) underList.push(u.trim());
+});
+if (sd && sd.underneath) {
+if (Array.isArray(sd.underneath)) sd.underneath.forEach(function(x){ if (typeof x==="string"&&x.trim()) underList.push(x.trim()); });
+else if (typeof sd.underneath==="string"&&sd.underneath.trim()) underList.push(sd.underneath.trim());
+}
+var underBlurb = underList.length ? "What's underneath (use these exact ideas in prose, never write labels like underneath_0): " + underList.map(function(u,i){ return "("+(i+1)+") \""+u.slice(0,120)+(u.length>120?"…":"")+"\""; }).join("; ") + ".\n\n" : "";
+
 var prompt = "You are writing a confidential field report. Third person only. Always call the subject \"the subject\" — never he, she, him, her. Plain declarative past tense. Clinical but human.\n\n"
-+ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Use descent (cards and answers), clarity, and tension when present to ground the report in the subject's journey.\n\n"
++ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Use descent (cards and answers), clarity, and tension when present to ground the report in the subject's journey.\n"
++ "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
 + "SUBJECT DATA:\n" + stats + "\n"
 + "SESSION ARC:\n" + slimBio + "\n"
 + "CURRENT SESSION: " + currSummary + "\n\n"
++ underBlurb
 + "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
 + "SECTION 1 title like WHAT OCCURRED: What dominated, when it shifted. Name specific themes and archetypes. 3 short paragraphs.\n"
 + "SECTION 2 title like WHAT MOVED: Concrete change. Only if there are multiple sessions — what shifted between them. If only 1 session, describe what moved within it. 3 short paragraphs.\n"
-+ "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. 2 short paragraphs.\n\n"
++ "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. You MUST refer to the specific 'what's underneath' phrases listed above — quote or paraphrase them in the body so the reader sees the real pattern (e.g. 'The thing that remains is X' or 'What has not yet integrated: Y'). Never use labels like underneath_0. 2 short paragraphs.\n\n"
 + "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now. Written like a pencil note at the bottom of a file.\n"
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
 + 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}';
@@ -6289,6 +6301,16 @@ var rr = await callClaudeClient(prompt, "field_report", 700);
 if (cancelled) return;
 var dd = parseJSON(rr);
 if (dd && dd.sections && dd.sections.length >= 3) {
+for (var i = 0; i < dd.sections.length; i++) {
+var b = dd.sections[i].body || "";
+for (var j = 0; j < underList.length; j++) {
+var label = "underneath_" + j;
+var repl = underList[j];
+b = b.replace(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), repl);
+b = b.replace(new RegExp('"underneath_' + j + '"', "gi"), "\"" + repl + "\"");
+}
+dd.sections[i].body = b;
+}
 _setReport(dd);
 } else {
 _setReport({
@@ -6399,6 +6421,18 @@ fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal" }}>
 </div>
 </div>
 )}
+
+{(() => {
+var hasMapOrSessionWords = allSessions.some(function(s){
+return (s.mapResponses && Object.keys(s.mapResponses).length > 0) || (s.corrections && Object.keys(s.corrections).length > 0);
+});
+return hasMapOrSessionWords ? (
+<div style={{ marginBottom:20, padding:"10px 14px", background:"rgba(0,0,0,0.02)", borderRadius:6, border:"1px solid rgba(0,0,0,0.06)" }}>
+<div style={{ fontSize:11, letterSpacing:"0.12em", color:"rgba(0,0,0,0.4)", fontFamily:FB, textTransform:"uppercase", marginBottom:4 }}>Grounded in your input</div>
+<div style={{ fontSize:13, color:"rgba(0,0,0,0.6)", fontFamily:FD, lineHeight:1.5 }}>This report used your words from the map and session — your corrections and notes shape what appears here.</div>
+</div>
+) : null;
+})()}
 
 {(_report.sections||[]).map(function(sec, si) {
 return (
