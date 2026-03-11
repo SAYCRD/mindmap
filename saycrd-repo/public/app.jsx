@@ -902,6 +902,42 @@ if (sd && sd.connections) return sd.connections.map(function(c) { return { from:
 return [];
 }, [sd]);
 
+// Map of theme label -> weight for connection strength scoring
+const nodeWeightByKey = useMemo(() => {
+var m = {};
+nodes.forEach(function(n) { m[n.key] = (sd && sd.themes ? (sd.themes.find(function(t){return t.label===n.key;}) || {}).weight : null) || 1; });
+return m;
+}, [nodes, sd]);
+
+// Strongest connections used for default rendering focus
+const strongConnKeys = useMemo(() => {
+const base = [...conns, ...discoveredConns];
+if (!base.length) return {};
+function strength(c) {
+var wa = nodeWeightByKey[c.from] || 1;
+var wb = nodeWeightByKey[c.to] || 1;
+var baseScore = (wa + wb) / 2;
+var k = c.from + "::" + c.to;
+var r = responses && responses[k];
+var bonus = 0;
+if (r) {
+if (r.value === "yes") bonus += 3;
+else if (r.value === "partly") bonus += 1.5;
+else if (r.value === "no") bonus += 0.5;
+if (r.comment && r.comment.trim()) bonus += 1;
+if (r.correction && r.correction.trim()) bonus += 1;
+}
+if (c.userDiscovered || c.discovered) bonus += 2;
+return baseScore + bonus;
+}
+var scored = base.map(function(c){ return { key: c.from+"::"+c.to, c: c, score: strength(c) }; });
+scored.sort(function(a,b){ return b.score - a.score; });
+var topN = scored.slice(0, Math.min(10, scored.length));
+var out = {};
+topN.forEach(function(s){ out[s.key] = true; });
+return out;
+}, [conns, discoveredConns, nodeWeightByKey, responses]);
+
 const [pos, setPos] = useState({});
 const prevNodeCount = useRef(0);
 useEffect(function() {
@@ -1218,6 +1254,8 @@ var _sva=pos[c.from],_svb=pos[c.to];
 if(!_sva||!_svb)return null;
 {var _svdx=(_svb.x+60)-(_sva.x+60),_svdy=(_svb.y+20)-(_sva.y+20);if(Math.sqrt(_svdx*_svdx+_svdy*_svdy)<90)return null;}
 const isAct = activeConn && K(activeConn)===k;
+const isStrong = strongConnKeys[k];
+const relatedToSelected = selectedNode && (c.from===selectedNode || c.to===selectedNode);
 let stroke="rgba(255,255,255,0.18)", sw=2, dash="8 5", op=1;
 if(resp?.value==="yes"){stroke="rgba(107,211,198,0.72)";sw=3;dash="none";}
 else if(resp?.value==="partly"){stroke="rgba(165,235,220,0.5)";sw=2.5;dash="none";}
@@ -1226,15 +1264,26 @@ var hasWord=resp.comment&&resp.comment.trim().length>0;
 stroke=hasWord?"rgba(214,178,100,0.75)":"rgba(214,178,100,0.35)";
 sw=hasWord?2.5:1.5; dash="5 4";
 }
-if(isAct){stroke=`${c.color}88`;sw=3;dash="none";}
-return <line key={k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/>;
+if(isAct){stroke=`${c.color}88`;sw=3;dash="none"; op=1;}
+// de-emphasize non-strong, non-related edges when nothing ties them to current focus
+const shouldFade = !isAct && !isStrong && (!selectedNode || !relatedToSelected);
+const finalOpacity = shouldFade ? 0.12 : op;
+return <line key={k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={finalOpacity} style={{transition:"all 0.6s ease"}}/>;
 })}
 {posReady && discoveredConns.map(function(c) {
 var k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
 var isAct = activeConn && K(activeConn)===k;
+const isStrong = strongConnKeys[k];
+const relatedToSelected = selectedNode && (c.from===selectedNode || c.to===selectedNode);
+let strokeColor = isAct ? `${c.color}88` : `${c.color}55`;
+let width = isAct ? 3 : 2;
+let dash = isAct ? "none" : "4 8";
+let op2 = 0.8;
+const shouldFade = !isAct && !isStrong && (!selectedNode || !relatedToSelected);
+const finalOpacity2 = shouldFade ? 0.25 : op2;
 return <line key={"d-"+k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2}
-stroke={isAct ? `${c.color}88` : `${c.color}55`} strokeWidth={isAct ? 3 : 2}
-strokeDasharray={isAct ? "none" : "4 8"} opacity={0.8}
+stroke={strokeColor} strokeWidth={width}
+strokeDasharray={dash} opacity={finalOpacity2}
 style={{transition:"all 0.6s ease", animation: "riseUp 0.6s ease"}}/>;
 })}
 {selectedNode && (() => {
@@ -1252,11 +1301,15 @@ return <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#7DB7AE" stroke
 {conns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 const isAct = activeConn && K(activeConn)===k;
+const isStrong = strongConnKeys[k];
+const relatedToSelected = selectedNode && (c.from===selectedNode || c.to===selectedNode);
 var isUserDefined = resp && resp.value==="no" && resp.comment && resp.comment.trim();
 var isExp = !!resp; var accent = isUserDefined ? "#D6B264" : c.color;
 var _lpa=pos[c.from],_lpb=pos[c.to];
 if(!_lpa||!_lpb)return null;
 {var _ldx=(_lpb.x+60)-(_lpa.x+60),_ldy=(_lpb.y+20)-(_lpa.y+20);if(Math.sqrt(_ldx*_ldx+_ldy*_ldy)<90)return null;}
+// Only show label chips for strong or user-touched or active connections
+if (!isAct && !isExp && !isStrong) return null;
 return (
 <div key={k} onClick={function(e){e.stopPropagation();setActiveConn(c);}} style={{
 position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
