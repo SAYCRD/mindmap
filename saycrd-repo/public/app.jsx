@@ -6616,6 +6616,18 @@ allSessions = allSessions || [];
 
 var [_report, _setReport] = useState(null);
 var [_ready, _setReady] = useState(false);
+var _notesKey = "saycrd-report-notes-" + sessionCount;
+var [_reportNotes, _setReportNotes] = useState("");
+var [_notesSummary, _setNotesSummary] = useState("");
+var [_notesSummarizing, _setNotesSummarizing] = useState(false);
+useEffect(function() {
+try {
+var n = localStorage.getItem(_notesKey) || "";
+var s = localStorage.getItem(_notesKey+"-summary") || "";
+if (n) _setReportNotes(n);
+if (s) _setNotesSummary(s);
+} catch(e) {}
+}, [_notesKey]);
 
 useEffect(function() {
 var cancelled = false;
@@ -6946,6 +6958,60 @@ fontFamily:FD, lineHeight:1.9, fontWeight:400, fontStyle:"normal" }}>
 </div>
 );
 })}
+
+<div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize:10, letterSpacing:"0.4em", color:"rgba(0,0,0,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:12 }}>Your notes</div>
+<div style={{ fontSize:14, color:"rgba(0,0,0,0.45)", fontFamily:FD, fontStyle:"italic", lineHeight:1.6, marginBottom:8 }}>
+What stands out? What are you hearing yourself say?
+</div>
+<textarea
+value={_reportNotes}
+onChange={function(e){ var v=e.target.value; _setReportNotes(v); try{ localStorage.setItem(_notesKey, v); }catch(x){} }}
+placeholder="Type here — your notes stay with this report."
+style={{
+width:"100%", minHeight:80, padding:"14px 16px",
+fontSize:15, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
+lineHeight:1.7, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
+borderRadius:6, resize:"vertical", outline:"none",
+boxSizing:"border-box"
+}}
+/>
+{_reportNotes.trim() && (
+<div style={{ marginTop:16 }}>
+<div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Your notes</div>
+<div style={{ fontSize:15, color:"#5C4A3A", fontFamily:FD, fontStyle:"italic", lineHeight:1.75, padding:"12px 16px", background:"rgba(92,74,58,0.06)", borderLeft:"3px solid rgba(92,74,58,0.35)", borderRadius:4, whiteSpace:"pre-wrap" }}>
+{_reportNotes.trim()}
+</div>
+{!_notesSummary && (
+<button
+onClick={function(){
+if (_notesSummarizing) return;
+_setNotesSummarizing(true);
+var p = "You are synthesizing someone's personal notes on their own field report. They wrote:\n\n\"" + _reportNotes.trim() + "\"\n\n"
++ "Synthesize these notes through the lens of imaginal psychology (imaginal cells — what's forming beneath); phenomenology (what shows up); and complexity (emergence, patterns that self-organize).\n"
++ "Write 2-4 sentences. Direct. Third person. What do these notes reveal about what the subject is reaching toward? What's underneath the words? Not advice — witness. JSON: {\"summary\":\"...\"}";
+callClaudeClient(p, "notes_summary", 180).then(function(r){
+var d = parseJSON(r);
+if (d && d.summary) { _setNotesSummary(d.summary); try{ localStorage.setItem(_notesKey+"-summary", d.summary); }catch(x){} }
+}).catch(function(){})
+.finally(function(){ _setNotesSummarizing(false); });
+}}
+disabled={_notesSummarizing}
+style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", fontFamily:FB, background:"rgba(0,0,0,0.06)", border:"1px solid rgba(0,0,0,0.12)", borderRadius:6, color:"rgba(0,0,0,0.6)", cursor:_notesSummarizing?"default":"pointer" }}>
+{_notesSummarizing ? "Reflecting…" : "Reflect on my notes"}
+</button>
+)}
+{_notesSummary && (
+<div style={{ marginTop:16, padding:"14px 16px", background:"rgba(92,74,58,0.04)", borderLeft:"3px solid "+_accent, borderRadius:4 }}>
+<div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Reflection</div>
+<div style={{ fontSize:15, color:"rgba(0,0,0,0.72)", fontFamily:FD, lineHeight:1.7 }}>
+{_notesSummary}
+</div>
+</div>
+)}
+</div>
+)}
+</div>
 
 <div style={{ marginBottom:20, padding:"14px 16px",
 background:"rgba(0,0,0,0.03)", borderRadius:3 }}>
