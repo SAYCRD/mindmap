@@ -4518,7 +4518,7 @@ var sz = wi===0 ? 72 : wi===1 ? 58 : wi===2 ? 46 : 38;
 var col = _fcColors[wi] || "rgba(255,255,255,0.9)";
 return (
 <div key={wi} style={{
-fontSize: sz,
+fontSize: (function(){ var l=(word||"").length; return l<=8?sz:l<=12?Math.max(28,sz-8):Math.max(22,sz-14); })(),
 fontWeight: 700,
 color: "white",
 fontFamily: FB,
@@ -4526,7 +4526,7 @@ letterSpacing: "-0.02em",
 lineHeight: 0.92,
 textShadow: "0 0 80px "+col+"66, 0 0 30px "+col+"33",
 animation: "riseUp 0.7s ease "+(0.1+wi*0.12)+"s both",
-wordBreak:"break-word", overflowWrap:"break-word", minWidth:0
+whiteSpace: "nowrap"
 }}>
 {word}
 </div>
@@ -4674,13 +4674,13 @@ YOUR ARCHETYPE
 var isLast = wi === _abWords.length - 1;
 var _baseSz = _abWords.length === 1 ? 72 : _abWords.length === 2 ? (wi===0?52:72) : (wi===0?44:wi===1?66:52);
 var _wordLen = word.length;
-var _scale = _wordLen <= 6 ? 1 : _wordLen <= 9 ? 0.82 : _wordLen <= 12 ? 0.68 : 0.56;
+var _scale = _wordLen <= 6 ? 1 : _wordLen <= 9 ? 0.78 : _wordLen <= 12 ? 0.62 : _wordLen <= 16 ? 0.5 : 0.42;
 var sz = Math.round(_baseSz * _scale);
 return (
 <div key={wi} style={{
 fontSize: sz,
 fontWeight: isLast ? 700 : 300,
-width:"100%", wordBreak:"break-word", overflowWrap:"break-word", minWidth:0,
+width:"100%", whiteSpace: "nowrap", minWidth: 0,
 color: isLast ? "white" : _abColor+"CC",
 fontFamily: FB,
 letterSpacing: isLast ? "-0.02em" : "0.1em",
@@ -5085,7 +5085,7 @@ marginBottom: sz * 0.15,
 opacity:0.7 }}/>
 )}
 <div style={{
-fontSize: sz,
+fontSize: (function(){ var l=(labelText||"").length; return l<=10?sz:l<=14?Math.max(24,sz-6):Math.max(18,sz-12); })(),
 fontWeight: wt,
 fontFamily: bi <= 1 ? FB : FD,
 fontStyle: bi >= 3 ? "italic" : "normal",
@@ -5096,9 +5096,7 @@ textTransform: bi <= 1 ? "uppercase" : "none",
 flex: "1 1 auto",
 minWidth: 0,
 maxWidth: "100%",
-wordBreak: "break-word",
-overflowWrap: "break-word",
-paddingRight: 8
+whiteSpace: "nowrap"
 }}>
 {labelText}
 </div>
@@ -6505,6 +6503,17 @@ if (returningThemes.length) parts.push("Returning (2 sessions): "+returningTheme
 arcPatternBlurb = "CROSS-SESSION ARC ("+total+" sessions)"+(parts.length?" — "+parts.join(". "):"")+". "+(total>=10?"With this many sessions, a brilliant analyst would see meta-patterns — what the subject keeps circling, what only becomes visible over time, what the arc reveals that no single session shows. Dig into that.":"")+"\n\n";
 }
 
+var currThemeLabels = themes.map(function(t){ return (t&&t.label)||""; }).filter(Boolean);
+var newTerritoryThemes = currThemeLabels.filter(function(l){ return (themeRecurrence[l]||0) <= 1; });
+var shiftBlurb = "";
+if (total >= 3 && newTerritoryThemes.length >= 1 && persistentThemes.length >= 1) {
+var overlap = newTerritoryThemes.filter(function(t){ return persistentThemes.indexOf(t) >= 0; });
+if (overlap.length < newTerritoryThemes.length) {
+var trulyNew = newTerritoryThemes.filter(function(t){ return persistentThemes.indexOf(t) < 0; });
+shiftBlurb = "SUBJECT SHIFT — CRITICAL: This session introduces NEW TERRITORY. The subject is speaking about ["+trulyNew.slice(0,4).join(", ")+(trulyNew.length>4?"…":"")+"] for the first time (or nearly so). Previous sessions were dominated by ["+persistentThemes.slice(0,4).join(", ")+(persistentThemes.length>4?"…":"")+"]. DO NOT default to summarizing the arc. LEAD WITH THE CURRENT SESSION. Open with the shift: this was the first time the subject spoke about [X]. Surface the questions: why now? what's happening? Weave the past into the current moment — not the other way around. The report must center on what's new. Do not continue the same report cadence and merely mention the new subject.\n\n";
+}
+}
+
 var prevReportHint = "";
 try {
 var prev = JSON.parse(localStorage.getItem("saycrd-last-report-hint") || "{}");
@@ -6568,6 +6577,7 @@ var prompt = "You are writing a confidential field report. Third person only. Al
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Use descent (cards and answers), clarity, and tension when present to ground the report in the subject's journey.\n"
 + "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
 + (prevReportHint ? prevReportHint : "")
++ (shiftBlurb ? shiftBlurb : "")
 + "SUBJECT DATA:\n" + stats + "\n"
 + (arcPatternBlurb ? arcPatternBlurb : "")
 + "SESSION ARC:\n" + slimBio + "\n"
@@ -6575,11 +6585,11 @@ var prompt = "You are writing a confidential field report. Third person only. Al
 + mapNotesBlurb
 + subjectWordsBlurb
 + underBlurb
-+ "VARIETY AND DEPTH: Each report must feel distinct. Vary the opening of SECTION 1 — lead with what's most distinctive about THIS moment (the arc, the current tension, what the subject said, a cross-session pattern). When there are 10+ sessions, dig deeper: surface meta-patterns that only become visible over time. What would a brilliant analyst see that a surface summary misses? Go beyond summary into genuine insight — the kind of observation that would make someone feel deeply seen. 3 short paragraphs per section, but make each sentence count.\n\n"
++ "VARIETY AND DEPTH: Each report must feel distinct. Lead with what's most distinctive about THIS moment. When the subject shifts to new territory (different themes, a new subject), that takes precedence: center the report on the current session. Do not default to summarizing the arc and slightly mentioning the new thing. Surface the questions that emerge: why now? what's happening? Weave the past into the current — not the other way around. When there are 10+ sessions without a shift, dig into meta-patterns. Go beyond summary into genuine insight. 3 short paragraphs per section, but make each sentence count.\n\n"
 + "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
 + "Where relevant, quote or paraphrase the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above). In WHAT REMAINS, connect at least one 'what's underneath' idea to something the subject actually said — a map note or correction — so the reader sees the link.\n\n"
-+ "SECTION 1 title like WHAT OCCURRED: What dominated, when it shifted. Name specific themes and archetypes. Lead with what's most distinctive — vary the angle. 3 short paragraphs.\n"
-+ "SECTION 2 title like WHAT MOVED: Concrete change. Only if there are multiple sessions — what shifted between them. If only 1 session, describe what moved within it. With many sessions, what does the arc reveal? 3 short paragraphs.\n"
++ "SECTION 1 title like WHAT OCCURRED: What dominated in THIS session. When the subject has shifted to new territory, open with that — first time speaking about X, why now. Name specific themes and archetypes. Do not lead with a summary of past sessions when the current session is the story. 3 short paragraphs.\n"
++ "SECTION 2 title like WHAT MOVED: Concrete change. When there's a subject shift, this section explores the shift — what's happening, why now, how the past connects to this moment. When no shift, what moved between sessions or within the session. 3 short paragraphs.\n"
 + "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. Refer to the 'what's underneath' phrases above — these are pattern-intelligence observations (repetition, structure, blind spots the subject may not see). Quote or paraphrase them so the reader sees the real pattern. Never use labels like underneath_0. Where possible, tie one to something the subject said (MAP NOTES or SUBJECT'S OWN WORDS). 2 short paragraphs.\n\n"
 + "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
@@ -7179,7 +7189,7 @@ evolving from<br/><span style={{ color:apColor+"99" }}>{apLastArch.name}</span>
 <ArchGlyph name={apName} color={apColor} size={150}/>
 </div>
 {apThe && <div style={{ fontSize:11, letterSpacing:"0.55em", color:apColor+"66", fontFamily:FB, marginBottom:4, animation:"riseUp 0.8s ease 0.15s both" }}>{apThe}</div>}
-<div style={{ fontSize: apHero.length > 12 ? 34 : apHero.length > 8 ? 42 : 52, fontWeight:700, color:"white", fontFamily:FB, letterSpacing:"0.06em", textAlign:"center", lineHeight:1.1, animation:"riseUp 0.8s ease 0.25s both", textShadow:"0 0 60px "+apColor+"44", maxWidth:"100%", paddingLeft:20, paddingRight:20, boxSizing:"border-box", wordBreak:"break-word", overflowWrap:"break-word" }}>
+<div style={{ fontSize: apHero.length > 16 ? 26 : apHero.length > 12 ? 34 : apHero.length > 8 ? 40 : 48, fontWeight:700, color:"white", fontFamily:FB, letterSpacing:"0.06em", textAlign:"center", lineHeight:1.1, animation:"riseUp 0.8s ease 0.25s both", textShadow:"0 0 60px "+apColor+"44", maxWidth:"100%", paddingLeft:20, paddingRight:20, boxSizing:"border-box", whiteSpace:"nowrap" }}>
 {apHero}
 </div>
 {apLine && <div style={{ marginTop:14, fontSize:16, color:"rgba(255,255,255,0.5)", fontFamily:FD, fontStyle:"italic", textAlign:"center", maxWidth:290, lineHeight:1.65, animation:"riseUp 0.8s ease 0.4s both" }}>
@@ -7221,7 +7231,7 @@ return (
 <div style={{ textAlign:"center", flex:1 }}>
 <ArchGlyph name={evCurName} color={evCurColor} size={110}/>
 <div style={{ fontSize:10, color:evCurColor+"88", fontFamily:FB, letterSpacing:"0.2em", marginTop:10, textTransform:"uppercase" }}>now</div>
-<div style={{ fontSize:17, color:"rgba(255,255,255,0.85)", fontFamily:FB, fontWeight:700, marginTop:4 }}>{evCurName}</div>
+<div style={{ fontSize:(evCurName.length>14?14:evCurName.length>10?15:17), color:"rgba(255,255,255,0.85)", fontFamily:FB, fontWeight:700, marginTop:4, whiteSpace:"nowrap" }}>{evCurName}</div>
 {evCur.line && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:5, lineHeight:1.5 }}>{evCur.line.slice(0,60)}{evCur.line.length>60?"…":""}</div>}
 </div>
 </div>
@@ -7271,16 +7281,16 @@ return (
 </div>
 
 <div style={{ display:"flex", alignItems:"center", width:"100%", maxWidth:340, gap:0, animation:"riseUp 0.7s ease 0.1s both" }}>
-<div style={{ flex:1, padding:"14px 16px", borderRadius:16, background:ltColA+"18", border:"1.5px solid "+ltColA+"44", textAlign:"center" }}>
-<div style={{ fontSize:15, color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:700, lineHeight:1.3 }}>{ltA}</div>
+<div style={{ flex:1, padding:"14px 16px", borderRadius:16, background:ltColA+"18", border:"1.5px solid "+ltColA+"44", textAlign:"center", minWidth:0 }}>
+<div style={{ fontSize:(ltA.length>14?12:ltA.length>10?13:15), color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:700, lineHeight:1.3, whiteSpace:"nowrap" }}>{ltA}</div>
 </div>
 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", minWidth:54, gap:4 }}>
 <div style={{ width:2, height:20, background:"linear-gradient(180deg,"+ltColA+"66, "+ltColB+"66)" }}/>
 <div style={{ fontSize:8, color:"rgba(255,255,255,0.25)", fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase", textAlign:"center", lineHeight:1.4 }}>{axisLabel}</div>
 <div style={{ width:2, height:20, background:"linear-gradient(180deg,"+ltColA+"66, "+ltColB+"66)" }}/>
 </div>
-<div style={{ flex:1, padding:"14px 16px", borderRadius:16, background:ltColB+"18", border:"1.5px solid "+ltColB+"44", textAlign:"center" }}>
-<div style={{ fontSize:15, color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:700, lineHeight:1.3 }}>{ltB}</div>
+<div style={{ flex:1, padding:"14px 16px", borderRadius:16, background:ltColB+"18", border:"1.5px solid "+ltColB+"44", textAlign:"center", minWidth:0 }}>
+<div style={{ fontSize:(ltB.length>14?12:ltB.length>10?13:15), color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:700, lineHeight:1.3, whiteSpace:"nowrap" }}>{ltB}</div>
 </div>
 </div>
 
@@ -7494,7 +7504,7 @@ filter: cAway ? "opacity(0.4)" : "none", transition:"filter 0.4s" }}>
 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5 }}>
 <div style={{ width: cAlive ? 64 : 44, height: cAlive ? 3 : 2, background:"linear-gradient(90deg,"+fromColor.color+","+toColor.color+")",
 boxShadow: cAlive ? "0 0 12px rgba(107,184,255,0.4)" : "none", transition:"all 0.4s" }} />
-<span style={{ fontSize:11, color:"rgba(255,255,255,0.55)", fontFamily:FB, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em" }}>{strongConn.label}</span>
+<span style={{ fontSize:(strongConn.label.length>12?9:strongConn.label.length>8?10:11), color:"rgba(255,255,255,0.55)", fontFamily:FB, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.1em", whiteSpace:"nowrap" }}>{strongConn.label}</span>
 </div>
 <FOrb color={toColor.color}>{(strongConn.to||"").length>10?strongConn.to.slice(0,9)+"…":strongConn.to}</FOrb>
 </div>
@@ -7525,8 +7535,8 @@ var tStack = (String(tA).length > 18 || String(tB).length > 18);
 return <div style={{ position:"absolute", inset:0, minHeight:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", padding:"52px 28px 28px", overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
 <FLabel color="#6BB8FF">YOUR TENSION</FLabel>
 <div style={{ display:"flex", flexDirection: tStack ? "column" : "row", justifyContent:"space-between", gap:12, width:"100%", maxWidth:340, marginBottom:4, animation:"riseUp 0.6s ease both" }}>
-<div style={{ flex:1, textAlign:"center", padding:"14px 12px", borderRadius:14, background:"rgba(255,128,128,0.1)", border:"1px solid rgba(255,128,128,0.2)", fontSize:20, color:"#FF8080", fontFamily:FD, fontWeight:600, wordBreak:"break-word" }}>{tA}</div>
-<div style={{ flex:1, textAlign:"center", padding:"14px 12px", borderRadius:14, background:"rgba(107,197,255,0.1)", border:"1px solid rgba(107,197,255,0.2)", fontSize:20, color:"#6BC5FF", fontFamily:FD, fontWeight:600, wordBreak:"break-word" }}>{tB}</div>
+<div style={{ flex:1, textAlign:"center", padding:"14px 12px", borderRadius:14, background:"rgba(255,128,128,0.1)", border:"1px solid rgba(255,128,128,0.2)", fontSize:(String(tA).length>14?16:String(tA).length>10?18:20), color:"#FF8080", fontFamily:FD, fontWeight:600, whiteSpace:"nowrap" }}>{tA}</div>
+<div style={{ flex:1, textAlign:"center", padding:"14px 12px", borderRadius:14, background:"rgba(107,197,255,0.1)", border:"1px solid rgba(107,197,255,0.2)", fontSize:(String(tB).length>14?16:String(tB).length>10?18:20), color:"#6BC5FF", fontFamily:FD, fontWeight:600, whiteSpace:"nowrap" }}>{tB}</div>
 </div>
 <TensionPull clicked={clicked} />
 {!clicked
