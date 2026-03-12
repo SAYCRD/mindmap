@@ -1932,8 +1932,8 @@ style={{ borderRadius: 22, padding: "36px 24px", background: "linear-gradient(16
 <div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 24 }}>{c.prompt}</div>
 
 {!ans && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-<div style={{ fontSize: 14, fontFamily: FB, fontWeight: 600, color: swipeDir === "a" ? c.color : "rgba(255,255,255,0.25)", opacity: swipeDir === "a" ? 0.3 + swipeRatio * 0.7 : 0.4, transition: swiping ? "none" : "all 0.3s", transform: "scale(" + (swipeDir === "a" ? 1 + swipeRatio * 0.15 : 1) + ")" }}>← {c.option_a}</div>
-<div style={{ fontSize: 14, fontFamily: FB, fontWeight: 600, color: swipeDir === "b" ? c.color : "rgba(255,255,255,0.25)", opacity: swipeDir === "b" ? 0.3 + swipeRatio * 0.7 : 0.4, transition: swiping ? "none" : "all 0.3s", transform: "scale(" + (swipeDir === "b" ? 1 + swipeRatio * 0.15 : 1) + ")" }}>{c.option_b} →</div>
+<div style={{ fontSize: 14, fontFamily: FB, fontWeight: 600, color: swipeDir === "a" ? c.color : "rgba(255,255,255,0.25)", opacity: swipeDir === "a" ? 0.3 + swipeRatio * 0.7 : 0.4, transition: swiping ? "none" : "all 0.3s", transform: "scale(" + (swipeDir === "a" ? 1 + swipeRatio * 0.15 : 1) + ")", maxWidth:"48%", lineHeight:1.25, textAlign:"left", wordBreak:"break-word", overflowWrap:"anywhere" }}>← {c.option_a}</div>
+<div style={{ fontSize: 14, fontFamily: FB, fontWeight: 600, color: swipeDir === "b" ? c.color : "rgba(255,255,255,0.25)", opacity: swipeDir === "b" ? 0.3 + swipeRatio * 0.7 : 0.4, transition: swiping ? "none" : "all 0.3s", transform: "scale(" + (swipeDir === "b" ? 1 + swipeRatio * 0.15 : 1) + ")", maxWidth:"48%", lineHeight:1.25, textAlign:"right", wordBreak:"break-word", overflowWrap:"anywhere" }}>{c.option_b} →</div>
 </div>}
 {!ans && <div style={{ marginTop: 18, display: "flex", gap: 10 }}>
 <button onClick={function(e){ e.stopPropagation(); record("a"); }}
@@ -1942,6 +1942,7 @@ background: swipeDir==="a" ? c.color+"22" : "rgba(255,255,255,0.04)",
 border:"1px solid "+(swipeDir==="a" ? c.color+"66" : "rgba(255,255,255,0.1)"),
 color: swipeDir==="a" ? c.color : "rgba(255,255,255,0.55)",
 fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
+whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
 transition:"all 0.2s" }}>{c.option_a}</button>
 <button onClick={function(e){ e.stopPropagation(); record("b"); }}
 style={{ flex:1, padding:"12px 8px", borderRadius:14,
@@ -1949,6 +1950,7 @@ background: swipeDir==="b" ? c.color+"22" : "rgba(255,255,255,0.04)",
 border:"1px solid "+(swipeDir==="b" ? c.color+"66" : "rgba(255,255,255,0.1)"),
 color: swipeDir==="b" ? c.color : "rgba(255,255,255,0.55)",
 fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
+whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
 transition:"all 0.2s" }}>{c.option_b}</button>
 </div>}
 {!ans && <div style={{ fontSize:10, color:"rgba(255,255,255,0.12)", fontFamily:FB, letterSpacing:"0.1em", marginTop:10, textAlign:"center" }}>tap or swipe</div>}
@@ -5065,6 +5067,12 @@ var sz = _sizes[bi] || 13;
 var wt = _weights[bi] || 300;
 var tr = _tracking[bi] || "0.04em";
 var ratio = b.score / _maxScore;
+var labelText = (b && b.label) ? String(b.label) : "";
+if (isFirst) {
+var l = labelText.trim().length;
+var scale = l <= 10 ? 1 : l <= 14 ? 0.86 : l <= 18 ? 0.74 : l <= 22 ? 0.64 : 0.56;
+sz = Math.max(34, Math.round(sz * scale));
+}
 
 return (
 <div key={bi} style={{ marginBottom: isFirst ? 6 : bi===1 ? 8 : 10,
@@ -5089,9 +5097,14 @@ fontStyle: bi >= 3 ? "italic" : "normal",
 letterSpacing: tr,
 color: isFirst ? "#1A1A1A" : bi===1 ? "#2A2A2A" : bi===2 ? "#555" : "#888",
 lineHeight: 1.05,
-textTransform: bi <= 1 ? "uppercase" : "none"
+textTransform: bi <= 1 ? "uppercase" : "none",
+flex: "1 1 auto",
+minWidth: 0,
+maxWidth: "100%",
+whiteSpace: "nowrap",
+overflow: "hidden"
 }}>
-{b.label}
+{labelText}
 </div>
 {bi <= 1 && (
 <div style={{ marginLeft:"auto", display:"flex", gap:3, alignItems:"center" }}>
@@ -5269,26 +5282,61 @@ animation:"breathe 1.5s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 
 <div style={{ animation:"riseUp 0.6s ease 0.4s both" }}>
-<div style={{ display:"flex", alignItems:"flex-start", gap:16 }}>
+{(() => {
+var _tTxt = (_thenWords || []).join(" ");
+var _nTxt = (_nowWords || []).join(" ");
+var stackCols = (_tTxt.length > 22 || _nTxt.length > 22);
+return (
+<div style={{ display:"flex", flexDirection: stackCols ? "column" : "row", alignItems:"stretch", gap:16 }}>
 
 <div style={{ flex:1, minWidth:0 }}>
 <div style={{ fontSize:8, letterSpacing:"0.4em",
 color:"rgba(120,150,200,0.4)", fontFamily:FB, marginBottom:10 }}>
 {_thenLabel}
 </div>
-<div style={{ fontSize:16, fontWeight:700,
-color: _archShifted ? "rgba(120,150,200,0.45)" : "rgba(120,150,200,0.7)",
+<div style={{
+padding:"14px 14px",
+borderRadius:16,
+background:"linear-gradient(180deg, rgba(120,150,200,0.10), rgba(120,150,200,0.04))",
+border:"1px solid rgba(120,150,200,0.18)"
+}}>
+<div style={{ fontSize:16, fontWeight:800,
+color: _archShifted ? "rgba(120,150,200,0.45)" : "rgba(120,150,200,0.8)",
 fontFamily:FB, lineHeight:1.25,
 textDecoration: _archShifted ? "line-through" : "none",
 textDecorationColor:"rgba(120,150,200,0.25)",
-wordBreak:"break-word", overflowWrap:"break-word" }}>
+wordBreak:"break-word", overflowWrap:"anywhere" }}>
 {_sameContent ? (_openingWords.join(" ") || _prevArch || "—") : (_prevArch || "—")}
+</div>
+{_thenWords && _thenWords.length > 0 && (
+<div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
+{_thenWords.slice(0,4).map(function(w, wi) {
+return <div key={wi} style={{
+fontSize:10, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
+padding:"5px 10px", borderRadius:999,
+border:"1px solid rgba(120,150,200,0.18)",
+background:"rgba(0,0,0,0.10)",
+color:"rgba(200,210,240,0.55)",
+maxWidth:"100%",
+whiteSpace:"normal",
+wordBreak:"break-word",
+overflowWrap:"anywhere",
+lineHeight:1.25
+}}>{w}</div>;
+})}
+</div>
+)}
 </div>
 </div>
 
-<div style={{ paddingTop:22, color:"rgba(200,210,240,0.15)",
-fontSize:18, flexShrink:0 }}>
-→
+<div style={{
+paddingTop: stackCols ? 2 : 22,
+textAlign:"center",
+color:"rgba(200,210,240,0.15)",
+fontSize:18,
+flexShrink:0
+}}>
+{stackCols ? "↓" : "→"}
 </div>
 
 <div style={{ flex:1, minWidth:0 }}>
@@ -5296,15 +5344,42 @@ fontSize:18, flexShrink:0 }}>
 color:_currColor+"88", fontFamily:FB, marginBottom:10 }}>
 {_nowLabel}
 </div>
-<div style={{ fontSize:16, fontWeight:800,
+<div style={{
+padding:"14px 14px",
+borderRadius:16,
+background:"linear-gradient(180deg, "+_currColor+"14, "+_currColor+"06)",
+border:"1px solid "+_currColor+"22"
+}}>
+<div style={{ fontSize:16, fontWeight:900,
 color:_currColor, fontFamily:FB, lineHeight:1.25,
 textShadow:"0 0 20px "+_currColor+"33",
-wordBreak:"break-word", overflowWrap:"break-word" }}>
+wordBreak:"break-word", overflowWrap:"anywhere" }}>
 {_sameContent ? (_blindWords.join(" ") || _currArch || "—") : (_currArch || "—")}
+</div>
+{_nowWords && _nowWords.length > 0 && (
+<div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
+{_nowWords.slice(0,4).map(function(w, wi) {
+return <div key={wi} style={{
+fontSize:10, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
+padding:"5px 10px", borderRadius:999,
+border:"1px solid "+_currColor+"22",
+background:"rgba(0,0,0,0.10)",
+color:_currColor+"bb",
+maxWidth:"100%",
+whiteSpace:"normal",
+wordBreak:"break-word",
+overflowWrap:"anywhere",
+lineHeight:1.25
+}}>{w}</div>;
+})}
+</div>
+)}
 </div>
 </div>
 
 </div>
+);
+})()}
 
 {!_archShifted && _prevArch && (
 <div style={{ marginTop:12, fontSize:11,
