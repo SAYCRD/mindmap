@@ -4498,7 +4498,7 @@ stroke={t.color} strokeWidth="0.5" opacity="0.3"/>;
 </div>
 </div>
 
-<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center", padding:"80px 28px 160px", overflow:"hidden" }}>
+<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center", padding:"80px 32px 160px", overflow:"hidden", boxSizing:"border-box" }}>
 {_fcLoading ? (
 <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 {[90,64,48].map(function(sz,i){
@@ -4512,13 +4512,16 @@ background:"rgba(255,255,255,0.04)", animation:"breathe 1.5s ease-in-out "+(i*0.
 textShadow:"0 0 20px "+_fcBg2+"66" }}>
 THE FIELD CONDITION
 </div>
-<div style={{ display:"flex", flexDirection:"column", gap:2, marginBottom:32, paddingRight:24, maxWidth:"100%", boxSizing:"border-box" }}>
+<div style={{ display:"flex", flexDirection:"column", gap:2, marginBottom:32, width:"100%", maxWidth:"100%", paddingRight:36, paddingLeft:4, boxSizing:"border-box" }}>
 {_condWords.map(function(word, wi) {
 var sz = wi===0 ? 72 : wi===1 ? 58 : wi===2 ? 46 : 38;
 var col = _fcColors[wi] || "rgba(255,255,255,0.9)";
+var l = (word||"").length;
+var fitSz = l > 0 ? 220 / (l * 0.6) : sz;
+var finalSz = Math.max(18, Math.min(sz, fitSz));
 return (
 <div key={wi} style={{
-fontSize: (function(){ var l=(word||"").length; return l<=8?sz:l<=12?Math.max(28,sz-8):Math.max(22,sz-14); })(),
+fontSize: finalSz,
 fontWeight: 700,
 color: "white",
 fontFamily: FB,
