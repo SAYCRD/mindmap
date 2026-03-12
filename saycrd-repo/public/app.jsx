@@ -5057,7 +5057,7 @@ position:"absolute", inset:0, overflow:"hidden",
 background:"#F7F4EF",
 display:"flex", flexDirection:"column"
 }}>
-<div style={{ padding:"52px 32px 0" }}>
+<div style={{ padding:"52px 28px 0 24px" }}>
 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
 marginBottom:12 }}>
 <div style={{ fontSize:7.5, letterSpacing:"0.45em", color:"#999", fontFamily:FB,
@@ -5078,7 +5078,7 @@ WHAT'S GROWING
 </div>
 
 <div style={{ flex:1, display:"flex", flexDirection:"column",
-justifyContent:"center", padding:"0 32px", boxSizing:"border-box", minWidth:0 }}>
+justifyContent:"center", padding:"0 48px 0 24px", boxSizing:"border-box", minWidth:0 }}>
 {_branches.map(function(b, bi) {
 var isFirst = bi === 0;
 var sz = _sizes[bi] || 13;
@@ -5119,7 +5119,8 @@ textTransform: bi <= 1 ? "uppercase" : "none",
 flex: "1 1 auto",
 minWidth: 0,
 maxWidth: "100%",
-whiteSpace: "nowrap"
+wordBreak: "break-word",
+overflowWrap: "break-word"
 }}>
 {labelText}
 </div>
@@ -5142,7 +5143,7 @@ background: di < Math.ceil(ratio*3) ? b.color : "#E0D8D0"
 })}
 </div>
 
-<div style={{ padding:"0 32px 40px" }}>
+<div style={{ padding:"0 48px 40px 24px" }}>
 <div style={{ height:0.75, background:"#D0C8BC", marginBottom:18 }}/>
 <div style={{ minHeight:52 }}>
 {!_wgReady ? (
@@ -5154,7 +5155,7 @@ animation:"breathe 1.8s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 ) : (
 <div style={{ fontSize:17, color:"#4A4038", fontFamily:FD,
-fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", paddingRight:8 }}>
+fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", maxWidth:"100%" }}>
 {_wgLine || (_branches[0] ? "\u201c"+_branches[0].label+" keeps returning \u2014 it wants something.\u201d" : "The field is learning what it loves.")}
 </div>
 )}
