@@ -888,8 +888,7 @@ const sd = synthesisData;
 const nodes = useMemo(() => {
 if (sd && sd.themes) return sd.themes.map(function(t, i) {
 var label = t.label || "";
-var display = label.length > 18 ? label.slice(0, 16).trim() + "\u2026" : label;
-return { key: t.label, display: display, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1) };
+return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1) };
 });
 return [];
 }, [sd]);
@@ -898,6 +897,42 @@ const conns = useMemo(() => {
 if (sd && sd.connections) return sd.connections.map(function(c) { return { from: c.from, to: c.to, label: (c.label || "linked").toUpperCase(), insight: c.insight || "", color: c.color || NC[0] }; });
 return [];
 }, [sd]);
+
+function extractSnippet(txt, label) {
+try {
+if (!txt || !label) return "";
+var clean = String(txt);
+var term = String(label).trim();
+if (!term) return "";
+var re = new RegExp("\\b" + term.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&") + "\\b", "i");
+var m = re.exec(clean);
+if (!m || m.index === undefined) return "";
+var i = m.index;
+var start = Math.max(0, i - 90);
+var end = Math.min(clean.length, i + term.length + 160);
+var chunk = clean.slice(start, end).replace(/\s+/g, " ").trim();
+if (start > 0) chunk = "\u2026 " + chunk;
+if (end < clean.length) chunk = chunk + " \u2026";
+return chunk;
+} catch(e) { return ""; }
+}
+
+const selectedDetail = useMemo(() => {
+if (!selectedNode) return null;
+var related = conns.filter(function(c){ return c.from === selectedNode || c.to === selectedNode; });
+var notes = related.map(function(c){
+var k = c.from + "::" + c.to;
+var r = responses && responses[k];
+if (!r || !r.comment || !String(r.comment).trim()) return null;
+return { k: k, other: (c.from === selectedNode ? c.to : c.from), value: r.value, comment: String(r.comment).trim() };
+}).filter(Boolean);
+return {
+label: selectedNode,
+snippet: extractSnippet(rawText || "", selectedNode),
+related: related,
+notes: notes
+};
+}, [selectedNode, conns, responses, rawText]);
 
 // Map of theme label -> weight for connection strength scoring
 const nodeWeightByKey = useMemo(() => {
@@ -1366,10 +1401,10 @@ fontSize: 12, fontWeight: 600, fontFamily: FB, color: "white",
 textAlign: "center", lineHeight: 1.2,
 padding: "10px 18px",
 textTransform: "uppercase", letterSpacing: "0.06em",
-whiteSpace: "normal", maxWidth: 110,
+whiteSpace: "normal", maxWidth: 124,
 background: isSnap
 ? "rgba(125,183,174,0.15)"
-: n.w > 0.7 ? `rgba(214,178,109,0.18)` : "rgba(244,241,234,0.08)",
+: n.w > 0.7 ? `rgba(214,178,109,0.22)` : "rgba(244,241,234,0.14)",
 border: isSnap ? "1.5px solid rgba(125,183,174,0.7)"
 : isSel ? "1.5px solid #6BFFB8"
 : canLink ? `1.5px solid ${n.color}aa`
@@ -1387,9 +1422,86 @@ boxShadow: isSnap
 touchAction: "none", userSelect: "none",
 animation: isDrag||isSel||isSnap ? "none" : "nodeBreathe 8s ease-in-out infinite",
 animationDelay: `${ni*-1.5}s`,
-}}>{n.display || n.key}</div>
+}}>
+<span style={{ display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }} title={n.key}>
+{n.display || n.key}
+</span>
+</div>
 );
 })}
+
+{selectedDetail && !activeConn && (
+<div onClick={function(e){e.stopPropagation();}} style={{
+position:"absolute", left:16, right:16, bottom:14,
+zIndex:30,
+background:"rgba(8,10,20,0.9)",
+border:"1px solid rgba(255,255,255,0.12)",
+borderRadius:14,
+padding:"12px 14px",
+backdropFilter:"blur(10px)",
+boxShadow:"0 12px 40px rgba(0,0,0,0.35)"
+}}>
+<div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
+<div style={{ minWidth:0 }}>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Selected</div>
+<div style={{ fontSize:18, color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:800, letterSpacing:"0.04em", textTransform:"uppercase", lineHeight:1.15, wordBreak:"break-word" }}>
+{selectedDetail.label}
+</div>
+</div>
+<button onClick={function(){ setSelectedNode(null); }} style={{
+fontSize:12, color:"rgba(255,255,255,0.4)", fontFamily:FB,
+background:"transparent", border:"1px solid rgba(255,255,255,0.12)",
+borderRadius:12, padding:"6px 10px", cursor:"pointer", flexShrink:0
+}}>close</button>
+</div>
+
+{selectedDetail.snippet && (
+<div style={{ marginTop:10, fontSize:14, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.6 }}>
+{selectedDetail.snippet}
+</div>
+)}
+
+{selectedDetail.notes && selectedDetail.notes.length > 0 && (
+<div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.28)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Your notes</div>
+<div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:120, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
+{selectedDetail.notes.slice(0,4).map(function(n) {
+var tone = n.value === "yes" ? "rgba(107,255,184,0.85)" : n.value === "partly" ? "rgba(165,235,220,0.75)" : "rgba(214,178,100,0.85)";
+return (
+<div key={n.k} style={{ fontSize:13, color:"rgba(255,255,255,0.62)", fontFamily:FD, lineHeight:1.45 }}>
+<span style={{ fontFamily:FB, fontSize:10, letterSpacing:"0.12em", textTransform:"uppercase", color:tone }}>{n.other}</span>
+<span style={{ color:"rgba(255,255,255,0.35)" }}> — </span>
+{n.comment}
+</div>
+);
+})}
+</div>
+</div>
+)}
+
+{selectedDetail.related && selectedDetail.related.length > 0 && (
+<div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.28)", fontFamily:FB, textTransform:"uppercase", marginBottom:8 }}>Links</div>
+<div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+{selectedDetail.related.slice(0,8).map(function(c) {
+var other = c.from === selectedDetail.label ? c.to : c.from;
+return (
+<div key={c.from+"::"+c.to} onClick={function(e){ e.stopPropagation(); setActiveConn(c); }} style={{
+fontSize:10, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
+padding:"6px 10px", borderRadius:999,
+border:"1px solid rgba(255,255,255,0.12)",
+background:"rgba(255,255,255,0.03)",
+color:"rgba(255,255,255,0.6)", cursor:"pointer"
+}} title={"open link: "+other}>
+{other}
+</div>
+);
+})}
+</div>
+</div>
+)}
+</div>
+)}
 {activeConn && <InsightDrawer
 connection={{nodeA:activeConn.from,nodeB:activeConn.to,label:activeConn.label,insight:activeConn.insight,color:activeConn.color}}
 position={mid(activeConn)}
@@ -5060,8 +5172,9 @@ THE MIRROR
 </div>
 </div>
 
-<div style={{ flex:1, display:"flex", flexDirection:"column",
-justifyContent:"center", padding:"0 28px" }}>
+<div style={{ flex:1, minHeight:0, display:"flex", flexDirection:"column",
+justifyContent:"flex-start", padding:"24px 28px 36px",
+overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
 
 {_isFirst ? (
 <div style={{ animation:"riseUp 0.8s ease 0.2s both" }}>
@@ -7259,9 +7372,10 @@ var tQuestions = [
 "Who taught you these two things couldn't coexist?",
 ];
 var tQ = tQuestions[(tA+tB).length % tQuestions.length];
-return <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 28px" }}>
+var tStack = (String(tA).length > 18 || String(tB).length > 18);
+return <div style={{ position:"absolute", inset:0, minHeight:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", padding:"52px 28px 28px", overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
 <FLabel color="#6BB8FF">YOUR TENSION</FLabel>
-<div style={{ display:"flex", justifyContent:"space-between", gap:12, width:"100%", maxWidth:320, marginBottom:4, animation:"riseUp 0.6s ease both" }}>
+<div style={{ display:"flex", flexDirection: tStack ? "column" : "row", justifyContent:"space-between", gap:12, width:"100%", maxWidth:340, marginBottom:4, animation:"riseUp 0.6s ease both" }}>
 <div style={{ flex:1, textAlign:"center", padding:"14px 12px", borderRadius:14, background:"rgba(255,128,128,0.1)", border:"1px solid rgba(255,128,128,0.2)", fontSize:20, color:"#FF8080", fontFamily:FD, fontWeight:600, wordBreak:"break-word" }}>{tA}</div>
 <div style={{ flex:1, textAlign:"center", padding:"14px 12px", borderRadius:14, background:"rgba(107,197,255,0.1)", border:"1px solid rgba(107,197,255,0.2)", fontSize:20, color:"#6BC5FF", fontFamily:FD, fontWeight:600, wordBreak:"break-word" }}>{tB}</div>
 </div>
