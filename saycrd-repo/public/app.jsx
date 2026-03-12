@@ -880,6 +880,7 @@ const [activeConn, setActiveConn] = useState(null);
 const [responses, setResponses] = useState({});
 const [dragging, setDragging] = useState(null);
 const [selectedNode, setSelectedNode] = useState(null);
+const [hoverNode, setHoverNode] = useState(null);
 const [discoveredConns, setDiscoveredConns] = useState([]);
 const [snapTarget, setSnapTarget] = useState(null);
 const SNAP_DIST = 130;
@@ -917,6 +918,17 @@ return chunk;
 } catch(e) { return ""; }
 }
 
+function bestFallbackInsight(label) {
+try {
+if (!label) return "";
+var rel = conns.filter(function(c){ return c.from === label || c.to === label; });
+for (var i = 0; i < rel.length; i++) {
+if (rel[i] && rel[i].insight && String(rel[i].insight).trim().length > 12) return String(rel[i].insight).trim();
+}
+return "";
+} catch(e) { return ""; }
+}
+
 const selectedDetail = useMemo(() => {
 if (!selectedNode) return null;
 var related = conns.filter(function(c){ return c.from === selectedNode || c.to === selectedNode; });
@@ -928,11 +940,18 @@ return { k: k, other: (c.from === selectedNode ? c.to : c.from), value: r.value,
 }).filter(Boolean);
 return {
 label: selectedNode,
-snippet: extractSnippet(rawText || "", selectedNode),
+snippet: extractSnippet(rawText || "", selectedNode) || bestFallbackInsight(selectedNode),
 related: related,
 notes: notes
 };
 }, [selectedNode, conns, responses, rawText]);
+
+const hoverDetail = useMemo(() => {
+if (!hoverNode || hoverNode === selectedNode || activeConn) return null;
+var sn = extractSnippet(rawText || "", hoverNode) || bestFallbackInsight(hoverNode);
+if (!sn) return null;
+return { label: hoverNode, snippet: sn };
+}, [hoverNode, selectedNode, activeConn, rawText, conns]);
 
 // Map of theme label -> weight for connection strength scoring
 const nodeWeightByKey = useMemo(() => {
@@ -1394,14 +1413,18 @@ const isSel = selectedNode === n.key;
 const isSnap = snapTarget === n.key;
 const canLink = selectedNode && selectedNode !== n.key && !hasConn(selectedNode, n.key) && !hasDiscovered(selectedNode, n.key);
 return (
-<div key={n.key} onPointerDown={function(e){startDrag(n.key,e);}} style={{
+<div key={n.key}
+onPointerDown={function(e){startDrag(n.key,e);}}
+onMouseEnter={function(){ setHoverNode(n.key); }}
+onMouseLeave={function(){ setHoverNode(function(prev){ return prev===n.key?null:prev; }); }}
+style={{
 position: "absolute", left: p.x, top: p.y,
 borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center",
 fontSize: 12, fontWeight: 600, fontFamily: FB, color: "white",
 textAlign: "center", lineHeight: 1.2,
 padding: "10px 18px",
 textTransform: "uppercase", letterSpacing: "0.06em",
-whiteSpace: "normal", maxWidth: 124,
+whiteSpace: "normal", maxWidth: 132,
 background: isSnap
 ? "rgba(125,183,174,0.15)"
 : n.w > 0.7 ? `rgba(214,178,109,0.22)` : "rgba(244,241,234,0.14)",
@@ -1422,13 +1445,41 @@ boxShadow: isSnap
 touchAction: "none", userSelect: "none",
 animation: isDrag||isSel||isSnap ? "none" : "nodeBreathe 8s ease-in-out infinite",
 animationDelay: `${ni*-1.5}s`,
+wordBreak: "break-word",
+overflowWrap: "anywhere",
+hyphens: "auto",
 }}>
-<span style={{ display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }} title={n.key}>
+<span style={{ display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
 {n.display || n.key}
 </span>
 </div>
 );
 })}
+
+{hoverDetail && (
+<div style={{
+position:"absolute",
+left: (pos[hoverDetail.label] ? (pos[hoverDetail.label].x + 60) : 0),
+top: (pos[hoverDetail.label] ? (pos[hoverDetail.label].y - 10) : 0),
+transform:"translate(-50%,-100%)",
+maxWidth:260,
+padding:"10px 12px",
+borderRadius:12,
+background:"rgba(8,10,20,0.92)",
+border:"1px solid rgba(255,255,255,0.12)",
+backdropFilter:"blur(10px)",
+boxShadow:"0 12px 40px rgba(0,0,0,0.35)",
+zIndex:40,
+pointerEvents:"none"
+}}>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>
+{hoverDetail.label}
+</div>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.55 }}>
+{hoverDetail.snippet}
+</div>
+</div>
+)}
 
 {selectedDetail && !activeConn && (
 <div onClick={function(e){e.stopPropagation();}} style={{
