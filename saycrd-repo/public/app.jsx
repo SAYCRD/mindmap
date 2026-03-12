@@ -580,7 +580,7 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 " - name (specific character or invented role), line (1 sentence — what this character DOES, present tense active voice), source_nodes (1-3 theme labels), classical_resonance (brief reference or null), evolution_from (null or prior archetype name)\\n" +
 "7. ALCHEMY: Stage nigredo|albedo|citrinitas|rubedo + 1 sentence evidence.\n" +
 "8. SYNTHESIS: 1-2 sentences rooted in THEIR exact words. If user signals exist, your synthesis MUST reflect them — not your original AI read. Mirror what they said, not what you inferred. Make them feel HEARD first. If you offer a new angle, frame it as a question, not a declaration.\n" +
-"9. UNDERNEATH: Array of EXACTLY 3 short strings (max 10 words each). These are what\'s beneath the surface — things they haven\'t quite said. Root each one in their actual words.\n" +
+"9. UNDERNEATH: Array of EXACTLY 3 short strings (max 10 words each). These are PATTERN INTELLIGENCE — what is difficult for the person to notice themselves: subtle or strong patterns that psychology or careful reading can see but are 'in hiding' to them. Look for: repetition (same move, word, or structure), what they keep circling without naming, contradictions between stated intent and pattern, blind spots implied by the structure of their words. Root each in their actual words/behavior but name what they have not said. NOT what the subject thinks is underneath; what the pattern reveals.\n" +
 "10. TENSION: Object {a, b, text}. a/b = opposing poles (1-3 words each). text = 1 punchy sentence about the cost of this specific tension for this specific person. Max 18 words.\n" +
 "11. BLIND_SPOT: 1 sentence. A pattern they may not have named yet — offered as a question if possible. If user signals suggest they DO see this, skip it and offer something genuinely unseen. Max 14 words.\n" +
 "12. OPENING: 1 question. Specific, uncomfortable, cracks it open. Under 12 words. Don\'t soften.\n" +
@@ -4639,7 +4639,7 @@ var cancelled = false;
 try {
 var under = typeof (sd&&sd.underneath)==="string" ? sd.underneath : "";
 var blind = typeof (sd&&sd.blind_spot)==="string" ? sd.blind_spot : "";
-var p = "One sentence (10-14 words): what is just out of sight in this person's field? From: underneath="+under+" blind_spot="+blind+". JSON: {\"revelation\":\"sentence\"}";
+var p = "One sentence (10-14 words): what is just out of sight in this person's field? Pattern intelligence — repetition, structure, blind spots they may not see. From: underneath="+under+" blind_spot="+blind+". JSON: {\"revelation\":\"sentence\"}";
 var rr = await callClaudeClient(p, "df", 80);
 if (!cancelled) { var dd = parseJSON(rr); if (dd&&dd.revelation) _dSetLine(dd.revelation); }
 } catch(e) {} finally { if (!cancelled) _dSetReady(true); }
@@ -6270,6 +6270,35 @@ if (uniqueArchs.length) stats += " Archetype progression: "+uniqueArchs.join(" >
 if (allCorrections.length) stats += " Subject said in their own words: "+allCorrections.slice(0,3).map(function(c){return '"'+c+'"';}).join(", ")+".";
 if (topResist.length) stats += " Kept pushing back on: "+topResist.join("; ")+".";
 
+var mapNotesLines = [];
+allSessions.forEach(function(s) {
+if (!s.mapResponses) return;
+Object.keys(s.mapResponses).forEach(function(connKey) {
+var mr = s.mapResponses[connKey];
+if (!mr || !mr.comment || !String(mr.comment).trim()) return;
+var parts = connKey.split("::");
+var from = (parts[0]||"").trim(), to = (parts[1]||"").trim();
+mapNotesLines.push("Between \""+from+"\" and \""+to+"\": \""+String(mr.comment).trim().slice(0,220)+(String(mr.comment).trim().length>220?"…":"")+"\"");
+});
+});
+var mapNotesBlurb = mapNotesLines.length > 0
+? "MAP NOTES (subject's words about connections — quote or paraphrase in the report where relevant):\n" + mapNotesLines.slice(0, 20).join("\n") + "\n\n"
+: "";
+
+var subjectWordsList = allCorrections.slice(0, 10);
+allSessions.forEach(function(s) {
+if (!s.mapResponses) return;
+Object.keys(s.mapResponses).forEach(function(connKey) {
+var mr = s.mapResponses[connKey];
+if (!mr || !mr.comment || !String(mr.comment).trim()) return;
+var t = String(mr.comment).trim().slice(0, 180);
+if (subjectWordsList.indexOf(t) === -1) subjectWordsList.push(t);
+});
+});
+var subjectWordsBlurb = subjectWordsList.length > 0
+? "SUBJECT'S OWN WORDS (session corrections and map notes — weave into sections; in WHAT REMAINS link something the subject said to what's underneath):\n" + subjectWordsList.slice(0, 14).map(function(w){ return "\""+w+"\""; }).join("\n") + "\n\n"
+: "";
+
 var underList = [];
 allSessions.forEach(function(s) {
 var u = s.underneath;
@@ -6280,7 +6309,7 @@ if (sd && sd.underneath) {
 if (Array.isArray(sd.underneath)) sd.underneath.forEach(function(x){ if (typeof x==="string"&&x.trim()) underList.push(x.trim()); });
 else if (typeof sd.underneath==="string"&&sd.underneath.trim()) underList.push(sd.underneath.trim());
 }
-var underBlurb = underList.length ? "What's underneath (use these exact ideas in prose, never write labels like underneath_0): " + underList.map(function(u,i){ return "("+(i+1)+") \""+u.slice(0,120)+(u.length>120?"…":"")+"\""; }).join("; ") + ".\n\n" : "";
+var underBlurb = underList.length ? "What's underneath (pattern intelligence — patterns hard for the subject to self-see: repetition, structure, blind spots; use these exact ideas in prose, never write labels like underneath_0): " + underList.map(function(u,i){ return "("+(i+1)+") \""+u.slice(0,120)+(u.length>120?"…":"")+"\""; }).join("; ") + ".\n\n" : "";
 
 var prompt = "You are writing a confidential field report. Third person only. Always call the subject \"the subject\" — never he, she, him, her. Plain declarative past tense. Clinical but human.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Use descent (cards and answers), clarity, and tension when present to ground the report in the subject's journey.\n"
@@ -6288,11 +6317,14 @@ var prompt = "You are writing a confidential field report. Third person only. Al
 + "SUBJECT DATA:\n" + stats + "\n"
 + "SESSION ARC:\n" + slimBio + "\n"
 + "CURRENT SESSION: " + currSummary + "\n\n"
++ mapNotesBlurb
++ subjectWordsBlurb
 + underBlurb
 + "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
++ "Where relevant, quote or paraphrase the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above). In WHAT REMAINS, connect at least one 'what's underneath' idea to something the subject actually said — a map note or correction — so the reader sees the link.\n\n"
 + "SECTION 1 title like WHAT OCCURRED: What dominated, when it shifted. Name specific themes and archetypes. 3 short paragraphs.\n"
 + "SECTION 2 title like WHAT MOVED: Concrete change. Only if there are multiple sessions — what shifted between them. If only 1 session, describe what moved within it. 3 short paragraphs.\n"
-+ "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. You MUST refer to the specific 'what's underneath' phrases listed above — quote or paraphrase them in the body so the reader sees the real pattern (e.g. 'The thing that remains is X' or 'What has not yet integrated: Y'). Never use labels like underneath_0. 2 short paragraphs.\n\n"
++ "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. Refer to the 'what's underneath' phrases above — these are pattern-intelligence observations (repetition, structure, blind spots the subject may not see). Quote or paraphrase them so the reader sees the real pattern. Never use labels like underneath_0. Where possible, tie one to something the subject said (MAP NOTES or SUBJECT'S OWN WORDS). 2 short paragraphs.\n\n"
 + "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now. Written like a pencil note at the bottom of a file.\n"
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
 + 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}';
@@ -7252,6 +7284,7 @@ var uAlive = uSv >= 68;
 return (
 <FC><FieldParticles color={uAlive ? "#D08BFF" : "#B86BFF"} count={uAlive ? 20 : 10} />
 <FLabel color="#B86BFF">WHAT'S UNDERNEATH</FLabel>
+<div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.06em", marginBottom:8, maxWidth:280 }}>Patterns that are hard to see yourself — repetition, structure, what's in hiding.</div>
 <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", fontFamily:FB, letterSpacing:"0.1em", marginBottom:16 }}>hold to save · swipe to react</div>
 <div style={{ display:"flex", flexDirection:"column", gap:12, maxWidth:320, width:"100%" }}>
 {underneath.slice(0,3).map(function(t, idx) {
