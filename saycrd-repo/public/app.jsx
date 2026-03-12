@@ -880,7 +880,6 @@ const [activeConn, setActiveConn] = useState(null);
 const [responses, setResponses] = useState({});
 const [dragging, setDragging] = useState(null);
 const [selectedNode, setSelectedNode] = useState(null);
-const [hoverNode, setHoverNode] = useState(null);
 const [discoveredConns, setDiscoveredConns] = useState([]);
 const [snapTarget, setSnapTarget] = useState(null);
 const SNAP_DIST = 130;
@@ -895,7 +894,23 @@ return [];
 }, [sd]);
 
 const conns = useMemo(() => {
-if (sd && sd.connections) return sd.connections.map(function(c) { return { from: c.from, to: c.to, label: (c.label || "linked").toUpperCase(), insight: c.insight || "", color: c.color || NC[0] }; });
+if (sd && sd.connections) return sd.connections.map(function(c) {
+return {
+from: c.from,
+to: c.to,
+label: (c.label || c.operator || "linked").toUpperCase(),
+operator: c.operator || null,
+claim: c.claim || null,
+evidence_quote: c.evidence_quote || c.quote || null,
+mechanism: c.mechanism || null,
+cost: c.cost || null,
+unlock: c.unlock || null,
+question: c.question || null,
+voltage: c.voltage || null,
+insight: c.insight || "",
+color: c.color || NC[0]
+};
+});
 return [];
 }, [sd]);
 
@@ -946,19 +961,44 @@ notes: notes
 };
 }, [selectedNode, conns, responses, rawText]);
 
-const hoverDetail = useMemo(() => {
-if (!hoverNode || hoverNode === selectedNode || activeConn) return null;
-var sn = extractSnippet(rawText || "", hoverNode) || bestFallbackInsight(hoverNode);
-if (!sn) return null;
-return { label: hoverNode, snippet: sn };
-}, [hoverNode, selectedNode, activeConn, rawText, conns]);
-
 // Map of theme label -> weight for connection strength scoring
 const nodeWeightByKey = useMemo(() => {
 var m = {};
 nodes.forEach(function(n) { m[n.key] = (sd && sd.themes ? (sd.themes.find(function(t){return t.label===n.key;}) || {}).weight : null) || 1; });
 return m;
 }, [nodes, sd]);
+
+function strengthScore(c) {
+var wa = nodeWeightByKey[c.from] || 1;
+var wb = nodeWeightByKey[c.to] || 1;
+var baseScore = (wa + wb) / 2;
+var k = c.from + "::" + c.to;
+var r = responses && responses[k];
+var bonus = 0;
+if (r) {
+if (r.value === "yes") bonus += 3;
+else if (r.value === "partly") bonus += 1.5;
+else if (r.value === "no") bonus += 0.5;
+if (r.comment && r.comment.trim()) bonus += 1;
+if (r.correction && r.correction.trim()) bonus += 1;
+}
+if (c.userDiscovered || c.discovered) bonus += 2;
+var v = c.voltage != null ? (parseFloat(c.voltage) || 0) : 0;
+if (v) bonus += v;
+return baseScore + bonus;
+}
+
+const visibleConns = useMemo(() => {
+var all = conns || [];
+if (!all.length) return [];
+if (selectedNode) {
+var inc = all.filter(function(c){ return c.from === selectedNode || c.to === selectedNode; });
+inc.sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
+return inc.slice(0, 4);
+}
+var scored = all.slice().sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
+return scored.slice(0, 3);
+}, [conns, selectedNode, responses, nodeWeightByKey]);
 
 // Strongest connections used for default rendering focus
 const strongConnKeys = useMemo(() => {
@@ -1214,6 +1254,17 @@ var ctr = function(key) { var p=pos[key]; if(p) return { x: p.x+60, y: p.y+20 };
 var mid = function(c) { var a=ctr(c.from),b=ctr(c.to); return {x:(a.x+b.x)/2,y:(a.y+b.y)/2}; };
 var edgePt = function(from, to) { var a=ctr(from),b=ctr(to); var dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1; const r=40; return { x1: a.x+(dx/d)*r, y1: a.y+(dy/d)*r, x2: b.x-(dx/d)*r, y2: b.y-(dy/d)*r }; };
 const allConns = [...conns, ...discoveredConns];
+const visibleAllConns = useMemo(() => {
+var base = allConns || [];
+if (!base.length) return [];
+if (selectedNode) {
+var inc = base.filter(function(c){ return c.from === selectedNode || c.to === selectedNode; });
+inc.sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
+return inc.slice(0, 4);
+}
+var scored = base.slice().sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
+return scored.slice(0, 3);
+}, [allConns, selectedNode, responses, nodeWeightByKey]);
 var K = function(c) { return c.from+"::"+c.to; };
 const explored = Object.keys(responses).length + discoveredConns.length;
 const didDrag = useRef(false);
@@ -1299,7 +1350,7 @@ What’s pulling you right now
 </div>
 <div ref={fieldRef} onClick={function(){setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden" }}>
 <><svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
-{posReady && conns.map(function(c) {
+{posReady && visibleAllConns.map(function(c) {
 var k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
 var _sva=pos[c.from],_svb=pos[c.to];
 if(!_sva||!_svb)return null;
@@ -1321,22 +1372,6 @@ const shouldFade = !isAct && !isStrong && (!selectedNode || !relatedToSelected);
 const finalOpacity = shouldFade ? 0.12 : op;
 return <line key={k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={finalOpacity} style={{transition:"all 0.6s ease"}}/>;
 })}
-{posReady && discoveredConns.map(function(c) {
-var k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
-var isAct = activeConn && K(activeConn)===k;
-const isStrong = strongConnKeys[k];
-const relatedToSelected = selectedNode && (c.from===selectedNode || c.to===selectedNode);
-let strokeColor = isAct ? `${c.color}88` : `${c.color}55`;
-let width = isAct ? 3 : 2;
-let dash = isAct ? "none" : "4 8";
-let op2 = 0.8;
-const shouldFade = !isAct && !isStrong && (!selectedNode || !relatedToSelected);
-const finalOpacity2 = shouldFade ? 0.25 : op2;
-return <line key={"d-"+k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2}
-stroke={strokeColor} strokeWidth={width}
-strokeDasharray={dash} opacity={finalOpacity2}
-style={{transition:"all 0.6s ease", animation: "riseUp 0.6s ease"}}/>;
-})}
 {selectedNode && (() => {
 const sc = ctr(selectedNode);
 return <circle cx={sc.x} cy={sc.y} r={48} fill="none" stroke="#6BFFB8" strokeWidth="1.5" opacity="0.5" strokeDasharray="4 4">
@@ -1349,7 +1384,7 @@ const ep = edgePt(dragging.key, snapTarget);
 return <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#7DB7AE" strokeWidth="2.5" strokeDasharray="6 4" opacity="0.7" style={{animation:"connBlink 1s ease-in-out infinite"}}/>;
 })()}
 </svg>
-{conns.map(c => {
+{visibleAllConns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 const isAct = activeConn && K(activeConn)===k;
 const isStrong = strongConnKeys[k];
@@ -1382,30 +1417,10 @@ boxShadow: isAct ? `0 0 20px ${accent}33` : !isExp ? `0 0 12px ${accent}15` : "n
 </div>
 );
 })}
-{conns.map(c => {
+{visibleAllConns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 if(!resp?.correction) return null;
 return <div key={"a-"+k} style={{ position:"absolute",left:m.x,top:m.y+16,transform:"translate(-50%,0)",fontSize:10,fontFamily:FD,fontStyle:"italic",color:"rgba(165,235,220,0.65)",maxWidth:140,textAlign:"center",lineHeight:1.3,animation:"riseUp 0.5s ease" }}>"{resp.correction.length>45?resp.correction.slice(0,43)+"…":resp.correction}"</div>;
-})}
-{discoveredConns.map(function(c) {
-var m=mid(c), k=K(c), resp=responses[k];
-var isAct = activeConn && K(activeConn)===k;
-var isExp = !!resp;
-return (
-<div key={"dl-"+k} onClick={function(e){e.stopPropagation();setActiveConn(c);}} style={{
-position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
-padding: "4px 10px", borderRadius: 6, fontSize: 9, fontWeight: 700, fontFamily: FB,
-letterSpacing: "0.06em", textTransform: "uppercase",
-color: isAct ? "white" : `${c.color}`,
-background: isAct ? `${c.color}33` : `rgba(8,10,20,0.85)`,
-border: `1.5px solid ${isAct ? c.color : `${c.color}66`}`,
-cursor: "pointer", whiteSpace: "nowrap", zIndex: isAct ? 15 : 5,
-transition: "all 0.3s ease", animation: "riseUp 0.5s ease",
-boxShadow: isAct ? `0 0 20px ${c.color}33` : `0 0 12px ${c.color}15`,
-}}>
-<span style={{ opacity:0.5, marginRight:4, fontSize:8 }}>you</span>{c.label}
-</div>
-);
 })}
 {nodes.map((n, ni) => {
 var _pi=nodes.indexOf(n); var _fbc=nodes.length; var _fbr=90; var p=pos[n.key]||{x:fieldSize?(fieldSize.w/2-55+Math.cos(2*Math.PI*_pi/_fbc)*_fbr):100, y:fieldSize?(fieldSize.h/2-18+Math.sin(2*Math.PI*_pi/_fbc)*_fbr):100}; const isDrag=dragging&&dragging.key===n.key;
@@ -1415,16 +1430,18 @@ const canLink = selectedNode && selectedNode !== n.key && !hasConn(selectedNode,
 return (
 <div key={n.key}
 onPointerDown={function(e){startDrag(n.key,e);}}
-onMouseEnter={function(){ setHoverNode(n.key); }}
-onMouseLeave={function(){ setHoverNode(function(prev){ return prev===n.key?null:prev; }); }}
 style={{
 position: "absolute", left: p.x, top: p.y,
 borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center",
-fontSize: 12, fontWeight: 600, fontFamily: FB, color: "white",
+fontSize: (function(){
+var l = String(n.display || n.key || "").trim().length;
+return l <= 10 ? 12 : l <= 14 ? 11 : l <= 18 ? 10 : 9;
+})(),
+fontWeight: 700, fontFamily: FB, color: "white",
 textAlign: "center", lineHeight: 1.2,
 padding: "10px 18px",
 textTransform: "uppercase", letterSpacing: "0.06em",
-whiteSpace: "normal", maxWidth: 132,
+whiteSpace: "nowrap", maxWidth: 140,
 background: isSnap
 ? "rgba(125,183,174,0.15)"
 : n.w > 0.7 ? `rgba(214,178,109,0.22)` : "rgba(244,241,234,0.14)",
@@ -1445,41 +1462,13 @@ boxShadow: isSnap
 touchAction: "none", userSelect: "none",
 animation: isDrag||isSel||isSnap ? "none" : "nodeBreathe 8s ease-in-out infinite",
 animationDelay: `${ni*-1.5}s`,
-wordBreak: "break-word",
-overflowWrap: "anywhere",
-hyphens: "auto",
+overflow: "hidden",
+textOverflow: "ellipsis",
 }}>
-<span style={{ display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
 {n.display || n.key}
-</span>
 </div>
 );
 })}
-
-{hoverDetail && (
-<div style={{
-position:"absolute",
-left: (pos[hoverDetail.label] ? (pos[hoverDetail.label].x + 60) : 0),
-top: (pos[hoverDetail.label] ? (pos[hoverDetail.label].y - 10) : 0),
-transform:"translate(-50%,-100%)",
-maxWidth:260,
-padding:"10px 12px",
-borderRadius:12,
-background:"rgba(8,10,20,0.92)",
-border:"1px solid rgba(255,255,255,0.12)",
-backdropFilter:"blur(10px)",
-boxShadow:"0 12px 40px rgba(0,0,0,0.35)",
-zIndex:40,
-pointerEvents:"none"
-}}>
-<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>
-{hoverDetail.label}
-</div>
-<div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.55 }}>
-{hoverDetail.snippet}
-</div>
-</div>
-)}
 
 {selectedDetail && !activeConn && (
 <div onClick={function(e){e.stopPropagation();}} style={{
@@ -3588,6 +3577,7 @@ return legacy;
 return data;
 } catch(e) { return []; }
 }
+
 function getArchetypeHistory() {
 var sessions = loadSessions(); var counts = {};
 sessions.forEach(function(s) {
