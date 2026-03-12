@@ -613,7 +613,7 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- hero_text = the single most dominant theme name (1-2 words, HUGE)\n" +
 "- sub_text = a sentence that names ALL themes: 'alongside [theme2], [theme3], and [theme4]'\n" +
 "- This is the 'your top genre' moment. Make it feel like a reveal.\n\n" +
-"CRITICAL: FROM and TO in connections must EXACTLY match a theme label.\n" +
+"CRITICAL: FROM and TO in connections must EXACTLY match a theme label. Optionally add evidence_quote (brief phrase from user's words) or mechanism (one-line explanation) so the user sees why this connection emerged.\n" +
 `Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1}],"connections":[{"from":"exact label","to":"exact label","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"wanting to be seen but not watched","color":"#FFB86B"},{"type":"binary","prompt":"lately you seem drawn to","option_a":"building slowly","option_b":"leaping first","color":"#FF6B9D"},{"type":"spectrum","prompt":"where does this live?","pole_a":"still forming","pole_b":"ready to move","color":"#6BFFB8"}],"archetype":{"name":"The Attuned Builder","line":"Builds through listening, not force.","source_nodes":["rest","creativity"],"classical_resonance":"hermit","evolution_from":null},"synthesis":"You\'re not building a product. You\'re building proof you\'re allowed to take up space.",
 "underneath":["Proof and worthiness collapsed into the same word","The thing you\'re building is the question you keep circling","Rest appears as something you\'re rationing"],
 "tension":{"a":"Control","b":"Trust","text":"You\'re trying to engineer outcomes that only surrender can reach."},
@@ -782,7 +782,7 @@ return (
 );
 }
 
-function InsightDrawer({ connection, position, onClose, onRespond, initialResponse }) {
+function InsightDrawer({ connection, position, onClose, onRespond, initialResponse, rawText }) {
 const [value, setValue] = useState(initialResponse ? (typeof initialResponse.slider === "number" ? initialResponse.slider : (initialResponse.value==="yes"?80:initialResponse.value==="partly"?50:20)) : null);
 const [done, setDone] = useState(!!initialResponse);
 const [comment, setComment] = useState(initialResponse && initialResponse.comment ? initialResponse.comment : "");
@@ -825,6 +825,14 @@ touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.
 <button onClick={function(e){e.stopPropagation();onClose();}} style={{ position: "absolute", top: 12, right: 14, width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "grid", placeItems: "center" }}>{"\u2715"}</button>
 <div style={{ padding: "22px 22px 20px" }}>
 <div style={{ fontSize: 10, letterSpacing: "0.2em", color: `${accent}99`, fontFamily: FB, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>{connection.nodeA} {"\u2194"} {connection.nodeB}</div>
+<div style={{ marginBottom: 14 }}>
+<div style={{ fontSize:9, letterSpacing:"0.18em", color:accent+"55", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>why this connection</div>
+<div style={{ fontSize:14, color:"rgba(255,255,255,0.8)", fontFamily:FD, fontStyle:"italic", lineHeight:1.5 }}>
+{connection.evidence_quote
+  ? "From what you shared: \"" + (connection.evidence_quote.length > 140 ? connection.evidence_quote.slice(0,137)+"…" : connection.evidence_quote) + "\""
+  : connection.mechanism || connection.whyFromShare || "From what you shared, this connection emerged."}
+</div>
+</div>
 <div style={{ marginBottom:20 }}>
 <div style={{ fontSize:9, letterSpacing:"0.18em", color:accent+"55", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>ai read</div>
 <div style={{ fontSize:17, color:"rgba(255,255,255,0.85)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>{connection.insight}</div>
@@ -882,6 +890,9 @@ const [dragging, setDragging] = useState(null);
 const [selectedNode, setSelectedNode] = useState(null);
 const [discoveredConns, setDiscoveredConns] = useState([]);
 const [snapTarget, setSnapTarget] = useState(null);
+const [mapInputOpen, setMapInputOpen] = useState(false);
+const [mapInputText, setMapInputText] = useState("");
+const [mapInputBusy, setMapInputBusy] = useState(false);
 const SNAP_DIST = 130;
 
 const sd = synthesisData;
@@ -987,47 +998,6 @@ var v = c.voltage != null ? (parseFloat(c.voltage) || 0) : 0;
 if (v) bonus += v;
 return baseScore + bonus;
 }
-
-const visibleConns = useMemo(() => {
-var all = conns || [];
-if (!all.length) return [];
-if (selectedNode) {
-var inc = all.filter(function(c){ return c.from === selectedNode || c.to === selectedNode; });
-inc.sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
-return inc.slice(0, 4);
-}
-var scored = all.slice().sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
-return scored.slice(0, 3);
-}, [conns, selectedNode, responses, nodeWeightByKey]);
-
-// Strongest connections used for default rendering focus
-const strongConnKeys = useMemo(() => {
-const base = [...conns, ...discoveredConns];
-if (!base.length) return {};
-function strength(c) {
-var wa = nodeWeightByKey[c.from] || 1;
-var wb = nodeWeightByKey[c.to] || 1;
-var baseScore = (wa + wb) / 2;
-var k = c.from + "::" + c.to;
-var r = responses && responses[k];
-var bonus = 0;
-if (r) {
-if (r.value === "yes") bonus += 3;
-else if (r.value === "partly") bonus += 1.5;
-else if (r.value === "no") bonus += 0.5;
-if (r.comment && r.comment.trim()) bonus += 1;
-if (r.correction && r.correction.trim()) bonus += 1;
-}
-if (c.userDiscovered || c.discovered) bonus += 2;
-return baseScore + bonus;
-}
-var scored = base.map(function(c){ return { key: c.from+"::"+c.to, c: c, score: strength(c) }; });
-scored.sort(function(a,b){ return b.score - a.score; });
-var topN = scored.slice(0, Math.min(10, scored.length));
-var out = {};
-topN.forEach(function(s){ out[s.key] = true; });
-return out;
-}, [conns, discoveredConns, nodeWeightByKey, responses]);
 
 const [pos, setPos] = useState({});
 const prevNodeCount = useRef(0);
@@ -1235,6 +1205,37 @@ setDiscoveredConns(function(prev) { return prev.map(function(c) { return (c.from
 setTimeout(function() { setActiveConn(fb); }, 900);
 };
 
+const makeConnFromText = async (text) => {
+var t = String(text || "").trim();
+if (!t || !nodes.length) return;
+setMapInputBusy(true);
+var themeList = nodes.map(function(n){ return n.key; }).join(", ");
+var ctx = rawText ? "\nContext from their share: " + rawText.slice(0, 300) : "";
+var p = "The user typed on their map: \"" + t + "\"\nTheir themes are: " + themeList + ctx + "\nSummarize what they're really saying. If it suggests 1-2 connections between existing themes, return them. JSON: {\"edges\":[{\"from\":\"exact theme label\",\"to\":\"exact theme label\",\"label\":\"2-6 word label\",\"insight\":\"1-2 sentence insight\"}]}\nIf no clear connection to existing themes, return {\"edges\":[]}. Use only theme labels that exist in the list."
+try {
+var raw = await callClaudeClient(p, "Map typing: " + t.slice(0, 80), 400);
+var d = parseJSON(raw);
+if (d && d.edges && Array.isArray(d.edges)) {
+  var added = [];
+  var themeKeys = nodes.map(function(n){ return n.key; });
+  d.edges.forEach(function(e) {
+    if (e.from && e.to && e.from !== e.to) {
+      var fa = themeKeys.find(function(k){ return k.toLowerCase()===String(e.from).trim().toLowerCase(); }) || (themeKeys.includes(e.from) ? e.from : null);
+      var ta = themeKeys.find(function(k){ return k.toLowerCase()===String(e.to).trim().toLowerCase(); }) || (themeKeys.includes(e.to) ? e.to : null);
+      if (fa && ta && !anyConn(fa, ta)) {
+        var col = nodes.find(function(n){ return n.key === ta; })?.color || "#7DB7AE";
+        var conn = { from: fa, to: ta, label: (e.label || "LINKED").toUpperCase(), insight: e.insight || "", color: col, discovered: true };
+        setDiscoveredConns(function(prev) { return prev.concat([conn]); });
+        added.push(conn);
+      }
+    }
+  });
+  if (added.length > 0) { setMapInputText(""); setMapInputOpen(false); setTimeout(function(){ setActiveConn(added[0]); }, 400); }
+}
+} catch (e) {}
+setMapInputBusy(false);
+};
+
 var handleNodeTap = function(key) {
 if (dragging) return;
 if (!selectedNode) { setSelectedNode(key); return; }
@@ -1254,17 +1255,6 @@ var ctr = function(key) { var p=pos[key]; if(p) return { x: p.x+60, y: p.y+20 };
 var mid = function(c) { var a=ctr(c.from),b=ctr(c.to); return {x:(a.x+b.x)/2,y:(a.y+b.y)/2}; };
 var edgePt = function(from, to) { var a=ctr(from),b=ctr(to); var dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1; const r=40; return { x1: a.x+(dx/d)*r, y1: a.y+(dy/d)*r, x2: b.x-(dx/d)*r, y2: b.y-(dy/d)*r }; };
 const allConns = [...conns, ...discoveredConns];
-const visibleAllConns = useMemo(() => {
-var base = allConns || [];
-if (!base.length) return [];
-if (selectedNode) {
-var inc = base.filter(function(c){ return c.from === selectedNode || c.to === selectedNode; });
-inc.sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
-return inc.slice(0, 4);
-}
-var scored = base.slice().sort(function(a,b){ return strengthScore(b) - strengthScore(a); });
-return scored.slice(0, 3);
-}, [allConns, selectedNode, responses, nodeWeightByKey]);
 var K = function(c) { return c.from+"::"+c.to; };
 const explored = Object.keys(responses).length + discoveredConns.length;
 const didDrag = useRef(false);
@@ -1350,14 +1340,12 @@ What’s pulling you right now
 </div>
 <div ref={fieldRef} onClick={function(){setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden" }}>
 <><svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
-{posReady && visibleAllConns.map(function(c) {
+{posReady && allConns.map(function(c) {
 var k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
 var _sva=pos[c.from],_svb=pos[c.to];
 if(!_sva||!_svb)return null;
 {var _svdx=(_svb.x+60)-(_sva.x+60),_svdy=(_svb.y+20)-(_sva.y+20);if(Math.sqrt(_svdx*_svdx+_svdy*_svdy)<90)return null;}
 const isAct = activeConn && K(activeConn)===k;
-const isStrong = strongConnKeys[k];
-const relatedToSelected = selectedNode && (c.from===selectedNode || c.to===selectedNode);
 let stroke="rgba(255,255,255,0.18)", sw=2, dash="8 5", op=1;
 if(resp?.value==="yes"){stroke="rgba(107,211,198,0.72)";sw=3;dash="none";}
 else if(resp?.value==="partly"){stroke="rgba(165,235,220,0.5)";sw=2.5;dash="none";}
@@ -1367,10 +1355,7 @@ stroke=hasWord?"rgba(214,178,100,0.75)":"rgba(214,178,100,0.35)";
 sw=hasWord?2.5:1.5; dash="5 4";
 }
 if(isAct){stroke=`${c.color}88`;sw=3;dash="none"; op=1;}
-// de-emphasize non-strong, non-related edges when nothing ties them to current focus
-const shouldFade = !isAct && !isStrong && (!selectedNode || !relatedToSelected);
-const finalOpacity = shouldFade ? 0.12 : op;
-return <line key={k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={finalOpacity} style={{transition:"all 0.6s ease"}}/>;
+return <line key={k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/>;
 })}
 {selectedNode && (() => {
 const sc = ctr(selectedNode);
@@ -1384,40 +1369,37 @@ const ep = edgePt(dragging.key, snapTarget);
 return <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#7DB7AE" strokeWidth="2.5" strokeDasharray="6 4" opacity="0.7" style={{animation:"connBlink 1s ease-in-out infinite"}}/>;
 })()}
 </svg>
-{visibleAllConns.map(c => {
+{allConns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 const isAct = activeConn && K(activeConn)===k;
-const isStrong = strongConnKeys[k];
-const relatedToSelected = selectedNode && (c.from===selectedNode || c.to===selectedNode);
 var isUserDefined = resp && resp.value==="no" && resp.comment && resp.comment.trim();
 var isExp = !!resp; var accent = isUserDefined ? "#D6B264" : c.color;
 var _lpa=pos[c.from],_lpb=pos[c.to];
 if(!_lpa||!_lpb)return null;
 {var _ldx=(_lpb.x+60)-(_lpa.x+60),_ldy=(_lpb.y+20)-(_lpa.y+20);if(Math.sqrt(_ldx*_ldx+_ldy*_ldy)<90)return null;}
-// Only show label chips for strong or user-touched or active connections
-if (!isAct && !isExp && !isStrong) return null;
 return (
 <div key={k} onClick={function(e){e.stopPropagation();setActiveConn(c);}} style={{
 position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
-padding: "4px 10px", borderRadius: 6, fontSize: 9, fontWeight: 700, fontFamily: FB,
+padding: "6px 12px", borderRadius: 8, fontSize: 9, fontWeight: 700, fontFamily: FB,
 letterSpacing: "0.06em", textTransform: "uppercase",
 color: isAct?"white":isUserDefined?"#D6B264":isExp?accent+"cc":accent,
 background: isAct?accent+"33":isUserDefined?"rgba(40,30,10,0.9)":"rgba(8,10,20,0.85)",
 border:"1.5px solid "+(isAct?accent:isUserDefined?"rgba(214,178,100,0.5)":isExp?accent+"44":accent+"66"),
-cursor: "pointer", whiteSpace: "nowrap", zIndex: isAct ? 15 : 5,
+cursor: "pointer", whiteSpace: "normal", maxWidth: 160, textAlign: "center", lineHeight: 1.25,
+zIndex: isAct ? 15 : 5,
 transition: "all 0.3s ease",
 animation: !isExp ? "connBlink 2s ease-in-out infinite" : "none",
 boxShadow: isAct ? `0 0 20px ${accent}33` : !isExp ? `0 0 12px ${accent}15` : "none",
 }}>
 {!isExp && <div style={{ position:"absolute", inset:-5, borderRadius:10, border:"1px solid "+accent+"44", animation:"ringPulse 2s ease-in-out infinite", pointerEvents:"none" }}/>}
 {isUserDefined
-? <span title={"you: "+resp.comment}>{resp.comment.trim().split(/\s+/).slice(0,5).join(" ")}{resp.comment.trim().split(/\s+/).length>5?"…":""}</span>
+? <span title={"you: "+resp.comment}>{resp.comment.trim()}</span>
 : c.label
 }
 </div>
 );
 })}
-{visibleAllConns.map(c => {
+{allConns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 if(!resp?.correction) return null;
 return <div key={"a-"+k} style={{ position:"absolute",left:m.x,top:m.y+16,transform:"translate(-50%,0)",fontSize:10,fontFamily:FD,fontStyle:"italic",color:"rgba(165,235,220,0.65)",maxWidth:140,textAlign:"center",lineHeight:1.3,animation:"riseUp 0.5s ease" }}>"{resp.correction.length>45?resp.correction.slice(0,43)+"…":resp.correction}"</div>;
@@ -1543,7 +1525,7 @@ color:"rgba(255,255,255,0.6)", cursor:"pointer"
 </div>
 )}
 {activeConn && <InsightDrawer
-connection={{nodeA:activeConn.from,nodeB:activeConn.to,label:activeConn.label,insight:activeConn.insight,color:activeConn.color}}
+connection={{nodeA:activeConn.from,nodeB:activeConn.to,label:activeConn.label,insight:activeConn.insight,color:activeConn.color,evidence_quote:activeConn.evidence_quote,whyFromShare:activeConn.whyFromShare,mechanism:activeConn.mechanism}}
 position={mid(activeConn)}
 initialResponse={responses[K(activeConn)]}
 onClose={function(){setActiveConn(null);}}
@@ -1571,8 +1553,23 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 />}
 </>}
 </div>
+{mapInputOpen ? (
+<div style={{ position:"absolute", bottom: 16, left: 16, right: 16, zIndex: 20, background: "rgba(10,15,25,0.96)", border: "1px solid rgba(107,184,255,0.35)", borderRadius: 16, padding: 14, backdropFilter: "blur(20px)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.12em", color: "rgba(107,184,255,0.9)", fontFamily: FB, textTransform: "uppercase", marginBottom: 8 }}>Type to add a connection</div>
+<textarea value={mapInputText} onChange={function(e){setMapInputText(e.target.value);}} placeholder="e.g. rest and proof feel like the same thing when I'm tired" 
+style={{ width: "100%", minHeight: 56, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(107,184,255,0.25)", borderRadius: 10, color: "rgba(255,255,255,0.9)", fontFamily: FD, fontSize: 14, padding: "10px 12px", resize: "none", outline: "none", lineHeight: 1.5, boxSizing: "border-box" }}
+onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();makeConnFromText(mapInputText);}}}
+/>
+<div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, alignItems: "center" }}>
+<button onClick={function(){setMapInputOpen(false);setMapInputText("");}} style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, background: "transparent", border: "none", cursor: "pointer" }}>cancel</button>
+<button onClick={function(){makeConnFromText(mapInputText);}} disabled={!mapInputText.trim()||mapInputBusy} style={{ fontSize: 12, fontFamily: FB, background: mapInputText.trim()&&!mapInputBusy ? "rgba(107,184,255,0.25)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(107,184,255,0.4)", borderRadius: 8, padding: "6px 16px", color: "rgba(107,184,255,0.95)", cursor: mapInputText.trim()&&!mapInputBusy ? "pointer" : "not-allowed" }}>{mapInputBusy ? "reading…" : "add"}</button>
+</div>
+</div>
+) : (
+<button onClick={function(){setMapInputOpen(true);}} style={{ position:"absolute", bottom: 16, right: 16, zIndex: 20, width: 40, height: 40, borderRadius: 999, background: "rgba(107,184,255,0.15)", border: "1px solid rgba(107,184,255,0.35)", color: "rgba(107,184,255,0.9)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", fontFamily: "system-ui" }} title="Type to add connection">+</button>
+)}
 {explored>=1&&<button 
-onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",width:"calc(100% - 32px)",maxWidth:340,background:"linear-gradient(135deg, rgba(30,40,60,0.92), rgba(20,30,55,0.95))",border:"1px solid rgba(107,184,255,0.35)",borderRadius:24,padding:"13px 28px",color:"rgba(107,184,255,0.9)",fontSize:13,fontFamily:FB,fontWeight:500,cursor:"pointer",zIndex:25,animation:"riseUp 0.5s ease",backdropFilter:"blur(12px)",letterSpacing:"0.06em",boxShadow:"0 4px 24px rgba(0,0,0,0.5)" }}>continue →</button>}
+onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ position:"absolute",bottom:mapInputOpen?130:16,left:"50%",transform:"translateX(-50%)",width:"calc(100% - 32px)",maxWidth:340,background:"linear-gradient(135deg, rgba(30,40,60,0.92), rgba(20,30,55,0.95))",border:"1px solid rgba(107,184,255,0.35)",borderRadius:24,padding:"13px 28px",color:"rgba(107,184,255,0.9)",fontSize:13,fontFamily:FB,fontWeight:500,cursor:"pointer",zIndex:25,animation:"riseUp 0.5s ease",backdropFilter:"blur(12px)",letterSpacing:"0.06em",boxShadow:"0 4px 24px rgba(0,0,0,0.5)" }}>continue →</button>}
 </div>
 );
 }
@@ -8642,7 +8639,7 @@ var prompt =
 + "ORIGINAL MAP TITLE: " + (sd.map_title || sd.mapTitle || "none") + "\n\n"
 
 + "Use the exact same JSON schema. Every field required.\n"
-+ "CRITICAL: from/to in connections must exactly match a theme label you generate.\n"
++ "CRITICAL: from/to in connections must exactly match a theme label. Optionally add evidence_quote or mechanism so the user sees why each connection emerged.\n"
 + 'Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1}],"connections":[{"from":"exact","to":"exact","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"...","color":"#..."},{"type":"binary","prompt":"...","option_a":"...","option_b":"...","color":"#..."},{"type":"spectrum","prompt":"...","pole_a":"...","pole_b":"...","color":"#..."},{"type":"energy","phrase":"...","color":"#..."}],"archetype":{"name":"The ...","line":"...","source_nodes":["..."],"classical_resonance":null,"evolution_from":null},"synthesis":"...","underneath":["...","...","..."],"tension":{"a":"...","b":"...","text":"..."},"blind_spot":"...","opening":"...","noticing":"...","alchemy":{"stage":"nigredo","evidence":"..."},"field_cards":[{"type":"energy","hero_text":"...","sub_text":"...","color":"#...","user_fragment":"...","whisper":null}]}';
 
 var userInput = (rawText || "") + "\n\n" +
