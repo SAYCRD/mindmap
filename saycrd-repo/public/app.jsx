@@ -568,7 +568,7 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- NEVER EVER say: 'you are not ready', 'you resist', 'you avoid', 'you cannot', 'you're not open', 'you're closed', 'you refuse', 'you struggle with', 'you haven't', 'not yet ready'. These are projections from a position of superiority. You do not know what the user is ready for. \n" +
 "- If you see a pattern that LOOKS like resistance — ASK about it. Never declare it.\n" +
 "- Example wrong: 'You're not ready to partner.' Example right: 'Something about partnership keeps showing up — what does that word actually mean to you?'\n\n" +
-"1. THEMES: Extract 6-8 core themes. 1-3 word labels that DISTILL, not quote. Weight 1-5. Always return at least 6 — the map needs density to breathe. For each theme add a 'why' field: a brief phrase from the user's words or one-line explanation of what in their share led to this theme (so they remember where the node came from).\n" +
+"1. THEMES: Extract 5-7 core themes. Prefer 2-word labels (e.g. 'digital tasks' not 'email' and 'website' separately). When multiple items are instances of the same category (email+website, calls+meetings), consolidate into ONE node (e.g. 'digital tasks', 'people contact'). Weight 1-5. For each theme add 'why' (brief phrase from user's words) and 'short_desc' (4-8 words, factual, the area of life the user shared — e.g. 'tasks involving screens and inboxes').\n" +
 "2. CONNECTIONS: 3-5 connections. Not every theme needs a connection — isolated nodes create interesting negative space. 1-word label, one-sentence insight (punchy, not generic).\n" +
 "3. GUIDE: 3-5 items. Types: act, notice, deepen, release. Max 12 words.\n" +
 "4. MAP_TITLE: 3-6 words.\n" +
@@ -614,7 +614,7 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- sub_text = a sentence that names ALL themes: 'alongside [theme2], [theme3], and [theme4]'\n" +
 "- This is the 'your top genre' moment. Make it feel like a reveal.\n\n" +
 "CRITICAL: FROM and TO in connections must EXACTLY match a theme label. Optionally add evidence_quote (brief phrase from user's words) or mechanism (one-line explanation) so the user sees why this connection emerged.\n" +
-`Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1,"why":"brief phrase from user's words or one-line explanation"}],"connections":[{"from":"exact label","to":"exact label","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"wanting to be seen but not watched","color":"#FFB86B"},{"type":"binary","prompt":"lately you seem drawn to","option_a":"building slowly","option_b":"leaping first","color":"#FF6B9D"},{"type":"spectrum","prompt":"where does this live?","pole_a":"still forming","pole_b":"ready to move","color":"#6BFFB8"}],"archetype":{"name":"The Attuned Builder","line":"Builds through listening, not force.","source_nodes":["rest","creativity"],"classical_resonance":"hermit","evolution_from":null},"synthesis":"You\'re not building a product. You\'re building proof you\'re allowed to take up space.",
+`Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1,"why":"...","short_desc":"4-8 words factual area of life"}],"connections":[{"from":"exact label","to":"exact label","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"wanting to be seen but not watched","color":"#FFB86B"},{"type":"binary","prompt":"lately you seem drawn to","option_a":"building slowly","option_b":"leaping first","color":"#FF6B9D"},{"type":"spectrum","prompt":"where does this live?","pole_a":"still forming","pole_b":"ready to move","color":"#6BFFB8"}],"archetype":{"name":"The Attuned Builder","line":"Builds through listening, not force.","source_nodes":["rest","creativity"],"classical_resonance":"hermit","evolution_from":null},"synthesis":"You\'re not building a product. You\'re building proof you\'re allowed to take up space.",
 "underneath":["Proof and worthiness collapsed into the same word","The thing you\'re building is the question you keep circling","Rest appears as something you\'re rationing"],
 "tension":{"a":"Control","b":"Trust","text":"You\'re trying to engineer outcomes that only surrender can reach."},
 "blind_spot":"You think the audience is watching. It\'s a mirror.",
@@ -798,10 +798,18 @@ setValue(v);
 var mapped = v < 33 ? "no" : v < 66 ? "partly" : "yes";
 onRespond(mapped, null, v, "");
 setDone(true);
-if (v < 33) {
- setShowComment(true);
+if (v < 33) setShowComment(true);
 }
+useEffect(function() {
+if (!done) return;
+function onKey(e) {
+if (e.key !== "Enter") return;
+e.preventDefault();
+onClose();
 }
+window.addEventListener("keydown", onKey);
+return function() { window.removeEventListener("keydown", onKey); };
+}, [done]);
 function submitComment() {
 var mapped = value < 33 ? "no" : value < 66 ? "partly" : "yes";
 var userWord = comment.trim();
@@ -825,14 +833,6 @@ touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.
 <button onClick={function(e){e.stopPropagation();onClose();}} style={{ position: "absolute", top: 12, right: 14, width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "grid", placeItems: "center" }}>{"\u2715"}</button>
 <div style={{ padding: "22px 22px 20px" }}>
 <div style={{ fontSize: 10, letterSpacing: "0.2em", color: `${accent}99`, fontFamily: FB, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>{connection.nodeA} {"\u2194"} {connection.nodeB}</div>
-<div style={{ marginBottom: 14 }}>
-<div style={{ fontSize:9, letterSpacing:"0.18em", color:accent+"55", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>why this connection</div>
-<div style={{ fontSize:14, color:"rgba(255,255,255,0.8)", fontFamily:FD, fontStyle:"italic", lineHeight:1.5 }}>
-{connection.evidence_quote
-  ? "From what you shared: \"" + (connection.evidence_quote.length > 140 ? connection.evidence_quote.slice(0,137)+"…" : connection.evidence_quote) + "\""
-  : connection.mechanism || connection.whyFromShare || "From what you shared, this connection emerged."}
-</div>
-</div>
 <div style={{ marginBottom:20 }}>
 <div style={{ fontSize:9, letterSpacing:"0.18em", color:accent+"55", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>ai read</div>
 <div style={{ fontSize:17, color:"rgba(255,255,255,0.85)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>{connection.insight}</div>
@@ -849,6 +849,7 @@ touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.
 : <div style={{fontSize:13,fontFamily:FB,color:"rgba(214,178,100,0.8)",fontWeight:600}}>not quite how it lives in you</div>
 }
 {value >= 33 && <button onClick={function(e){e.stopPropagation();setShowComment(true);}} style={{display:"block",margin:"10px auto 0",fontSize:11,color:"rgba(255,255,255,0.22)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.08em",textDecoration:"underline",textUnderlineOffset:3}}>add a note →</button>}
+<div style={{fontSize:10,color:"rgba(255,255,255,0.2)",fontFamily:FB,letterSpacing:"0.08em",marginTop:12}}>Enter to close</div>
 </div>}
 {done && showComment && <div style={{animation:"riseUp 0.4s ease",marginTop:8}}>
 {value <= 33
@@ -870,12 +871,13 @@ lineHeight:1.6,boxSizing:"border-box"}}
 ? <div style={{fontSize:10,color:"rgba(214,178,100,0.4)",fontFamily:FB}}>your words are how this lives in you</div>
 : <button onClick={onClose} style={{fontSize:11,color:"rgba(255,255,255,0.22)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.06em"}}>close without note</button>
 }
-<button onClick={submitComment}
+<button onClick={function(){submitComment();onClose();}}
 style={{fontSize:12,fontFamily:FB,background:"transparent",
 border:"1px solid "+(comment.trim()?(value<=33?"rgba(214,178,100,0.6)":accent+"44"):"rgba(255,255,255,0.1)"),
 borderRadius:16,padding:"6px 18px",cursor:"pointer",
 color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.2)"
 }}>{value<=33?"this is how it lives":"noted"}</button>
+<div style={{fontSize:10,color:"rgba(255,255,255,0.2)",fontFamily:FB,letterSpacing:"0.08em",marginTop:8}}>Enter to close</div>
 </div>
 </div>}
 </div>
@@ -899,7 +901,8 @@ const sd = synthesisData;
 const nodes = useMemo(() => {
 if (sd && sd.themes) return sd.themes.map(function(t, i) {
 var label = t.label || "";
-return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1) };
+var shortDesc = t.short_desc || t.why || "";
+return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1), shortDesc: shortDesc };
 });
 return [];
 }, [sd]);
@@ -1072,15 +1075,26 @@ adj[bi].push(ai);
 var degree = nodes.map(function(_, i) { return adj[i].length; });
 var maxDegree = Math.max.apply(null, degree.concat([1]));
 
-var cols = Math.ceil(Math.sqrt(n));
+var order = [];
+var seen = {};
+function visit(i) {
+if (seen[i]) return;
+seen[i] = true;
+order.push(i);
+(adj[i] || []).forEach(visit);
+}
+for (var i = 0; i < n; i++) { if (order.length >= n) break; visit(i); }
+for (var i = 0; i < n; i++) { if (order.indexOf(i) < 0) order.push(i); }
+var invOrder = order.map(function(_, i) { return order.indexOf(i); });
+
 var positions = nodes.map(function(nd, i) {
-var col = i % cols;
-var row = Math.floor(i / cols);
-var rows = Math.ceil(n / cols);
-var jitter = function() { return (Math.random() - 0.5) * 30; };
+var idx = invOrder[i];
+var angle = (idx / n) * 2 * Math.PI - Math.PI / 2;
+var radius = Math.min(W, H) * 0.32;
+var jitter = function() { return (Math.random() - 0.5) * 12; };
 return {
-x: (W * 0.12) + col * (W * 0.76 / cols) + (W * 0.76 / cols - NODE_W) / 2 + jitter(),
-y: (H * 0.12) + row * (H * 0.72 / rows) + (H * 0.72 / rows - NODE_H) / 2 + jitter(),
+x: cx + Math.cos(angle) * radius + jitter() - NODE_W / 2,
+y: cy + Math.sin(angle) * radius + jitter() - NODE_H / 2,
 vx: 0, vy: 0
 };
 });
@@ -1321,9 +1335,13 @@ return () => { window.removeEventListener("pointermove", m); window.removeEventL
 }, [dragging, selectedNode]);
 
 return (
-<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "22px 0 0", overflow: "hidden" }}>
-<Particles color="rgba(107,184,255,0.25)" count={6}/>
+<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "22px 0 0", overflow: "hidden",
+background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a14 100%)" }}>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 100% 80% at 50% 30%, rgba(80,60,140,0.06) 0%, transparent 55%)", pointerEvents: "none", zIndex: 0 }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
+<Particles color="rgba(107,184,255,0.2)" count={10}/>
 <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
+<div style={{ fontSize: 9, letterSpacing: "0.35em", color: "rgba(255,255,255,0.25)", fontFamily: FB, textTransform: "uppercase", marginBottom: 4 }}>Your constellation</div>
 <div style={{ fontSize: 16, fontWeight: 500, color: "#F7F5F0", fontFamily: FD, letterSpacing: "0.03em" }}>
 What’s pulling you right now
 </div>
@@ -1343,6 +1361,7 @@ What’s pulling you right now
 </p>
 </div>
 <div ref={fieldRef} onClick={function(){setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden" }}>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 70% at 50% 50%, rgba(40,50,90,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }}/>
 <><svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
 {posReady && allConns.map(function(c) {
 var k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
@@ -1350,16 +1369,16 @@ var _sva=pos[c.from],_svb=pos[c.to];
 if(!_sva||!_svb)return null;
 {var _svdx=(_svb.x+60)-(_sva.x+60),_svdy=(_svb.y+20)-(_sva.y+20);if(Math.sqrt(_svdx*_svdx+_svdy*_svdy)<90)return null;}
 const isAct = activeConn && K(activeConn)===k;
-let stroke="rgba(255,255,255,0.18)", sw=2, dash="8 5", op=1;
-if(resp?.value==="yes"){stroke="rgba(107,211,198,0.72)";sw=3;dash="none";}
-else if(resp?.value==="partly"){stroke="rgba(165,235,220,0.5)";sw=2.5;dash="none";}
+let stroke="rgba(255,255,255,0.18)", sw=2, dash="8 5", op=1, glowStroke="rgba(255,255,255,0.06)";
+if(resp?.value==="yes"){stroke="rgba(107,211,198,0.72)";sw=3;dash="none";glowStroke="rgba(107,211,198,0.15)";}
+else if(resp?.value==="partly"){stroke="rgba(165,235,220,0.5)";sw=2.5;dash="none";glowStroke="rgba(165,235,220,0.12)";}
 else if(resp?.value==="no"){
 var hasWord=resp.comment&&resp.comment.trim().length>0;
 stroke=hasWord?"rgba(214,178,100,0.75)":"rgba(214,178,100,0.35)";
-sw=hasWord?2.5:1.5; dash="5 4";
+sw=hasWord?2.5:1.5; dash="5 4";glowStroke="rgba(214,178,100,0.08)";
 }
-if(isAct){stroke=`${c.color}88`;sw=3;dash="none"; op=1;}
-return <line key={k} x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/>;
+if(isAct){stroke=`${c.color}88`;sw=3;dash="none"; op=1;glowStroke=c.color+"22";}
+return <g key={k}><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={glowStroke} strokeWidth={sw+6} strokeLinecap="round" strokeDasharray={dash} opacity={0.8} style={{transition:"all 0.6s ease"}}/><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/></g>;
 })}
 {selectedNode && (() => {
 const sc = ctr(selectedNode);
@@ -1415,6 +1434,7 @@ const isSnap = snapTarget === n.key;
 const canLink = selectedNode && selectedNode !== n.key && !hasConn(selectedNode, n.key) && !hasDiscovered(selectedNode, n.key);
 return (
 <div key={n.key}
+title={n.shortDesc ? String(n.shortDesc).trim() : ""}
 onPointerDown={function(e){startDrag(n.key,e);}}
 style={{
 position: "absolute", left: p.x, top: p.y,
@@ -1429,22 +1449,22 @@ padding: "10px 18px",
 textTransform: "uppercase", letterSpacing: "0.06em",
 whiteSpace: "nowrap", maxWidth: 140,
 background: isSnap
-? "rgba(125,183,174,0.15)"
-: n.w > 0.7 ? `rgba(214,178,109,0.22)` : "rgba(244,241,234,0.14)",
+? "rgba(125,183,174,0.18)"
+: n.w > 0.7 ? `rgba(214,178,109,0.25)` : "rgba(244,241,234,0.12)",
 border: isSnap ? "1.5px solid rgba(125,183,174,0.7)"
 : isSel ? "1.5px solid #6BFFB8"
 : canLink ? `1.5px solid ${n.color}aa`
 : n.w > 0.7 ? "1.5px solid rgba(214,178,109,0.45)"
 : `1.5px solid rgba(244,241,234,0.22)`,
-backdropFilter: "blur(8px)",
+backdropFilter: "blur(10px)",
 cursor: isDrag?"grabbing":"pointer", zIndex: isDrag?20: isSel||isSnap?10 :3,
 transition: isDrag?"none":"all 0.4s cubic-bezier(.25,.46,.45,.94)",
 transform: isDrag?"scale(1.12)": isSnap?"scale(1.15)": isSel?"scale(1.08)" :"scale(1)",
 boxShadow: isSnap
-? "0 0 20px rgba(125,183,174,0.4)"
+? "0 0 24px rgba(125,183,174,0.45), 0 0 8px rgba(125,183,174,0.2)"
 : isSel
-? "0 0 20px rgba(107,255,184,0.25)"
-: `0 0 ${isDrag?25:12}px ${n.color}${isDrag?"44":"18"}`,
+? "0 0 24px rgba(107,255,184,0.3), 0 0 8px rgba(107,255,184,0.15)"
+: `0 0 ${isDrag?28:16}px ${n.color}${isDrag?"55":"25"}, 0 0 6px ${n.color}15`,
 touchAction: "none", userSelect: "none",
 animation: isDrag||isSel||isSnap ? "none" : "nodeBreathe 8s ease-in-out infinite",
 animationDelay: `${ni*-1.5}s`,
@@ -5603,6 +5623,170 @@ animation:"riseUp 0.8s ease 1.1s both" }}>
 );
 }
 
+function InnerWrappedCard({ themes, sd, sessionCount, goNext }) {
+themes = themes || []; sd = sd || {};
+var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
+var _fieldState = (function(){ try { return computeFieldState(); } catch(e){ return null; } })();
+var _themeHistory = (function(){ try { return getThemeHistory(); } catch(e){ return {}; } })();
+var NC_W = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#E84393","#7DB7AE","#D6B26D"];
+var [slide, setSlide] = useState(0);
+var [selectedSessionIdx, setSelectedSessionIdx] = useState(Math.max(0, _all.length - 1));
+var currentThemes = themes.length > 0 ? themes : (_all[selectedSessionIdx] && _all[selectedSessionIdx].themes) || [];
+var currentConns = (sd && sd.connections) || (_all[selectedSessionIdx] && _all[selectedSessionIdx].connections) || [];
+var hasPatterns = !!(_fieldState && ((_fieldState.rising && _fieldState.rising.length > 0) || (_fieldState.fading && _fieldState.fading.length > 0) || (_fieldState.chronic && _fieldState.chronic.length > 0) || (_fieldState.absent && _fieldState.absent.length > 0)));
+var hasMultiSession = _all.length > 1;
+var maxSlides = 5;
+
+function ConstellationMap({ thList, connList }) {
+var n = (thList || []).length;
+if (n === 0) return <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>No themes yet</div>;
+var cx = 50, cy = 48, r = 32;
+var pts = (thList || []).map(function(t, i) {
+var ang = (i / n) * 2 * Math.PI - Math.PI / 2;
+return { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r * 0.85, label: t.label || t.name, color: t.color || NC_W[i % NC_W.length] };
+});
+return (
+<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ width: "100%", maxWidth: 320, height: 280 }}>
+{(connList || []).map(function(c, ci) {
+var a = pts.find(function(p){ return (p.label||"").toLowerCase() === (c.from||"").toLowerCase(); });
+var b = pts.find(function(p){ return (p.label||"").toLowerCase() === (c.to||"").toLowerCase(); });
+if (!a || !b) return null;
+return <line key={ci} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgba(255,255,255,0.2)" strokeWidth="0.4" strokeLinecap="round"/>;
+})}
+{pts.map(function(p, i) {
+return <g key={i}>
+<circle cx={p.x} cy={p.y} r="2.5" fill={p.color} opacity="0.9">
+<animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite" begin={i*0.2+"s"}/>
+</circle>
+<circle cx={p.x} cy={p.y} r="5" fill="none" stroke={p.color} strokeWidth="0.3" opacity="0.3">
+<animate attributeName="r" values="4;7;4" dur="3s" repeatCount="indefinite" begin={i*0.15+"s"}/>
+</circle>
+<text x={p.x} y={p.y + 6} textAnchor="middle" fontSize="3.2" fill="rgba(255,255,255,0.85)" fontFamily={FB} fontWeight="600">
+{(p.label||"").toUpperCase().slice(0, 12)}
+</text>
+</g>;
+})}
+</svg>
+);
+}
+
+var advanceSlide = function() {
+var next = slide + 1;
+if (next === 2 && !hasPatterns) next = 3;
+if (next === 3 && !hasMultiSession) next = 4;
+if (next >= 5) { goNext && goNext(); return; }
+setSlide(next);
+};
+return (
+<div onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("[data-nolink]")) advanceSlide(); }}
+style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
+background:"linear-gradient(180deg, #0A0618 0%, #0D0818 30%, #080510 70%, #050308 100%)",
+display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 20%, rgba(120,80,180,0.08) 0%, transparent 60%)", pointerEvents:"none" }}/>
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 60% 50% at 80% 80%, rgba(180,100,255,0.05) 0%, transparent 70%)", pointerEvents:"none" }}/>
+<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 24px 60px" }}>
+
+{slide === 0 && (
+<div style={{ textAlign:"center", animation:"riseUp 0.8s ease both" }}>
+<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:32, textTransform:"uppercase" }}>YOUR</div>
+<div style={{ fontSize:42, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", lineHeight:1, marginBottom:8 }}>
+INNER
+</div>
+<div style={{ fontSize:42, fontWeight:200, color:"rgba(255,255,255,0.5)", fontFamily:FB, letterSpacing:"0.12em", lineHeight:1 }}>
+WEATHER
+</div>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic", marginTop:28 }}>what's showing up</div>
+<div style={{ fontSize:10, letterSpacing:"0.25em", color:"rgba(255,255,255,0.15)", fontFamily:FB, marginTop:40 }}>TAP TO CONTINUE</div>
+</div>
+)}
+
+{slide === 1 && (
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both" }}>
+<div style={{ fontSize:9, letterSpacing:"0.4em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:20, textTransform:"uppercase" }}>YOUR SKY THIS SESSION</div>
+<div style={{ width:"100%", display:"flex", justifyContent:"center" }}>
+<ConstellationMap thList={currentThemes.map(function(t,i){ return Object.assign({}, t, { color: t.color || NC_W[i % NC_W.length] }); })} connList={currentConns}/>
+</div>
+<div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:16 }}>themes as constellations</div>
+</div>
+)}
+
+{slide === 2 && hasPatterns && (
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both", width:"100%", maxWidth: 300 }}>
+<div style={{ fontSize:9, letterSpacing:"0.4em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:24, textTransform:"uppercase" }}>WHAT PATTERNS SHOW</div>
+<div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+{_fieldState.rising && _fieldState.rising.length > 0 && (
+<div style={{ display:"flex", alignItems:"center", gap:12 }}>
+<div style={{ width:8, height:8, borderRadius:"50%", background:"#6BFFB8", boxShadow:"0 0 12px rgba(107,255,184,0.5)" }}/>
+<div><div style={{ fontSize:14, fontWeight:600, color:"white", fontFamily:FB }}>Rising</div><div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:FD }}>{_fieldState.rising.map(function(r){return r.label;}).join(", ")}</div></div>
+</div>
+)}
+{_fieldState.chronic && _fieldState.chronic.length > 0 && (
+<div style={{ display:"flex", alignItems:"center", gap:12 }}>
+<div style={{ width:8, height:8, borderRadius:"50%", background:"#D6B26D", boxShadow:"0 0 12px rgba(214,178,109,0.4)" }}/>
+<div><div style={{ fontSize:14, fontWeight:600, color:"white", fontFamily:FB }}>Always present</div><div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:FD }}>{_fieldState.chronic.join(", ")}</div></div>
+</div>
+)}
+{_fieldState.fading && _fieldState.fading.length > 0 && (
+<div style={{ display:"flex", alignItems:"center", gap:12 }}>
+<div style={{ width:8, height:8, borderRadius:"50%", background:"#6BB8FF", opacity:0.7 }}/>
+<div><div style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.8)", fontFamily:FB }}>Fading</div><div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontFamily:FD }}>{_fieldState.fading.map(function(f){return f.label;}).join(", ")}</div></div>
+</div>
+)}
+{_fieldState.absent && _fieldState.absent.length > 0 && (
+<div style={{ display:"flex", alignItems:"center", gap:12 }}>
+<div style={{ width:6, height:6, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.2)", background:"transparent" }}/>
+<div><div style={{ fontSize:13, fontWeight:500, color:"rgba(255,255,255,0.5)", fontFamily:FB }}>Absent</div><div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", fontFamily:FD }}>{_fieldState.absent.slice(0,3).join(", ")}</div></div>
+</div>
+)}
+</div>
+</div>
+)}
+
+{slide === 3 && (
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both", width:"100%" }}>
+<div style={{ fontSize:9, letterSpacing:"0.4em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:20, textTransform:"uppercase" }}>SCROLL THROUGH</div>
+<div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center", marginBottom:24 }}>
+{_all.map(function(s, si) {
+var isSel = selectedSessionIdx === si;
+var d = s.date ? new Date(s.date) : null;
+var dateStr = d && !isNaN(d) ? (d.getMonth()+1)+"/"+d.getDate() : (si+1);
+return (
+<button key={si} data-nolink onClick={function(){ setSelectedSessionIdx(si); }}
+style={{ padding:"8px 14px", borderRadius:12, border: isSel ? "1.5px solid rgba(214,178,109,0.6)" : "1px solid rgba(255,255,255,0.15)", background: isSel ? "rgba(214,178,109,0.12)" : "rgba(255,255,255,0.04)", color: isSel ? "white" : "rgba(255,255,255,0.5)", fontFamily:FB, fontSize:12, cursor:"pointer", transition:"all 0.3s ease" }}>
+Session {dateStr}
+</button>
+);
+})}
+</div>
+<div style={{ width:"100%", display:"flex", justifyContent:"center" }}>
+<ConstellationMap thList={(_all[selectedSessionIdx] && _all[selectedSessionIdx].themes) || []} connList={(_all[selectedSessionIdx] && _all[selectedSessionIdx].connections) || []}/>
+</div>
+</div>
+)}
+
+{slide === 4 && (
+<div style={{ textAlign:"center", animation:"riseUp 0.8s ease both" }}>
+<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:24, textTransform:"uppercase" }}>IMAGINAL</div>
+<div style={{ fontSize:28, fontWeight:700, color:"white", fontFamily:FB, letterSpacing:"0.06em", lineHeight:1.2, marginBottom:12 }}>
+What's forming
+</div>
+<div style={{ fontSize:15, color:"rgba(255,255,255,0.45)", fontFamily:FD, fontStyle:"italic", lineHeight:1.6, maxWidth:260, margin:"0 auto" }}>
+The patterns beneath the patterns. The cells that hold the blueprint.
+</div>
+<div style={{ marginTop:32, fontSize:11, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.2em" }}>tap to continue</div>
+</div>
+)}
+
+<div style={{ position:"absolute", bottom:28, left:0, right:0, display:"flex", justifyContent:"center", gap:6 }}>
+{Array.from({length: maxSlides}).map(function(_, i) {
+return <div key={i} style={{ width:6, height:6, borderRadius:"50%", background: slide === i ? "rgba(214,178,109,0.8)" : "rgba(255,255,255,0.15)", transition:"all 0.3s ease" }}/>;
+})}
+</div>
+</div>
+</div>
+);
+}
+
 function YearReviewCard({ themes, sessionCount, goNext }) {
 themes = themes || [];
 var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
@@ -7106,6 +7290,8 @@ c.push({ type: "the_mirror", bg: "#08080C" });
 
 c.push({ type: "the_realm", bg: "#04020A" });
 
+c.push({ type: "inner_wrapped", bg: "#0A0618" });
+
 c.push({ type: "year_review", bg: "#060606" });
 
 c.push({ type: "field_report", bg: "#FAFAF8" });
@@ -7154,6 +7340,9 @@ return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={
 }
 case "the_realm": {
 return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+}
+case "inner_wrapped": {
+return <InnerWrappedCard themes={themes} sd={sd} sessionCount={sessionCount} goNext={advance}/>;
 }
 case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
