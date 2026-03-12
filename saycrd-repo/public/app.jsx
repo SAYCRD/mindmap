@@ -568,7 +568,7 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- NEVER EVER say: 'you are not ready', 'you resist', 'you avoid', 'you cannot', 'you're not open', 'you're closed', 'you refuse', 'you struggle with', 'you haven't', 'not yet ready'. These are projections from a position of superiority. You do not know what the user is ready for. \n" +
 "- If you see a pattern that LOOKS like resistance — ASK about it. Never declare it.\n" +
 "- Example wrong: 'You're not ready to partner.' Example right: 'Something about partnership keeps showing up — what does that word actually mean to you?'\n\n" +
-"1. THEMES: Extract 6-8 core themes. 1-3 word labels that DISTILL, not quote. Weight 1-5. Always return at least 6 — the map needs density to breathe.\n" +
+"1. THEMES: Extract 6-8 core themes. 1-3 word labels that DISTILL, not quote. Weight 1-5. Always return at least 6 — the map needs density to breathe. For each theme add a 'why' field: a brief phrase from the user's words or one-line explanation of what in their share led to this theme (so they remember where the node came from).\n" +
 "2. CONNECTIONS: 3-5 connections. Not every theme needs a connection — isolated nodes create interesting negative space. 1-word label, one-sentence insight (punchy, not generic).\n" +
 "3. GUIDE: 3-5 items. Types: act, notice, deepen, release. Max 12 words.\n" +
 "4. MAP_TITLE: 3-6 words.\n" +
@@ -614,7 +614,7 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- sub_text = a sentence that names ALL themes: 'alongside [theme2], [theme3], and [theme4]'\n" +
 "- This is the 'your top genre' moment. Make it feel like a reveal.\n\n" +
 "CRITICAL: FROM and TO in connections must EXACTLY match a theme label. Optionally add evidence_quote (brief phrase from user's words) or mechanism (one-line explanation) so the user sees why this connection emerged.\n" +
-`Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1}],"connections":[{"from":"exact label","to":"exact label","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"wanting to be seen but not watched","color":"#FFB86B"},{"type":"binary","prompt":"lately you seem drawn to","option_a":"building slowly","option_b":"leaping first","color":"#FF6B9D"},{"type":"spectrum","prompt":"where does this live?","pole_a":"still forming","pole_b":"ready to move","color":"#6BFFB8"}],"archetype":{"name":"The Attuned Builder","line":"Builds through listening, not force.","source_nodes":["rest","creativity"],"classical_resonance":"hermit","evolution_from":null},"synthesis":"You\'re not building a product. You\'re building proof you\'re allowed to take up space.",
+`Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1,"why":"brief phrase from user's words or one-line explanation"}],"connections":[{"from":"exact label","to":"exact label","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"wanting to be seen but not watched","color":"#FFB86B"},{"type":"binary","prompt":"lately you seem drawn to","option_a":"building slowly","option_b":"leaping first","color":"#FF6B9D"},{"type":"spectrum","prompt":"where does this live?","pole_a":"still forming","pole_b":"ready to move","color":"#6BFFB8"}],"archetype":{"name":"The Attuned Builder","line":"Builds through listening, not force.","source_nodes":["rest","creativity"],"classical_resonance":"hermit","evolution_from":null},"synthesis":"You\'re not building a product. You\'re building proof you\'re allowed to take up space.",
 "underneath":["Proof and worthiness collapsed into the same word","The thing you\'re building is the question you keep circling","Rest appears as something you\'re rationing"],
 "tension":{"a":"Control","b":"Trust","text":"You\'re trying to engineer outcomes that only surrender can reach."},
 "blind_spot":"You think the audience is watching. It\'s a mirror.",
@@ -964,13 +964,17 @@ var r = responses && responses[k];
 if (!r || !r.comment || !String(r.comment).trim()) return null;
 return { k: k, other: (c.from === selectedNode ? c.to : c.from), value: r.value, comment: String(r.comment).trim() };
 }).filter(Boolean);
+var theme = sd && sd.themes ? sd.themes.find(function(t){ return t.label === selectedNode; }) : null;
+var whyNode = theme && (theme.why || theme.evidence || theme.source) ? String(theme.why || theme.evidence || theme.source).trim() : null;
+if (!whyNode) whyNode = extractSnippet(rawText || "", selectedNode) || bestFallbackInsight(selectedNode);
 return {
 label: selectedNode,
+whyNode: whyNode,
 snippet: extractSnippet(rawText || "", selectedNode) || bestFallbackInsight(selectedNode),
 related: related,
 notes: notes
 };
-}, [selectedNode, conns, responses, rawText]);
+}, [selectedNode, conns, responses, rawText, sd]);
 
 // Map of theme label -> weight for connection strength scoring
 const nodeWeightByKey = useMemo(() => {
@@ -1477,9 +1481,12 @@ borderRadius:12, padding:"6px 10px", cursor:"pointer", flexShrink:0
 }}>close</button>
 </div>
 
-{selectedDetail.snippet && (
-<div style={{ marginTop:10, fontSize:14, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.6 }}>
-{selectedDetail.snippet}
+{selectedDetail.whyNode && (
+<div style={{ marginTop:12, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(107,184,255,0.85)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Where this came from</div>
+<div style={{ fontSize:14, color:"rgba(255,255,255,0.82)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>
+{selectedDetail.whyNode}
+</div>
 </div>
 )}
 
@@ -4491,7 +4498,7 @@ stroke={t.color} strokeWidth="0.5" opacity="0.3"/>;
 </div>
 </div>
 
-<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center", padding:"80px 28px 160px", overflowX:"hidden" }}>
+<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center", padding:"80px 28px 160px", overflow:"hidden" }}>
 {_fcLoading ? (
 <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 {[90,64,48].map(function(sz,i){
@@ -4505,7 +4512,7 @@ background:"rgba(255,255,255,0.04)", animation:"breathe 1.5s ease-in-out "+(i*0.
 textShadow:"0 0 20px "+_fcBg2+"66" }}>
 THE FIELD CONDITION
 </div>
-<div style={{ display:"flex", flexDirection:"column", gap:2, marginBottom:32 }}>
+<div style={{ display:"flex", flexDirection:"column", gap:2, marginBottom:32, paddingRight:24, maxWidth:"100%", boxSizing:"border-box" }}>
 {_condWords.map(function(word, wi) {
 var sz = wi===0 ? 72 : wi===1 ? 58 : wi===2 ? 46 : 38;
 var col = _fcColors[wi] || "rgba(255,255,255,0.9)";
@@ -4518,7 +4525,8 @@ fontFamily: FB,
 letterSpacing: "-0.02em",
 lineHeight: 0.92,
 textShadow: "0 0 80px "+col+"66, 0 0 30px "+col+"33",
-animation: "riseUp 0.7s ease "+(0.1+wi*0.12)+"s both"
+animation: "riseUp 0.7s ease "+(0.1+wi*0.12)+"s both",
+wordBreak:"break-word", overflowWrap:"break-word", minWidth:0
 }}>
 {word}
 </div>
@@ -4653,7 +4661,7 @@ animation:"riseUp 0.6s ease 0.2s both" }}/>
 color:_abColor+"44", fontFamily:FB }}>SAYCRD</div>
 
 <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
-justifyContent:"center", padding:"100px 28px 120px" }}>
+justifyContent:"center", padding:"100px 32px 120px", boxSizing:"border-box" }}>
 
 <div style={{ fontSize:9, letterSpacing:"0.5em", color:_abColor+"BB",
 fontFamily:FB, textTransform:"uppercase", marginBottom:18,
@@ -4661,7 +4669,7 @@ animation:"riseUp 0.6s ease both" }}>
 YOUR ARCHETYPE
 </div>
 
-<div style={{ marginBottom:36, maxWidth:"100%", overflow:"hidden" }}>
+<div style={{ marginBottom:36, width:"100%", paddingRight:24, boxSizing:"border-box" }}>
 {_abWords.map(function(word, wi) {
 var isLast = wi === _abWords.length - 1;
 var _baseSz = _abWords.length === 1 ? 72 : _abWords.length === 2 ? (wi===0?52:72) : (wi===0?44:wi===1?66:52);
@@ -4672,7 +4680,7 @@ return (
 <div key={wi} style={{
 fontSize: sz,
 fontWeight: isLast ? 700 : 300,
-maxWidth:"100%", overflow:"hidden", wordBreak:"break-word",
+width:"100%", wordBreak:"break-word", overflowWrap:"break-word", minWidth:0,
 color: isLast ? "white" : _abColor+"CC",
 fontFamily: FB,
 letterSpacing: isLast ? "-0.02em" : "0.1em",
@@ -5047,7 +5055,7 @@ WHAT'S GROWING
 </div>
 
 <div style={{ flex:1, display:"flex", flexDirection:"column",
-justifyContent:"center", padding:"0 32px" }}>
+justifyContent:"center", padding:"0 32px", boxSizing:"border-box", minWidth:0 }}>
 {_branches.map(function(b, bi) {
 var isFirst = bi === 0;
 var sz = _sizes[bi] || 13;
@@ -5088,8 +5096,9 @@ textTransform: bi <= 1 ? "uppercase" : "none",
 flex: "1 1 auto",
 minWidth: 0,
 maxWidth: "100%",
-whiteSpace: "nowrap",
-overflow: "hidden"
+wordBreak: "break-word",
+overflowWrap: "break-word",
+paddingRight: 8
 }}>
 {labelText}
 </div>
@@ -5124,7 +5133,7 @@ animation:"breathe 1.8s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 ) : (
 <div style={{ fontSize:17, color:"#4A4038", fontFamily:FD,
-fontStyle:"italic", lineHeight:1.75 }}>
+fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", paddingRight:8 }}>
 {_wgLine || (_branches[0] ? "\u201c"+_branches[0].label+" keeps returning \u2014 it wants something.\u201d" : "The field is learning what it loves.")}
 </div>
 )}
@@ -5158,16 +5167,12 @@ var _stayed = _currThemes.filter(function(t){ return _prevThemes.indexOf(t) >= 0
 
 
 var _sameContent = !_isFirst && _newThemes.length === 0 && _goneThemes.length === 0;
-var _openingWords = (sd && typeof sd.opening === "string" && sd.opening)
-? [sd.opening.slice(0,60)]
-: [];
-var _blindWords = (sd && typeof sd.blind_spot === "string" && sd.blind_spot)
-? [sd.blind_spot.slice(0,60)]
-: [];
+var _openingFull = (sd && typeof sd.opening === "string" && sd.opening.trim()) ? sd.opening.trim() : "";
+var _blindFull = (sd && typeof sd.blind_spot === "string" && sd.blind_spot.trim()) ? sd.blind_spot.trim() : "";
 var _thenLabel = _sameContent ? "BROUGHT IN" : ("THEN" + (_prevDate ? " · "+_prevDate : ""));
 var _nowLabel = _sameContent ? "SURFACED" : "NOW";
-var _thenWords = _sameContent ? _openingWords : (_prevThemes.length ? _prevThemes : _openingWords);
-var _nowWords = _sameContent ? _blindWords : _currThemes;
+var _thenWords = _sameContent ? _prevThemes : (_prevThemes.length ? _prevThemes : (_openingFull ? [_openingFull.slice(0,80)] : []));
+var _nowWords = _currThemes;
 var _prevTension = (_prev && _prev.tension && _prev.tension.a) ? _prev.tension.a+" vs "+_prev.tension.b : "";
 var _currTension = (sd && sd.tension && sd.tension.a) ? sd.tension.a+" vs "+sd.tension.b : "";
 
@@ -5293,7 +5298,7 @@ fontFamily:FB, lineHeight:1.25,
 textDecoration: _archShifted ? "line-through" : "none",
 textDecorationColor:"rgba(120,150,200,0.25)",
 wordBreak:"break-word", overflowWrap:"anywhere" }}>
-{_sameContent ? (_openingWords.join(" ") || _prevArch || "—") : (_prevArch || "—")}
+{_sameContent ? (_openingFull || _prevArch || "—") : (_prevArch || "—")}
 </div>
 {_thenWords && _thenWords.length > 0 && (
 <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
@@ -5341,7 +5346,7 @@ border:"1px solid "+_currColor+"22"
 color:_currColor, fontFamily:FB, lineHeight:1.25,
 textShadow:"0 0 20px "+_currColor+"33",
 wordBreak:"break-word", overflowWrap:"anywhere" }}>
-{_sameContent ? (_blindWords.join(" ") || _currArch || "—") : (_currArch || "—")}
+{_sameContent ? (_blindFull || _currArch || "—") : (_currArch || "—")}
 </div>
 {_nowWords && _nowWords.length > 0 && (
 <div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
@@ -6484,6 +6489,28 @@ var intensityDir = recentAvg > earlyAvg+0.5 ? "deepening" : recentAvg < earlyAvg
 var archJourney = allSessions.map(function(s){ return (s.archetypes&&s.archetypes[0]&&s.archetypes[0].name)||""; }).filter(Boolean);
 var uniqueArchs = archJourney.filter(function(a,i){ return i===0||archJourney[i-1]!==a; });
 
+var themeRecurrence = {};
+allSessions.forEach(function(s) {
+(s.themes||[]).forEach(function(t) {
+if (t && t.label) themeRecurrence[t.label] = (themeRecurrence[t.label]||0) + 1;
+});
+});
+var persistentThemes = Object.keys(themeRecurrence).filter(function(l){ return themeRecurrence[l] >= 3; }).sort(function(a,b){ return themeRecurrence[b]-themeRecurrence[a]; });
+var returningThemes = Object.keys(themeRecurrence).filter(function(l){ return themeRecurrence[l] === 2; });
+var arcPatternBlurb = "";
+if (total >= 5) {
+var parts = [];
+if (persistentThemes.length) parts.push("Persistent themes (3+ sessions): "+persistentThemes.slice(0,6).join(", ")+(persistentThemes.length>6?"…":""));
+if (returningThemes.length) parts.push("Returning (2 sessions): "+returningThemes.slice(0,4).join(", ")+(returningThemes.length>4?"…":""));
+arcPatternBlurb = "CROSS-SESSION ARC ("+total+" sessions)"+(parts.length?" — "+parts.join(". "):"")+". "+(total>=10?"With this many sessions, a brilliant analyst would see meta-patterns — what the subject keeps circling, what only becomes visible over time, what the arc reveals that no single session shows. Dig into that.":"")+"\n\n";
+}
+
+var prevReportHint = "";
+try {
+var prev = JSON.parse(localStorage.getItem("saycrd-last-report-hint") || "{}");
+if (prev.oneLine && prev.firstOpen) prevReportHint = "AVOID REPETITION: The previous report's verdict was: \""+prev.oneLine+"\". Its opening began with: \""+prev.firstOpen+"\". This report must feel FRESH and DISTINCT. Do NOT repeat that structure, phrasing, or angle. Lead with what's different about THIS moment. Vary the opening — sometimes start with the arc, sometimes with the current tension, sometimes with what the subject said, sometimes with a pattern that spans sessions. Never formulaic.\n\n";
+} catch(e) {}
+
 var firstDate = allSessions.length>0 && allSessions[0].date
 ? new Date(allSessions[0].date).toLocaleDateString("en-US",{month:"short",day:"numeric"})
 : "";
@@ -6540,22 +6567,25 @@ var underBlurb = underList.length ? "What's underneath (pattern intelligence —
 var prompt = "You are writing a confidential field report. Third person only. Always call the subject \"the subject\" — never he, she, him, her. Plain declarative past tense. Clinical but human.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Use descent (cards and answers), clarity, and tension when present to ground the report in the subject's journey.\n"
 + "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
++ (prevReportHint ? prevReportHint : "")
 + "SUBJECT DATA:\n" + stats + "\n"
++ (arcPatternBlurb ? arcPatternBlurb : "")
 + "SESSION ARC:\n" + slimBio + "\n"
 + "CURRENT SESSION: " + currSummary + "\n\n"
 + mapNotesBlurb
 + subjectWordsBlurb
 + underBlurb
++ "VARIETY AND DEPTH: Each report must feel distinct. Vary the opening of SECTION 1 — lead with what's most distinctive about THIS moment (the arc, the current tension, what the subject said, a cross-session pattern). When there are 10+ sessions, dig deeper: surface meta-patterns that only become visible over time. What would a brilliant analyst see that a surface summary misses? Go beyond summary into genuine insight — the kind of observation that would make someone feel deeply seen. 3 short paragraphs per section, but make each sentence count.\n\n"
 + "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
 + "Where relevant, quote or paraphrase the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above). In WHAT REMAINS, connect at least one 'what's underneath' idea to something the subject actually said — a map note or correction — so the reader sees the link.\n\n"
-+ "SECTION 1 title like WHAT OCCURRED: What dominated, when it shifted. Name specific themes and archetypes. 3 short paragraphs.\n"
-+ "SECTION 2 title like WHAT MOVED: Concrete change. Only if there are multiple sessions — what shifted between them. If only 1 session, describe what moved within it. 3 short paragraphs.\n"
++ "SECTION 1 title like WHAT OCCURRED: What dominated, when it shifted. Name specific themes and archetypes. Lead with what's most distinctive — vary the angle. 3 short paragraphs.\n"
++ "SECTION 2 title like WHAT MOVED: Concrete change. Only if there are multiple sessions — what shifted between them. If only 1 session, describe what moved within it. With many sessions, what does the arc reveal? 3 short paragraphs.\n"
 + "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. Refer to the 'what's underneath' phrases above — these are pattern-intelligence observations (repetition, structure, blind spots the subject may not see). Quote or paraphrase them so the reader sees the real pattern. Never use labels like underneath_0. Where possible, tie one to something the subject said (MAP NOTES or SUBJECT'S OWN WORDS). 2 short paragraphs.\n\n"
-+ "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now. Written like a pencil note at the bottom of a file.\n"
++ "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
 + 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}';
 
-var rr = await callClaudeClient(prompt, "field_report", 700);
+var rr = await callClaudeClient(prompt, "field_report", 950);
 if (cancelled) return;
 var dd = parseJSON(rr);
 if (dd && dd.sections && dd.sections.length >= 3) {
@@ -6570,6 +6600,12 @@ b = b.replace(new RegExp('"underneath_' + j + '"', "gi"), "\"" + repl + "\"");
 dd.sections[i].body = b;
 }
 _setReport(dd);
+try {
+var firstBody = (dd.sections[0] && dd.sections[0].body) || "";
+var firstOpen = firstBody.split(/\n\n+/)[0] || firstBody.split("\n")[0] || "";
+firstOpen = firstOpen.trim().slice(0, 120);
+localStorage.setItem("saycrd-last-report-hint", JSON.stringify({ oneLine: (dd.oneLineVerdict||"").slice(0, 100), firstOpen: firstOpen }));
+} catch(e2) {}
 } else {
 _setReport({
 sections:[
@@ -7143,7 +7179,7 @@ evolving from<br/><span style={{ color:apColor+"99" }}>{apLastArch.name}</span>
 <ArchGlyph name={apName} color={apColor} size={150}/>
 </div>
 {apThe && <div style={{ fontSize:11, letterSpacing:"0.55em", color:apColor+"66", fontFamily:FB, marginBottom:4, animation:"riseUp 0.8s ease 0.15s both" }}>{apThe}</div>}
-<div style={{ fontSize: apHero.length > 12 ? 34 : apHero.length > 8 ? 42 : 52, fontWeight:700, color:"white", fontFamily:FB, letterSpacing:"0.06em", textAlign:"center", lineHeight:1.1, animation:"riseUp 0.8s ease 0.25s both", textShadow:"0 0 60px "+apColor+"44" }}>
+<div style={{ fontSize: apHero.length > 12 ? 34 : apHero.length > 8 ? 42 : 52, fontWeight:700, color:"white", fontFamily:FB, letterSpacing:"0.06em", textAlign:"center", lineHeight:1.1, animation:"riseUp 0.8s ease 0.25s both", textShadow:"0 0 60px "+apColor+"44", maxWidth:"100%", paddingLeft:20, paddingRight:20, boxSizing:"border-box", wordBreak:"break-word", overflowWrap:"break-word" }}>
 {apHero}
 </div>
 {apLine && <div style={{ marginTop:14, fontSize:16, color:"rgba(255,255,255,0.5)", fontFamily:FD, fontStyle:"italic", textAlign:"center", maxWidth:290, lineHeight:1.65, animation:"riseUp 0.8s ease 0.4s both" }}>
@@ -8639,8 +8675,8 @@ var prompt =
 + "ORIGINAL MAP TITLE: " + (sd.map_title || sd.mapTitle || "none") + "\n\n"
 
 + "Use the exact same JSON schema. Every field required.\n"
-+ "CRITICAL: from/to in connections must exactly match a theme label. Optionally add evidence_quote or mechanism so the user sees why each connection emerged.\n"
-+ 'Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1}],"connections":[{"from":"exact","to":"exact","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"...","color":"#..."},{"type":"binary","prompt":"...","option_a":"...","option_b":"...","color":"#..."},{"type":"spectrum","prompt":"...","pole_a":"...","pole_b":"...","color":"#..."},{"type":"energy","phrase":"...","color":"#..."}],"archetype":{"name":"The ...","line":"...","source_nodes":["..."],"classical_resonance":null,"evolution_from":null},"synthesis":"...","underneath":["...","...","..."],"tension":{"a":"...","b":"...","text":"..."},"blind_spot":"...","opening":"...","noticing":"...","alchemy":{"stage":"nigredo","evidence":"..."},"field_cards":[{"type":"energy","hero_text":"...","sub_text":"...","color":"#...","user_fragment":"...","whisper":null}]}';
++ "CRITICAL: from/to in connections must exactly match a theme label. For each theme include 'why': brief phrase from user's words or one-line explanation of where this node came from. Optionally add evidence_quote or mechanism to connections.\n"
++ 'Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1,"why":"..."}],"connections":[{"from":"exact","to":"exact","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"...","color":"#..."},{"type":"binary","prompt":"...","option_a":"...","option_b":"...","color":"#..."},{"type":"spectrum","prompt":"...","pole_a":"...","pole_b":"...","color":"#..."},{"type":"energy","phrase":"...","color":"#..."}],"archetype":{"name":"The ...","line":"...","source_nodes":["..."],"classical_resonance":null,"evolution_from":null},"synthesis":"...","underneath":["...","...","..."],"tension":{"a":"...","b":"...","text":"..."},"blind_spot":"...","opening":"...","noticing":"...","alchemy":{"stage":"nigredo","evidence":"..."},"field_cards":[{"type":"energy","hero_text":"...","sub_text":"...","color":"#...","user_fragment":"...","whisper":null}]}';
 
 var userInput = (rawText || "") + "\n\n" +
 (mapRecord ? "\u2550\u2550 MAP CO-CREATION RECORD \u2550\u2550\n" + mapRecord : "") +
