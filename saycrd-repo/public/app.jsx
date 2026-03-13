@@ -7623,6 +7623,7 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 </div>
 </div>
 )}
+</div>
 </>
 )}
 {_report && (
