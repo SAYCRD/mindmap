@@ -404,17 +404,17 @@ const [focused, setFocused] = useState(false);
 useEffect(() => { setWords(text.split(/\s+/).filter(x => x.length > 3)); }, [text]);
 const wc = text.split(/\s+/).filter(Boolean).length;
 return (
-<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", padding: "80px 24px 40px", overflow: "hidden" }}>
+<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "40px 24px 24px", paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))" }}>
 <FloatingWords words={words} color="#6BB8FF"/><Particles color="#6BB8FF" count={15}/>
-<div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>
-<h1 style={{ fontSize: 36, fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
-<p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", fontFamily: FB, margin: "0 0 32px", textAlign: "center", zIndex: 1 }}>Don't think. Just pour.</p>
-<div style={{ width: "100%", maxWidth: 380, flex: 1, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2 }}>
-<textarea value={text} onChange={function(e){setText(e.target.value);}} onFocus={function(){setFocused(true);}} onBlur={function(){setFocused(false);}} placeholder="Start writing..." style={{ width: "100%", height: "100%", background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.85)", fontSize: 17, fontFamily: FD, fontStyle: "italic", padding: 20, lineHeight: 1.7 }}/>
+<div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1, flexShrink: 0 }}>POUR</div>
+<h1 style={{ fontSize: "clamp(28px, 8vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15, flexShrink: 0 }}>What's alive<br/>in you right now?</h1>
+<p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", fontFamily: FB, margin: "0 0 24px", textAlign: "center", zIndex: 1, flexShrink: 0 }}>Don't think. Just pour.</p>
+<div style={{ width: "100%", maxWidth: 380, minHeight: 180, flex: 1, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2, flexShrink: 0 }}>
+<textarea value={text} onChange={function(e){setText(e.target.value);}} onFocus={function(){setFocused(true);}} onBlur={function(){setFocused(false);}} placeholder="Start writing..." style={{ width: "100%", minHeight: 160, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.85)", fontSize: 17, fontFamily: FD, fontStyle: "italic", padding: 20, lineHeight: 1.7, display: "block" }}/>
 </div>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 380, marginTop: 16, zIndex: 1 }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 380, marginTop: 20, paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 1, flexShrink: 0, minHeight: 52 }}>
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
-{wc>=20&&<button onClick={function(){ onComplete(text); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "10px 28px", color: "white", fontSize: 14, fontFamily: FB, fontWeight: 500, cursor: "pointer", animation: "riseUp 0.4s ease" }}>Synthesize →</button>}
+{wc>=20&&<button onClick={function(){ onComplete(text); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "12px 28px", minHeight: 48, minWidth: 140, color: "white", fontSize: 14, fontFamily: FB, fontWeight: 500, cursor: "pointer", animation: "riseUp 0.4s ease", touchAction: "manipulation" }}>Synthesize →</button>}
 </div>
 </div>
 );
@@ -1601,7 +1601,7 @@ onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();makeC
 <button onClick={function(){setMapInputOpen(true);}} style={{ position:"absolute", bottom: 16, right: 16, zIndex: 20, width: 40, height: 40, borderRadius: 999, background: "rgba(107,184,255,0.15)", border: "1px solid rgba(107,184,255,0.35)", color: "rgba(107,184,255,0.9)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", fontFamily: "system-ui" }} title="Type to add connection">+</button>
 )}
 {explored>=1&&<button 
-onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ position:"absolute",bottom:mapInputOpen?130:16,left:"50%",transform:"translateX(-50%)",width:"calc(100% - 32px)",maxWidth:340,background:"linear-gradient(135deg, rgba(30,40,60,0.92), rgba(20,30,55,0.95))",border:"1px solid rgba(107,184,255,0.35)",borderRadius:24,padding:"13px 28px",color:"rgba(107,184,255,0.9)",fontSize:13,fontFamily:FB,fontWeight:500,cursor:"pointer",zIndex:25,animation:"riseUp 0.5s ease",backdropFilter:"blur(12px)",letterSpacing:"0.06em",boxShadow:"0 4px 24px rgba(0,0,0,0.5)" }}>continue →</button>}
+onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ position:"absolute",bottom:mapInputOpen?"calc(130px + env(safe-area-inset-bottom, 0px))":"calc(16px + env(safe-area-inset-bottom, 0px))",left:"50%",transform:"translateX(-50%)",width:"calc(100% - 32px)",maxWidth:340,background:"linear-gradient(135deg, rgba(30,40,60,0.92), rgba(20,30,55,0.95))",border:"1px solid rgba(107,184,255,0.35)",borderRadius:24,padding:"13px 28px",minHeight:48,color:"rgba(107,184,255,0.9)",fontSize:13,fontFamily:FB,fontWeight:500,cursor:"pointer",zIndex:25,animation:"riseUp 0.5s ease",backdropFilter:"blur(12px)",letterSpacing:"0.06em",boxShadow:"0 4px 24px rgba(0,0,0,0.5)",touchAction:"manipulation" }}>continue →</button>}
 </div>
 );
 }
@@ -2320,7 +2320,7 @@ var descentCards = (sd.descent_cards && sd.descent_cards.length > 0) ? sd.descen
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
 <Particles color="rgba(214,178,109,0.15)" count={8} />
-<div style={{ maxWidth: 380, margin: "0 auto", padding: "60px 20px 40px", position: "relative", zIndex: 1 }}>
+<div style={{ maxWidth: 380, margin: "0 auto", padding: "60px 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1 }}>
 
 <div style={{ marginBottom: archData ? 18 : 28, animation: "riseUp 0.5s ease" }}>
 <div style={{ fontSize: 14, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.38)", fontFamily: FB }}>
@@ -2498,10 +2498,10 @@ return <div key={i} style={{ padding: "6px 12px", borderRadius: 16, background: 
 <button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis }); }} style={{
 width: "100%", background: claritySaved ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
 border: claritySaved ? "none" : "1px solid rgba(107,255,184,0.15)",
-borderRadius: 24, padding: "14px 28px",
+borderRadius: 24, padding: "14px 28px", minHeight: 48,
 color: claritySaved ? "#0A2E1A" : "rgba(107,255,184,0.3)",
 fontSize: 15, fontFamily: FB, fontWeight: claritySaved ? 600 : 400,
-cursor: "pointer", transition: "all 0.4s",
+cursor: "pointer", transition: "all 0.4s", touchAction: "manipulation",
 }}>
 {claritySaved ? "See Your Field →" : "Continue to What's Growing →"}
 </button>
@@ -6757,7 +6757,7 @@ mapNotesLines.push("Between \""+from+"\" and \""+to+"\": \""+String(mr.comment).
 });
 });
 var mapNotesBlurb = mapNotesLines.length > 0
-? "MAP NOTES (subject's words about connections — quote or paraphrase in the report where relevant):\n" + mapNotesLines.slice(0, 20).join("\n") + "\n\n"
+? "MAP NOTES (subject's words about connections — when using these in the report, QUOTE them in full, e.g. 'The subject said: \"...\"'):\n" + mapNotesLines.slice(0, 20).join("\n") + "\n\n"
 : "";
 
 var subjectWordsList = allCorrections.slice(0, 10);
@@ -6771,7 +6771,7 @@ if (subjectWordsList.indexOf(t) === -1) subjectWordsList.push(t);
 });
 });
 var subjectWordsBlurb = subjectWordsList.length > 0
-? "SUBJECT'S OWN WORDS (session corrections and map notes — weave into sections; in WHAT REMAINS link something the subject said to what's underneath):\n" + subjectWordsList.slice(0, 14).map(function(w){ return "\""+w+"\""; }).join("\n") + "\n\n"
+? "SUBJECT'S OWN WORDS (session corrections and map notes — when citing these, use the exact quote in the report):\n" + subjectWordsList.slice(0, 14).map(function(w){ return "\""+w+"\""; }).join("\n") + "\n\n"
 : "";
 
 var underList = [];
@@ -6788,6 +6788,7 @@ var underBlurb = underList.length ? "What's underneath (pattern intelligence —
 
 var prompt = "You are writing a confidential field report. Third person only. Always call the subject \"the subject\" — never he, she, him, her. Plain declarative past tense. Clinical but human.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Use descent (cards and answers), clarity, and tension when present to ground the report in the subject's journey.\n"
++ "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES or SUBJECT'S OWN WORDS above — e.g. 'The subject said: \"...\"' or 'On the map between X and Y they wrote: \"...\"'. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this and may question claims — every claim about their words must be traceable to the source data.\n"
 + "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
 + (prevReportHint ? prevReportHint : "")
 + (shiftBlurb ? shiftBlurb : "")
@@ -6801,10 +6802,10 @@ var prompt = "You are writing a confidential field report. Third person only. Al
 + "VARIETY AND DEPTH: Each report must feel distinct. Lead with what's most distinctive about THIS moment. When the subject shifts to new territory (different themes, a new subject), that takes precedence: center the report on the current session. Do not default to summarizing the arc and slightly mentioning the new thing. Surface the questions that emerge: why now? what's happening? Weave the past into the current — not the other way around. When there are 10+ sessions without a shift, dig into meta-patterns. Go beyond summary into genuine insight. 3 short paragraphs per section, but make each sentence count.\n\n"
 + "FOCUS AND CONCLUSION: Do not drift. The report should have a real conclusion tied to the heart of what it said — not a reach for past specifics that haven't been relevant. Only use material from previous sessions when it BOLSTERS or directly correlates with what the report has already established. Do not search to fill from the past. If something from an earlier session illuminates the current point, use it. If not, go deeper into what the report has already said rather than broadening to unrelated history. Stay on topic. The report is already brilliant — keep it that way.\n\n"
 + "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
-+ "Where relevant, quote or paraphrase the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above). In WHAT REMAINS, connect at least one 'what's underneath' idea to something the subject actually said — a map note or correction — so the reader sees the link.\n\n"
++ "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use their exact phrasing in quotes. Do not paraphrase into something they didn't say. In WHAT REMAINS, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
 + "SECTION 1 title like WHAT OCCURRED: What dominated in THIS session. When the subject has shifted to new territory, open with that — first time speaking about X, why now. Name specific themes and archetypes. Do not lead with a summary of past sessions when the current session is the story. 3 short paragraphs.\n"
 + "SECTION 2 title like WHAT MOVED: Concrete change. When there's a subject shift, this section explores the shift — what's happening, why now, how the past connects to this moment. When no shift, what moved between sessions or within the session. 3 short paragraphs.\n"
-+ "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. Refer to the 'what's underneath' phrases above — these are pattern-intelligence observations (repetition, structure, blind spots the subject may not see). Quote or paraphrase them so the reader sees the real pattern. Never use labels like underneath_0. Where possible, tie one to something the subject said (MAP NOTES or SUBJECT'S OWN WORDS). Conclude with what the report has already established — do not drift to past specifics that don't correlate. If a prior-session nugget bolsters the point, use it; otherwise go deeper into the heart of this report. 2 short paragraphs.\n\n"
++ "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. Refer to the 'what's underneath' phrases above — these are pattern-intelligence observations (repetition, structure, blind spots the subject may not see). Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction so the link is traceable. Conclude with what the report has already established — do not drift to past specifics that don't correlate. If a prior-session nugget bolsters the point, use it; otherwise go deeper into the heart of this report. 2 short paragraphs.\n\n"
 + "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now, tied to the heart of this report. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
 + 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}';
@@ -7000,12 +7001,29 @@ boxSizing:"border-box"
 onClick={function(){
 if (_notesSummarizing) return;
 _setNotesSummarizing(true);
-var p = "You are synthesizing someone's personal notes on their own field report. They wrote:\n\n\"" + _reportNotes.trim() + "\"\n\n"
-+ "Synthesize these notes through the lens of imaginal psychology (imaginal cells — what's forming beneath); phenomenology (what shows up); and complexity (emergence, patterns that self-organize).\n"
-+ "Write 2-4 sentences. Direct. Third person. What do these notes reveal about what the subject is reaching toward? What's underneath the words? Not advice — witness. JSON: {\"summary\":\"...\"}";
-callClaudeClient(p, "notes_summary", 180).then(function(r){
+var userWords = [];
+allSessions.forEach(function(s) {
+if (s.corrections) Object.values(s.corrections).forEach(function(c){ if (typeof c==="string"&&c.trim()) userWords.push("\""+c.trim().slice(0,150)+"\""); });
+if (s.mapResponses) Object.keys(s.mapResponses).forEach(function(k){ var mr=s.mapResponses[k]; if (mr&&mr.comment&&String(mr.comment).trim()) userWords.push("\""+String(mr.comment).trim().slice(0,150)+"\""); });
+});
+var reportExcerpt = "";
+if (_report) {
+reportExcerpt = "REPORT ONE-LINE: \"" + (_report.oneLineVerdict || "") + "\"\n";
+(_report.sections||[]).slice(0,2).forEach(function(sec){ reportExcerpt += "SECTION " + (sec.title||"") + ": " + (sec.body||"").slice(0,200) + "...\n"; });
+}
+var p = "Someone wrote notes on their field report. Their notes:\n\n\"" + _reportNotes.trim() + "\"\n\n"
++ "EVIDENCE FROM SESSION (what the subject actually said — use ONLY these when grounding):\n" + (userWords.length ? userWords.slice(0,12).join("\n") : "(none recorded)") + "\n\n"
++ "REPORT EXCERPT (what the report said — use to trace claims):\n" + (reportExcerpt || "(none)") + "\n\n"
++ "RULES: 1) GROUND every claim. If you say something came from the session, quote it: 'In the session you said: \"...\"' 2) If their note questions something in the report (e.g. 'I don\'t recall saying that'), either find the quote that supports it in EVIDENCE above, or say 'I don\'t have a direct quote from your session that supports that' — do NOT philosophize about memory or imaginal cells. 3) Never invent. Only use what's in their notes + EVIDENCE + REPORT. 4) If uncertain, say so. 5) Optional: add a brief 'sources' line listing what you drew from (e.g. 'From your note + map comment on X–Y').\n"
++ "JSON: {\"summary\":\"2-4 sentences, grounded\", \"sources\":\"optional one line\"}";
+callClaudeClient(p, "notes_summary", 220).then(function(r){
 var d = parseJSON(r);
-if (d && d.summary) { _setNotesSummary(d.summary); try{ localStorage.setItem(_notesKey+"-summary", d.summary); }catch(x){} }
+if (d && d.summary) {
+var disp = d.summary;
+if (d.sources && d.sources.trim()) disp += "\n\n— " + d.sources.trim();
+_setNotesSummary(disp);
+try{ localStorage.setItem(_notesKey+"-summary", disp); }catch(x){}
+}
 }).catch(function(){})
 .finally(function(){ _setNotesSummarizing(false); });
 }}

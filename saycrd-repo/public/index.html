@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>SAYCRD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -177,7 +177,7 @@ body{background:radial-gradient(ellipse 120% 80% at 50% 0%, rgba(20,24,32,.95) 0
 
 
 
-        <div id="ws-signout" class="ws-user" style="position:fixed;top:12px;right:16px;z-index:99998;">Sign out</div>
+        <div id="ws-signout" class="ws-user" style="position:fixed;top:max(12px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));z-index:99998;">Sign out</div>
 
 <script>
 /* Global error handler — shows what's breaking */
