@@ -1360,8 +1360,11 @@ What’s pulling you right now
       : `${explored} connections explored`}
 </p>
 </div>
-<div ref={fieldRef} onClick={function(){setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden" }}>
+<div ref={fieldRef} onClick={function(){setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
+<div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 70% at 50% 50%, rgba(40,50,90,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 55% at 50% 50%, transparent 50%, rgba(0,0,0,0.35) 100%)", pointerEvents: "none", zIndex: 1 }}/>
+<div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 0%, transparent 60%, rgba(0,0,0,0.15) 100%)", pointerEvents: "none", zIndex: 1 }}/>
 <><svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0 }}>
 {posReady && allConns.map(function(c) {
 var k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
@@ -1413,7 +1416,7 @@ cursor: "pointer", whiteSpace: "normal", maxWidth: 160, textAlign: "center", lin
 zIndex: isAct ? 15 : 5,
 transition: "all 0.3s ease",
 animation: !isExp ? "connBlink 2s ease-in-out infinite" : "none",
-boxShadow: isAct ? `0 0 20px ${accent}33` : !isExp ? `0 0 12px ${accent}15` : "none",
+boxShadow: isAct ? `0 4px 16px rgba(0,0,0,0.35), 0 0 20px ${accent}33` : !isExp ? `0 4px 12px rgba(0,0,0,0.3), 0 0 12px ${accent}15` : "0 4px 12px rgba(0,0,0,0.25)",
 }}>
 {!isExp && <div style={{ position:"absolute", inset:-5, borderRadius:10, border:"1px solid "+accent+"44", animation:"ringPulse 2s ease-in-out infinite", pointerEvents:"none" }}/>}
 {isUserDefined
@@ -1457,15 +1460,16 @@ border: isSnap ? "1.5px solid rgba(125,183,174,0.7)"
 : canLink ? `1.5px solid ${n.color}aa`
 : n.w > 0.7 ? "1.5px solid rgba(214,178,109,0.45)"
 : `1.5px solid rgba(244,241,234,0.22)`,
-backdropFilter: "blur(10px)",
+backdropFilter: "blur(12px)",
+WebkitBackdropFilter: "blur(12px)",
 cursor: isDrag?"grabbing":"pointer", zIndex: isDrag?20: isSel||isSnap?10 :3,
 transition: isDrag?"none":"all 0.4s cubic-bezier(.25,.46,.45,.94)",
 transform: isDrag?"scale(1.12)": isSnap?"scale(1.15)": isSel?"scale(1.08)" :"scale(1)",
 boxShadow: isSnap
-? "0 0 28px rgba(125,183,174,0.5), 0 0 12px rgba(125,183,174,0.25)"
+? "inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 24px rgba(0,0,0,0.4), 0 0 28px rgba(125,183,174,0.5), 0 0 12px rgba(125,183,174,0.25)"
 : isSel
-? "0 0 28px rgba(107,255,184,0.35), 0 0 10px rgba(107,255,184,0.2)"
-: `0 0 ${isDrag?32:20}px ${n.color}${isDrag?"66":"35"}, 0 0 8px ${n.color}22`,
+? "inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 24px rgba(0,0,0,0.4), 0 0 28px rgba(107,255,184,0.35), 0 0 10px rgba(107,255,184,0.2)"
+: `inset 0 1px 0 rgba(255,255,255,0.1), 0 6px 20px rgba(0,0,0,0.35), 0 0 ${isDrag?32:20}px ${n.color}${isDrag?"66":"35"}, 0 0 8px ${n.color}22`,
 touchAction: "none", userSelect: "none",
 animation: isDrag||isSel||isSnap ? "none" : "nodeBreathe 8s ease-in-out infinite",
 animationDelay: `${ni*-1.5}s`,
@@ -5679,8 +5683,16 @@ if (next === 3 && !hasMultiSession) next = 4;
 if (next >= 5) { goNext && goNext(); return; }
 setSlide(next);
 };
+useEffect(function() {
+var h = function(e) {
+if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); e.stopPropagation(); advanceSlide(); }
+if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); if (slide > 0) setSlide(slide - 1); }
+};
+window.addEventListener("keydown", h, true);
+return function() { window.removeEventListener("keydown", h, true); };
+}, [slide, hasPatterns, hasMultiSession]);
 return (
-<div onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("[data-nolink]")) advanceSlide(); }}
+<div data-noadvance="true" onClick={function(e){ e.stopPropagation(); if (!e.target.closest("button") && !e.target.closest("[data-nolink]")) advanceSlide(); }}
 style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
 background:"linear-gradient(180deg, #0A0618 0%, #0D0818 30%, #080510 70%, #050308 100%)",
 display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
