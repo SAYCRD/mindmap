@@ -3642,6 +3642,7 @@ if (window.storage && window.currentUser && window.currentUser.id !== "local-use
 window.storage.set("sessions", JSON.stringify(sess)).catch(function() {});
 }
 }
+}
 } catch(e) { console.warn("[SAYCRD] Summary update failed:", e); }
 }).catch(function() {});
 } catch(e) {}
