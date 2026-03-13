@@ -413,7 +413,6 @@ return <div style={{ display: "flex", gap: 3, padding: "14px 20px 0", position: 
 function PourPhase({ onComplete }) {
 const [text, setText] = useState("");
 const [words, setWords] = useState([]);
-const [focused, setFocused] = useState(false);
 useEffect(() => { setWords(text.split(/\s+/).filter(x => x.length > 3)); }, [text]);
 const wc = text.split(/\s+/).filter(Boolean).length;
 return (
@@ -422,11 +421,9 @@ return (
 <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "40px 24px 24px", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>
 <h1 style={{ fontSize: "clamp(28px, 8vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
-<p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic", margin: "0 0 24px", textAlign: "center", zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
-<div style={{ width: "100%", maxWidth: 380, minHeight: 180, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2 }}>
-<textarea value={text} onChange={function(e){setText(e.target.value);}} onFocus={function(){setFocused(true);}} onBlur={function(){setFocused(false);}} placeholder="Let the words flow through you…" style={{ width: "100%", minHeight: 160, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.92)", fontSize: "clamp(18px, 4.5vw, 22px)", fontFamily: FD, fontStyle: "italic", padding: 22, lineHeight: 1.75, display: "block", letterSpacing: "0.02em" }}/>
-</div>
-<div style={{ marginTop: 16, fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
+<p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic", margin: "0 0 32px", textAlign: "center", zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
+<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 180, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(19px, 5vw, 23px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
+<div style={{ marginTop: 20, fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
 </div>
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "16px 24px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.97) 70%, transparent)", borderTop: "1px solid rgba(107,184,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", boxSizing: "border-box", zIndex: 20 }}>
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words</div>
@@ -9763,7 +9760,7 @@ setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
 return (
 <div style={{width:"100%",height:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"center"}}>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,height:"100vh",maxHeight: cp === "landing" ? "100%" : 860,background:GRADIENTS[cp],position:"relative",overflow:"hidden",transition:"background 0.8s ease"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",height:"100%",animation:"slideIn 0.4s ease-out"}}>
@@ -9801,6 +9798,7 @@ return (
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow:hidden}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
+.pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
 textarea{caret-color:#6BB8FF}
 button:active{transform:scale(0.97)}
 ::-webkit-scrollbar{width:3px}
