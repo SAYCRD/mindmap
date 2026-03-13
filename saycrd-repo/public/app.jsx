@@ -11,7 +11,20 @@ function parseJSON(raw) {
 if (!raw) return null;
 try { var c = raw.replace(/```json|```/g, "").trim(); var m = c.match(/\{[\s\S]*\}/) || c.match(/\[[\s\S]*\]/); return m ? JSON.parse(m[0]) : null; } catch (e) { return null; }
 }
-var NC = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#FFD700","#E84393","#7DB7AE"];
+function getCurrentUid() { return (typeof window !== "undefined" && window.currentUser && window.currentUser.id) ? window.currentUser.id : "local"; }
+function normalizeThemeLabel(label) { return String(label || "").trim().toLowerCase(); }
+var THEME_COLORS = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#FFD700","#E84393","#7DB7AE"];
+function getThemeColor(theme, index) { return (theme && theme.color) ? theme.color : THEME_COLORS[(index || 0) % THEME_COLORS.length]; }
+var NC = THEME_COLORS;
+
+var LIFE_DOMAINS = { work: ["work","job","career","tasks","project","boss","colleague","email","meeting","deadline","productivity"], relationship: ["partner","relationship","love","family","friend","parent","child","connection","intimacy","marriage"], self: ["self","identity","worth","body","health","energy","rest","boundary","voice","permission"], creativity: ["create","creative","art","write","build","make","idea","vision","dream"], money: ["money","financial","income","abundance","scarcity","worth","value"] };
+function inferLifeDomain(shortDesc, label) {
+var text = ((shortDesc || "") + " " + (label || "")).toLowerCase();
+for (var domain in LIFE_DOMAINS) {
+if (LIFE_DOMAINS[domain].some(function(w) { return text.indexOf(w) >= 0; })) return domain;
+}
+return "life";
+}
 
 const FD = "'DM Serif Display', Georgia, serif";
 const FB = "'DM Sans', sans-serif";
@@ -905,7 +918,8 @@ const nodes = useMemo(() => {
 if (sd && sd.themes) return sd.themes.map(function(t, i) {
 var label = t.label || "";
 var shortDesc = t.short_desc || t.why || "";
-return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1), shortDesc: shortDesc };
+var domain = inferLifeDomain(shortDesc, label);
+return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1), shortDesc: shortDesc, domain: domain };
 });
 return [];
 }, [sd]);
@@ -1362,6 +1376,13 @@ What’s pulling you right now
       ? "Drag the circles · connect what feels related"
       : `${explored} connections explored`}
 </p>
+{(()=>{ var growthCount = allConns.filter(function(c){ var r=responses[K(c)]; return r&&(r.value==="partly"||r.value==="no"); }).length; return growthCount>0 ? (
+<div style={{ marginTop:8, display:"flex", alignItems:"center", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
+<span style={{ fontSize:9, letterSpacing:"0.2em", color:"rgba(165,235,220,0.7)", fontFamily:FB }}>● partly</span>
+<span style={{ fontSize:9, letterSpacing:"0.2em", color:"rgba(214,178,100,0.7)", fontFamily:FB }}>● resisted</span>
+<span style={{ fontSize:8, letterSpacing:"0.15em", color:"rgba(255,255,255,0.25)", fontFamily:FB }}>— growth edges</span>
+</div>
+) : null; })()}
 </div>
 <div ref={fieldRef} onClick={function(){setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
@@ -1439,6 +1460,7 @@ var _pi=nodes.indexOf(n); var _fbc=nodes.length; var _fbr=90; var p=pos[n.key]||
 const isSel = selectedNode === n.key;
 const isSnap = snapTarget === n.key;
 const canLink = selectedNode && selectedNode !== n.key && !hasConn(selectedNode, n.key) && !hasDiscovered(selectedNode, n.key);
+var domainColors = { work: "#6BB8FF", relationship: "#E84393", self: "#6BFFB8", creativity: "#FFB86B", money: "#B86BFF", life: "rgba(255,255,255,0.2)" };
 return (
 <div key={n.key}
 title={n.shortDesc ? String(n.shortDesc).trim() : ""}
@@ -1479,7 +1501,10 @@ animationDelay: `${ni*-1.5}s`,
 overflow: "hidden",
 textOverflow: "ellipsis",
 }}>
+<div style={{ position:"relative" }}>
 {n.display || n.key}
+{n.domain && n.domain !== "life" && <div style={{ position:"absolute", bottom:2, right:2, width:5, height:5, borderRadius:3, background:domainColors[n.domain]||domainColors.life, opacity:0.85 }} title={n.domain}/>}
+</div>
 </div>
 );
 })}
@@ -2308,7 +2333,7 @@ setTimeout(function() { setShowNoticing(true); }, 1200);
 
 const sd = synthesisData || {};
 var archData = sd.archetype || (sd.archetypes && sd.archetypes[0]) || null;
-var sessions = []; try { sessions = JSON.parse(localStorage.getItem("saycrd-sessions") || "[]"); } catch(e) {}
+var sessions = []; try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var sessionNum = sessions.length + 1;
 const THEMES = (sd.themes || []).map(function(t, i) { return { name: t.label, color: t.color || NC[i % NC.length], weight: Math.min((t.weight || 1) / 5, 1) }; });
 const GUIDE_ITEMS = (sd.guide || []).map(function(g) { return { type: g.type || "notice", text: g.text || "" }; });
@@ -3538,10 +3563,16 @@ tap any ring
 function saveSession(data) {
 try {
 var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
-var themes = (data.themes || []).slice(0, 5).map(function(t) { return { label: t.label, weight: t.weight || 1 }; });
+var themes = (data.themes || []).slice(0, 5).map(function(t) {
+var lbl = String(t.label || "").trim();
+var sd = (t.short_desc || t.why || "").slice(0, 80);
+return { label: lbl, weight: t.weight || 1, short_desc: sd || undefined };
+});
 var avgWeight = themes.length > 0 ? themes.reduce(function(s, t) { return s + t.weight; }, 0) / themes.length : 0;
 sessions.push({
 date: new Date().toISOString(),
+rawText: (data.rawText || "").slice(0, 4000),
+sessionSummary: null,
 archetypes: (data.archetypes || []).map(function(a) {
 return {
 name: a.name || a.key || "",
@@ -3570,8 +3601,10 @@ reactions: data.reactions || {},
 corrections: data.corrections || {},
 revisedSynthesis: data.revisedSynthesis || null,
 });
-if (sessions.length > 50) sessions = sessions.slice(-50);
+if (sessions.length > 100) sessions = sessions.slice(-100);
 localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
+if (sessions.length >= 2) try { computePatternEngine(); } catch(pe) {}
+if (sessions.length >= 3) try { computeNarrativeArc(); } catch(na) {}
 console.log("[SAYCRD] Session saved locally. Total sessions:", sessions.length);
 
 (function() {
@@ -3585,12 +3618,62 @@ console.warn("[SAYCRD] Server sync failed (session saved locally):", e);
 }
 } catch(e) { }
 })();
+
+(function generateSummaryAsync() {
+var d = data;
+var themesStr = (d.themes || []).slice(0, 4).map(function(t){ return t.label; }).join(", ");
+var syn = (d.synthesis || "").slice(0, 300);
+var tens = d.tension && d.tension.a ? d.tension.a + " vs " + d.tension.b : "";
+var clar = (d.clarity || "").slice(0, 120);
+if (!themesStr && !syn) return;
+var userMsg = "Themes: " + themesStr + ". Synthesis: " + syn + (tens ? ". Tension: " + tens : "") + (clar ? ". Clarity: " + clar : "");
+var sysMsg = "Summarize this reflective session in 1-2 short sentences (max 25 words total). Plain third person, past tense. JSON only: {\"summary\":\"...\"}";
+try {
+callClaudeClient(sysMsg, userMsg, 80).then(function(res) {
+try {
+var parsed = parseJSON(res);
+var sum = parsed && parsed.summary ? String(parsed.summary).trim().slice(0, 200) : null;
+if (sum) {
+var sess = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
+if (sess.length > 0) {
+sess[sess.length - 1].sessionSummary = sum;
+localStorage.setItem(_sessionKey(), JSON.stringify(sess));
+if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
+window.storage.set("sessions", JSON.stringify(sess)).catch(function() {});
+}
+}
+} catch(e) { console.warn("[SAYCRD] Summary update failed:", e); }
+}).catch(function() {});
+} catch(e) {}
+})();
 } catch (e) { console.error("[SAYCRD] Save error:", e); }
 }
 
-function _sessionKey() {
-var uid = (window.currentUser && window.currentUser.id) ? window.currentUser.id : "local";
-return "saycrd-" + uid + "-sessions";
+function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
+function exportUserData() {
+try {
+var uid = getCurrentUid();
+var sessions = loadSessions();
+var pe = null; try { pe = loadPatternEngine(); } catch(e) {}
+var nar = null; try { nar = loadNarrativeArc(); } catch(e) {}
+var reportHistory = []; try { reportHistory = JSON.parse(localStorage.getItem("saycrd-report-history-" + uid) || "[]"); } catch(e) {}
+var payload = {
+exportedAt: new Date().toISOString(),
+userId: uid === "local" ? "local (no account)" : uid,
+retentionNote: "Your data is stored locally and, if signed in, in Supabase. Reports are generated via AI; session content may be processed according to the API provider's policy. You can export or delete your data at any time.",
+sessions: sessions,
+patternEngine: pe,
+narrativeArc: nar,
+reportHistory: reportHistory,
+sessionCount: sessions.length
+};
+var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+var a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "saycrd-export-" + new Date().toISOString().slice(0, 10) + ".json";
+a.click();
+URL.revokeObjectURL(a.href);
+} catch(e) { console.error("[SAYCRD] Export failed:", e); }
 }
 function loadSessions() {
 try {
@@ -3625,7 +3708,7 @@ var sessions = loadSessions();
 var themeMap = {};
 sessions.forEach(function(s, si) {
 (s.themes || []).forEach(function(t) {
-var k = (t.label || "").toLowerCase().trim();
+var k = normalizeThemeLabel(t.label);
 if (!k) return;
 if (!themeMap[k]) themeMap[k] = { label: t.label, appearances: [] };
 themeMap[k].appearances.push({ session: si, weight: t.weight || 1, date: s.date });
@@ -3676,7 +3759,7 @@ var avgGap = gaps.length > 0 ? Math.round(gaps.reduce(function(a,b){return a+b;}
 var themeTrack = {};
 sessions.forEach(function(s, si) {
 (s.themes || []).forEach(function(t) {
-var k = (t.label || "").toLowerCase().trim();
+var k = normalizeThemeLabel(t.label);
 if (!k) return;
 if (!themeTrack[k]) themeTrack[k] = { label: t.label, weights: [], sessions: [] };
 themeTrack[k].weights.push(t.weight || 1);
@@ -3818,6 +3901,296 @@ constellations: constellations,
 
 try { localStorage.setItem("saycrd-field-state", JSON.stringify(state)); } catch(e) {}
 return state;
+}
+
+function getRecurringThreshold(n) {
+if (n < 20) return 2;
+if (n < 50) return 3;
+if (n < 100) return 5;
+return Math.max(5, Math.floor(n / 20));
+}
+function getRepeatingGoalsThreshold(n) {
+if (n < 20) return 2;
+if (n < 50) return 3;
+return 4;
+}
+function getEmergingDeltaThreshold(n) {
+if (n < 20) return 1.5;
+if (n < 50) return 1.8;
+return 2;
+}
+function computeConnectionArcs(sessions) {
+var arcs = {};
+sessions.forEach(function(s, si) {
+Object.keys(s.mapResponses || {}).forEach(function(k) {
+var mr = s.mapResponses[k];
+if (!mr || !mr.value) return;
+var val = mr.value === "yes" ? 2 : mr.value === "partly" ? 1 : 0;
+if (!arcs[k]) arcs[k] = [];
+arcs[k].push({ sessionIndex: si, value: mr.value, numeric: val });
+});
+});
+var result = [];
+Object.keys(arcs).forEach(function(k) {
+var seq = arcs[k];
+if (seq.length < 2) return;
+var vals = seq.map(function(x) { return x.numeric; });
+var trend = "stable";
+var last3 = vals.slice(-3);
+if (last3.length >= 2 && last3[last3.length - 1] > last3[0]) trend = "improving";
+else if (last3.length >= 2 && last3[last3.length - 1] < last3[0]) trend = "regressing";
+var summary = seq.map(function(x) { return "S" + (x.sessionIndex + 1) + ":" + x.value; }).join(" ");
+result.push({ connectionKey: k, values: seq, trend: trend, summary: summary });
+});
+return result;
+}
+function computePatternMorphology(sessions) {
+var blindSpotHistory = [];
+var correctionHistory = {};
+sessions.forEach(function(s, si) {
+var bs = s.blind_spot ? String(s.blind_spot).trim() : "";
+if (bs) blindSpotHistory.push({ sessionIndex: si, text: bs.slice(0, 120) });
+if (s.corrections) {
+Object.keys(s.corrections).forEach(function(key) {
+var c = s.corrections[key];
+if (typeof c === "string" && c.length > 10) {
+if (!correctionHistory[key]) correctionHistory[key] = [];
+correctionHistory[key].push({ sessionIndex: si, text: c.slice(0, 100) });
+}
+});
+}
+});
+var evolved = [];
+if (blindSpotHistory.length >= 2) {
+for (var i = 1; i < blindSpotHistory.length; i++) {
+var prev = blindSpotHistory[i - 1].text.toLowerCase();
+var curr = blindSpotHistory[i].text.toLowerCase();
+if (curr && prev && curr !== prev && (curr.indexOf(prev.slice(0, 20)) >= 0 || prev.indexOf(curr.slice(0, 20)) >= 0)) {
+evolved.push({ type: "blind_spot", before: blindSpotHistory[i - 1].text.slice(0, 60), after: blindSpotHistory[i].text.slice(0, 60), sessionIndex: i });
+}
+}
+}
+Object.keys(correctionHistory).forEach(function(key) {
+if (correctionHistory[key].length >= 2) {
+evolved.push({ type: "correction_refinement", key: key, count: correctionHistory[key].length, sessions: correctionHistory[key].map(function(x) { return x.sessionIndex + 1; }) });
+}
+});
+return evolved;
+}
+function computeRegressionContext(sessions) {
+var regressions = [];
+var themeWeights = {};
+sessions.forEach(function(s, si) {
+(s.themes || []).forEach(function(t) {
+var k = normalizeThemeLabel(t.label);
+if (!k) return;
+if (!themeWeights[k]) themeWeights[k] = [];
+themeWeights[k].push({ si: si, w: t.weight || 1 });
+});
+});
+Object.keys(themeWeights).forEach(function(k) {
+var arr = themeWeights[k];
+for (var i = 1; i < arr.length; i++) {
+if (arr[i].w < arr[i - 1].w - 1) {
+var prev = sessions[arr[i].si - 1];
+var ctx = (prev && (prev.opening || prev.synthesis || prev.tension)) ? (String(prev.opening || "").slice(0, 80) + " | " + (prev.tension && prev.tension.a ? prev.tension.a + " vs " + prev.tension.b : "") + " | " + String(prev.synthesis || "").slice(0, 60)).trim() : "";
+regressions.push({ type: "theme", key: k, sessionIndex: arr[i].si, priorWeight: arr[i - 1].w, newWeight: arr[i].w, priorContext: ctx });
+}
+}
+});
+var connArcs = computeConnectionArcs(sessions);
+connArcs.forEach(function(arc) {
+var seq = arc.values;
+for (var i = 1; i < seq.length; i++) {
+if (seq[i].numeric < seq[i - 1].numeric) {
+var prev = sessions[seq[i].sessionIndex - 1];
+var ctx = prev ? (String(prev.opening || "").slice(0, 80) + " | " + (prev.tension && prev.tension.a ? prev.tension.a + " vs " + prev.tension.b : "")).trim() : "";
+regressions.push({ type: "map", key: arc.connectionKey, sessionIndex: seq[i].sessionIndex, priorValue: seq[i - 1].value, newValue: seq[i].value, priorContext: ctx });
+}
+}
+});
+return regressions.slice(0, 8);
+}
+function computeLifeDomainSignals(sessions) {
+var byDomain = {};
+sessions.forEach(function(s, si) {
+(s.themes || []).forEach(function(t) {
+var d = inferLifeDomain(t.short_desc, t.label);
+if (!byDomain[d]) byDomain[d] = { themes: [], totalWeight: 0 };
+byDomain[d].themes.push({ label: t.label, weight: t.weight || 1, sessionIndex: si });
+byDomain[d].totalWeight += (t.weight || 1);
+});
+});
+var result = [];
+Object.keys(byDomain).forEach(function(d) {
+if (d === "life") return;
+var arr = byDomain[d].themes;
+var top = arr.sort(function(a, b) { return (b.weight || 0) - (a.weight || 0); }).slice(0, 3).map(function(x) { return x.label; });
+result.push({ domain: d, topThemes: top, totalWeight: byDomain[d].totalWeight });
+});
+return result.sort(function(a, b) { return b.totalWeight - a.totalWeight; }).slice(0, 5);
+}
+function computePatternEngine() {
+var sessions = loadSessions();
+if (sessions.length < 2) return null;
+var n = sessions.length;
+var recurThresh = getRecurringThreshold(n);
+var goalsThresh = getRepeatingGoalsThreshold(n);
+var emergingThresh = getEmergingDeltaThreshold(n);
+var engine = {
+repeating_goals: [],
+emotional_cycles: [],
+recurring_obstacles: [],
+identity_shifts: [],
+emerging_strengths: []
+};
+var rejected = {};
+sessions.forEach(function(s) {
+Object.keys(s.mapResponses || {}).forEach(function(k) {
+var mr = s.mapResponses[k];
+if (mr && mr.value === "no") {
+var label = k + (mr.comment && mr.comment.trim() ? ": \"" + String(mr.comment).trim().slice(0, 60) + "\"" : "");
+rejected[label] = (rejected[label] || 0) + 1;
+}
+});
+Object.keys(s.reactions || {}).forEach(function(rk) {
+if (s.reactions[rk] === "resisted") {
+rejected[rk] = (rejected[rk] || 0) + 1;
+}
+});
+});
+engine.recurring_obstacles = Object.entries(rejected).filter(function(e) { return e[1] >= recurThresh; }).map(function(e) { return { key: e[0], count: e[1], confidence: e[1] >= recurThresh + 1 ? "high" : "medium" }; }).slice(0, 8);
+var archs = sessions.map(function(s) { return (s.archetypes && s.archetypes[0]) ? (s.archetypes[0].name || s.archetypes[0].key) : ""; });
+engine.identity_shifts = [];
+for (var i = 1; i < archs.length; i++) {
+if (archs[i] && archs[i] !== archs[i - 1]) {
+engine.identity_shifts.push({ from: archs[i - 1], to: archs[i], sessionIndex: i, confidence: "high" });
+}
+}
+var fs = computeFieldState();
+if (fs && fs.rising && fs.rising.length > 0) {
+engine.emerging_strengths = fs.rising.filter(function(r) { return r.delta >= emergingThresh; }).map(function(r) { return { label: r.label, delta: r.delta, confidence: r.delta >= emergingThresh + 1 ? "high" : "medium" }; });
+}
+var energies = sessions.map(function(s) {
+var e = s.arrival && s.arrival.energy ? s.arrival.energy : null;
+if (!e && s.descent && s.descent.cards && s.descent.answers) {
+var c0 = s.descent.cards[0];
+if (c0 && c0.type === "energy" && s.descent.answers[0] != null) e = "energy_" + s.descent.answers[0];
+}
+return { session: s.date, energy: e };
+});
+var seq = energies.map(function(x) { return x.energy; }).filter(Boolean);
+if (seq.length >= 3) {
+var heavy = ["heavy", "shattered", "restless", "electric"];
+var light = ["warm", "tender", "still", "quiet", "grounded"];
+var last3 = seq.slice(-3);
+var pattern = last3.map(function(e) {
+var h = heavy.some(function(x) { return String(e).indexOf(x) >= 0; });
+var l = light.some(function(x) { return String(e).indexOf(x) >= 0; });
+return h ? "H" : l ? "L" : "M";
+}).join("→");
+engine.emotional_cycles = { recent: pattern, sequence: last3, confidence: "low" };
+}
+var clarityWords = [];
+sessions.forEach(function(s) {
+var c = (s.clarity || "").toLowerCase().split(/\s+/).filter(function(w) { return w.length >= 4; });
+clarityWords.push.apply(clarityWords, c);
+});
+var wordFreq = {};
+clarityWords.forEach(function(w) { wordFreq[w] = (wordFreq[w] || 0) + 1; });
+var topClarity = Object.entries(wordFreq).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5).filter(function(e) { return e[1] >= goalsThresh; });
+if (topClarity.length) engine.repeating_goals = topClarity.map(function(e) { return { word: e[0], count: e[1], confidence: e[1] >= goalsThresh + 2 ? "medium" : "low" }; });
+engine.connection_arcs = computeConnectionArcs(sessions);
+engine.pattern_morphology = computePatternMorphology(sessions);
+engine.life_domain_signals = computeLifeDomainSignals(sessions);
+engine.regression_context = computeRegressionContext(sessions);
+var peKey = "saycrd-" + getCurrentUid() + "-pattern-engine";
+try { localStorage.setItem(peKey, JSON.stringify(engine)); } catch(e) {}
+return engine;
+}
+
+function loadPatternEngine() {
+try {
+return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-pattern-engine") || "null");
+} catch(e) { return null; }
+}
+
+function computeNarrativeArc() {
+var sessions = loadSessions();
+if (sessions.length < 3) return null;
+var arc = { chapters: [], turning_points: [], recurring_storylines: [] };
+var CHUNK = Math.max(3, Math.floor(sessions.length / 4));
+for (var start = 0; start < sessions.length; start += CHUNK) {
+var end = Math.min(start + CHUNK, sessions.length);
+var chunk = sessions.slice(start, end);
+var themes = {};
+chunk.forEach(function(s) {
+(s.themes || []).forEach(function(t) {
+var k = normalizeThemeLabel(t.label);
+if (k) themes[k] = (themes[k] || 0) + (t.weight || 1);
+});
+});
+var topThemes = Object.entries(themes).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 3).map(function(e) { return e[0]; });
+var arch = chunk[chunk.length - 1];
+var archName = arch && arch.archetypes && arch.archetypes[0] ? (arch.archetypes[0].name || arch.archetypes[0].key) : "";
+var tens = chunk[chunk.length - 1];
+var tensionStr = tens && tens.tension && tens.tension.a ? tens.tension.a + " vs " + tens.tension.b : "";
+arc.chapters.push({ sessionRange: [start, end - 1], dominantThemes: topThemes, archetype: archName, tension: tensionStr });
+}
+var archs = sessions.map(function(s) { return (s.archetypes && s.archetypes[0]) ? (s.archetypes[0].name || s.archetypes[0].key) : ""; });
+for (var i = 1; i < archs.length; i++) {
+if (archs[i] && archs[i] !== archs[i - 1]) {
+arc.turning_points.push({ sessionIndex: i, type: "archetype_change", description: archs[i - 1] + " → " + archs[i] });
+}
+}
+var themeTrack = {};
+sessions.forEach(function(s, si) {
+(s.themes || []).forEach(function(t) {
+var k = normalizeThemeLabel(t.label);
+if (!k) return;
+if (!themeTrack[k]) themeTrack[k] = { label: t.label, sessions: [] };
+themeTrack[k].sessions.push(si);
+});
+});
+var recurring = Object.entries(themeTrack).filter(function(e) { return e[1].sessions.length >= 3; }).sort(function(a, b) { return b[1].sessions.length - a[1].sessions.length; }).slice(0, 5);
+arc.recurring_storylines = recurring.map(function(e) { return { label: e[1].label, sessions: e[1].sessions, count: e[1].sessions.length }; });
+var tensionShape = null;
+var tensionCount = 0;
+sessions.forEach(function(s) {
+if (!s.tension || !s.tension.a) return;
+var sh = s.tension.a + " vs " + s.tension.b;
+if (sh === tensionShape) tensionCount++;
+else if (!tensionShape || tensionCount < 2) { tensionShape = sh; tensionCount = 1; }
+});
+if (tensionShape && tensionCount >= 2) {
+var firstIdx = -1;
+for (var ti = 0; ti < sessions.length; ti++) {
+if (sessions[ti].tension && sessions[ti].tension.a && (sessions[ti].tension.a + " vs " + sessions[ti].tension.b) === tensionShape) { firstIdx = ti; break; }
+}
+if (firstIdx >= 0) arc.turning_points.push({ sessionIndex: firstIdx, type: "recurring_tension", description: tensionShape });
+}
+try { localStorage.setItem("saycrd-" + getCurrentUid() + "-narrative-arc", JSON.stringify(arc)); } catch(e) {}
+return arc;
+}
+
+function loadNarrativeArc() {
+try {
+return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-narrative-arc") || "null");
+} catch(e) { return null; }
+}
+
+function computeEmergentSignals() {
+var fs = computeFieldState();
+if (!fs) return null;
+var lastSession = (function() { var s = loadSessions(); return s.length > 0 ? s[s.length - 1] : null; })();
+return {
+opening_question: lastSession && lastSession.opening ? String(lastSession.opening).slice(0, 120) : "",
+fading: (fs.fading || []).map(function(f) { return { label: f.label, delta: f.delta }; }),
+rising: (fs.rising || []).map(function(r) { return { label: r.label, delta: r.delta }; }),
+blind_spot: fs.lastBlindSpot ? String(fs.lastBlindSpot).slice(0, 200) : "",
+chronic: (fs.chronic || []).slice(0, 3),
+absent: (fs.absent || []).slice(0, 3)
+};
 }
 
 var ARCH_EVOLUTION = {
@@ -4522,8 +4895,9 @@ stroke={t.color} strokeWidth="0.5" opacity="0.3"/>;
 
 <div style={{ position:"absolute", top:44, right:24, textAlign:"right" }}>
 <div style={{ fontSize:8, letterSpacing:"0.25em", color:"rgba(255,255,255,0.18)", fontFamily:FB, textTransform:"uppercase" }}>
-{sessionCount > 1 ? "SESSION "+sessionCount : "FIRST SESSION"}
+{sessionCount > 1 ? "SESSION "+sessionCount+" OF YOUR JOURNEY" : "FIRST SESSION"}
 </div>
+{sessionCount === 1 && <div style={{ fontSize:9, color:"rgba(255,255,255,0.25)", fontFamily:FD, fontStyle:"italic", marginTop:4 }}>The report will deepen as you continue</div>}
 </div>
 
 <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center", padding:"80px 32px 160px", overflow:"hidden", boxSizing:"border-box" }}>
@@ -5637,7 +6011,6 @@ themes = themes || []; sd = sd || {};
 var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
 var _fieldState = (function(){ try { return computeFieldState(); } catch(e){ return null; } })();
 var _themeHistory = (function(){ try { return getThemeHistory(); } catch(e){ return {}; } })();
-var NC_W = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#E84393","#7DB7AE","#D6B26D"];
 var [slide, setSlide] = useState(0);
 var [selectedSessionIdx, setSelectedSessionIdx] = useState(Math.max(0, _all.length - 1));
 var currentThemes = themes.length > 0 ? themes : (_all[selectedSessionIdx] && _all[selectedSessionIdx].themes) || [];
@@ -5652,7 +6025,7 @@ if (n === 0) return <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", f
 var cx = 50, cy = 48, r = 32;
 var pts = (thList || []).map(function(t, i) {
 var ang = (i / n) * 2 * Math.PI - Math.PI / 2;
-return { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r * 0.85, label: t.label || t.name, color: t.color || NC_W[i % NC_W.length] };
+return { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r * 0.85, label: t.label || t.name, color: getThemeColor(t, i) };
 });
 return (
 <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ width: "100%", maxWidth: 320, height: 280 }}>
@@ -5721,7 +6094,7 @@ WEATHER
 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both" }}>
 <div style={{ fontSize:9, letterSpacing:"0.4em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:20, textTransform:"uppercase" }}>YOUR SKY THIS SESSION</div>
 <div style={{ width:"100%", display:"flex", justifyContent:"center" }}>
-<ConstellationMap thList={currentThemes.map(function(t,i){ return Object.assign({}, t, { color: t.color || NC_W[i % NC_W.length] }); })} connList={currentConns}/>
+<ConstellationMap thList={currentThemes.map(function(t,i){ return Object.assign({}, t, { color: getThemeColor(t, i) }); })} connList={currentConns}/>
 </div>
 <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:16 }}>themes as constellations</div>
 </div>
@@ -5804,19 +6177,135 @@ return <div key={i} style={{ width:6, height:6, borderRadius:"50%", background: 
 );
 }
 
+function MilestoneCard({ sessionCount, milestone, goNext }) {
+var msgs = {
+3: { title: "PATTERNS EMERGING", sub: "Your third session. The record is beginning to show what keeps returning.", color: "#6BB8FF" },
+10: { title: "YOUR NARRATIVE ARC", sub: "Ten sessions. The arc is taking shape — chapters, turning points, recurring storylines.", color: "#B86BFF" },
+20: { title: "THE META-PATTERN", sub: "Twenty sessions. What only becomes visible over time is now in view.", color: "#D6B26D" },
+50: { title: "YOUR RECORD", sub: "Fifty sessions. A sustained inner biography. The record speaks.", color: "#6BFFB8" }
+};
+var m = msgs[milestone || sessionCount] || msgs[3];
+return (
+<div onClick={function(e){ if (!e.target.closest("button")) goNext && goNext(); }} style={{ position:"absolute", inset:0, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"linear-gradient(180deg, #0A0618 0%, #080614 50%, #040208 100%)", padding:"40px 28px" }}>
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 40%, "+(m.color||"#6BB8FF")+"18 0%, transparent 60%)", pointerEvents:"none" }}/>
+<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:24, textTransform:"uppercase" }}>SESSION {milestone || sessionCount}</div>
+<div style={{ fontSize:32, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", textAlign:"center", lineHeight:1.2, marginBottom:16 }}>{m.title}</div>
+<div style={{ fontSize:15, color:"rgba(255,255,255,0.55)", fontFamily:FD, fontStyle:"italic", textAlign:"center", lineHeight:1.65, maxWidth:300 }}>{m.sub}</div>
+<div style={{ marginTop:36, fontSize:10, letterSpacing:"0.25em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>TAP TO CONTINUE</div>
+</div>
+);
+}
+
+function ArcRevealCard({ themes, sd, sessionCount, allSessions, goNext }) {
+var nar = null; try { nar = loadNarrativeArc(); } catch(e) {}
+if (!nar) try { nar = computeNarrativeArc(); } catch(e) {}
+var chapters = (nar && nar.chapters) || [];
+var turningPoints = (nar && nar.turning_points) || [];
+var storylines = (nar && nar.recurring_storylines) || [];
+return (
+<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button")) goNext && goNext(); }} style={{ position:"absolute", inset:0, cursor:"pointer", overflowY:"auto", WebkitOverflowScrolling:"touch", background:"linear-gradient(180deg, #040810 0%, #080614 100%)", padding:"48px 24px 60px" }}>
+<div style={{ position:"absolute", top:0, left:0, right:0, height:120, background:"linear-gradient(180deg, #040810 0%, transparent 100%)", pointerEvents:"none" }}/>
+<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:8, textTransform:"uppercase" }}>YOUR ARC</div>
+<div style={{ fontSize:28, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", marginBottom:8 }}>WHAT THE RECORD SHOWS</div>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.45)", fontFamily:FD, fontStyle:"italic", marginBottom:32 }}>Chapters, turning points, recurring storylines — your narrative over {sessionCount} sessions</div>
+{chapters.length > 0 && (
+<div style={{ marginBottom:28 }}>
+<div style={{ fontSize:10, letterSpacing:"0.2em", color:"#6BB8FF", fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>Chapters</div>
+<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+{chapters.slice(0, 5).map(function(ch, i) {
+var range = "S" + (ch.sessionRange[0] + 1) + "–S" + (ch.sessionRange[1] + 1);
+return (
+<div key={i} style={{ padding:"12px 16px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)" }}>
+<div style={{ fontSize:11, color:"rgba(255,255,255,0.5)", fontFamily:FB, marginBottom:4 }}>{range}</div>
+<div style={{ fontSize:14, color:"white", fontFamily:FB, fontWeight:600 }}>{(ch.dominantThemes || []).join(", ") || "—"}</div>
+{(ch.archetype || ch.tension) && <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontFamily:FD, marginTop:4 }}>{[ch.archetype, ch.tension].filter(Boolean).join(" · ")}</div>}
+</div>
+); })}
+</div>
+</div>
+)}
+{turningPoints.length > 0 && (
+<div style={{ marginBottom:28 }}>
+<div style={{ fontSize:10, letterSpacing:"0.2em", color:"#B86BFF", fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>Turning points</div>
+<div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+{turningPoints.slice(0, 5).map(function(tp, i) {
+return (
+<div key={i} style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontFamily:FD }}>Session {tp.sessionIndex + 1}: {tp.description || tp.type}</div>
+); })}
+</div>
+</div>
+)}
+{storylines.length > 0 && (
+<div style={{ marginBottom:28 }}>
+<div style={{ fontSize:10, letterSpacing:"0.2em", color:"#6BFFB8", fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>Recurring storylines</div>
+<div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
+{storylines.slice(0, 6).map(function(s, i) {
+return (
+<div key={i} style={{ padding:"8px 14px", borderRadius:10, background:"rgba(107,255,184,0.08)", border:"1px solid rgba(107,255,184,0.2)", fontSize:12, color:"#6BFFB8", fontFamily:FB }}>{s.label} ({s.count}x)</div>
+); })}
+</div>
+</div>
+)}
+<div style={{ fontSize:10, letterSpacing:"0.2em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>TAP TO CONTINUE</div>
+</div>
+);
+}
+
+function MapEvolutionCard({ themes, sd, sessionCount, allSessions, currentSessionData, goNext }) {
+themes = themes || []; sd = sd || {}; allSessions = allSessions || []; currentSessionData = currentSessionData || {};
+var currThemes = (currentSessionData.themes || sd.themes || themes || []).map(function(t){ var o = typeof t === "object" ? t : { label: t }; return { label: o.label || o, weight: o.weight || 1 }; });
+var currentEntry = Object.assign({}, currentSessionData, { themes: currThemes, date: currentSessionData.date || new Date().toISOString(), isCurrent: true });
+var evoSessions = allSessions.concat([currentEntry]);
+var [idx, setIdx] = useState(evoSessions.length - 1);
+var sel = evoSessions[Math.min(idx, evoSessions.length - 1)] || {};
+var selThemes = (sel.themes || []).map(function(t){ return typeof t === "string" ? { label: t, weight: 1 } : t; });
+return (
+<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("input")) goNext && goNext(); }}
+style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
+background:"linear-gradient(180deg, #040810 0%, #080614 50%, #040208 100%)",
+display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% 30%, rgba(100,180,255,0.06) 0%, transparent 60%)", pointerEvents:"none" }}/>
+<div style={{ position:"absolute", top:48, left:28, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, textTransform:"uppercase" }}>LIVING MAP</div>
+<div style={{ position:"absolute", top:48, right:28, fontSize:9, letterSpacing:"0.2em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>SESSION {idx + 1} of {evoSessions.length}</div>
+<div style={{ textAlign:"center", marginBottom:24, animation:"riseUp 0.6s ease both" }}>
+<div style={{ fontSize:28, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", lineHeight:1.1 }}>MAP EVOLUTION</div>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:8 }}>how your themes have moved through time</div>
+</div>
+<div style={{ width:"min(320px, 90%)", marginBottom:20 }}>
+<input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
+onChange={function(e){ setIdx(parseInt(e.target.value, 10)); }}
+onClick={function(e){ e.stopPropagation(); }}
+style={{ width:"100%", accentColor:"#6BB8FF", cursor:"pointer" }}/>
+<div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:9, letterSpacing:"0.15em", color:"rgba(255,255,255,0.3)", fontFamily:FB }}>
+<span>Session 1</span>
+<span>Session {evoSessions.length}</span>
+</div>
+</div>
+<div style={{ display:"flex", flexWrap:"wrap", gap:10, justifyContent:"center", maxWidth:340, padding:"0 20px" }}>
+{selThemes.length === 0 ? <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>No themes for this session</div> : null}
+{selThemes.map(function(t, i){ return (
+<div key={i} style={{ padding:"8px 14px", borderRadius:12, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)",
+fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, letterSpacing:"0.04em" }}>
+{t.label || t}
+</div>
+); })}
+</div>
+{sel.date && <div style={{ marginTop:20, fontSize:10, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.12em" }}>{new Date(sel.date).toLocaleDateString("en-US", { month:"short", day:"numeric", year: sel.isCurrent ? "numeric" : undefined })}</div>}
+<div style={{ position:"absolute", bottom:28, fontSize:9, letterSpacing:"0.3em", color:"rgba(255,255,255,0.18)", fontFamily:FB }}>TAP TO CONTINUE</div>
+</div>
+);
+}
+
 function YearReviewCard({ themes, sessionCount, goNext }) {
 themes = themes || [];
 var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
-
-var NC3 = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#FFD700","#E84393","#7DB7AE",
-"#FF8C69","#98D8C8","#DDA0DD","#F0E68C","#87CEEB","#DEB887","#90EE90","#FFB6C1"];
 
 var _rows = _all.map(function(s, si) {
 var archName = (s.archetypes&&s.archetypes[0]&&s.archetypes[0].name)||"";
 var archLine = (s.archetypes&&s.archetypes[0]&&s.archetypes[0].line)||"";
 var alchemyStage = (s.alchemy&&s.alchemy.stage)||"";
 var mapTitle = s.mapTitle||"";
-var color = NC3[si % NC3.length];
+var color = THEME_COLORS[si % THEME_COLORS.length];
 var dateStr="", timeStr="";
 if (s.date) {
 var d = new Date(s.date);
@@ -6626,9 +7115,10 @@ background: di===Math.min(sessionCount,20)-1
 );
 }
 
-function FieldReportCard({ themes, sd, sessionCount, allSessions, portrait, portraitReady, goNext }) {
+function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, portrait, portraitReady, goNext }) {
 themes = themes || [];
 allSessions = allSessions || [];
+currentSessionData = currentSessionData || null;
 
 var [_report, _setReport] = useState(null);
 var [_ready, _setReady] = useState(false);
@@ -6652,6 +7142,7 @@ try {
 var total = allSessions.length; 
 
 var slimBio = allSessions.map(function(s, si) {
+if (s.sessionSummary && String(s.sessionSummary).trim()) return "S"+(si+1)+": "+String(s.sessionSummary).trim().slice(0, 180);
 var a = (s.archetypes && s.archetypes[0] && s.archetypes[0].name) || "";
 var th = (s.themes || []).slice(0,2).map(function(t){ return t.label; }).join(",");
 var bl = typeof s.blind_spot === "string" ? s.blind_spot.slice(0,60) : "";
@@ -6666,14 +7157,29 @@ var res = s.reactions
 return "S"+(si+1)+":"+(a?a+"|":"")+th+(bl?"|blind:"+bl:"")+(op?"|open:"+op:"")+(ow?"|said:"+ow:"")+(res?"|resisted:"+res:"")+ (s.clarity?"|clarity:"+String(s.clarity).slice(0,100):"")+ (s.descent?"|descent:"+(typeof s.descent==="object"&&s.descent.cards?s.descent.cards.map(function(c){return c.label||c.name||"";}).join(","):String(s.descent).slice(0,100)):"");
 }).join("\n");
 
+var lastSession = allSessions.length > 0 ? allSessions[allSessions.length - 1] : null;
+var currSession = currentSessionData || lastSession || sd;
 var currSummary = [
 themes.slice(0,3).map(function(t){ return t.label; }).join(", "),
-sd.tension && sd.tension.a ? sd.tension.a+" vs "+sd.tension.b : "",
-sd.blind_spot ? String(sd.blind_spot).slice(0,80) : "",
-sd.opening ? String(sd.opening).slice(0,80) : "",
-sd.clarity ? String(sd.clarity).slice(0,80) : "",
-sd.descent ? (typeof sd.descent==="object"&&sd.descent.cards?sd.descent.cards.map(function(c){return c.label||c.name||"";}).join(", "):String(sd.descent).slice(0,80)) : ""
+(sd.tension && sd.tension.a ? sd.tension.a+" vs "+sd.tension.b : (currSession.tension && currSession.tension.a ? currSession.tension.a+" vs "+currSession.tension.b : "")),
+sd.blind_spot ? String(sd.blind_spot).slice(0,80) : (currSession.blind_spot ? String(currSession.blind_spot).slice(0,80) : ""),
+sd.opening ? String(sd.opening).slice(0,80) : (currSession.opening ? String(currSession.opening).slice(0,80) : ""),
+sd.clarity ? String(sd.clarity).slice(0,80) : (currSession.clarity ? String(currSession.clarity).slice(0,80) : ""),
+(sd.descent || currSession.descent) ? (function(d){ return typeof d==="object"&&d.cards ? d.cards.map(function(c){return c.label||c.name||c.phrase||c.prompt||"";}).join(", ") : String(d).slice(0,80); })(sd.descent || currSession.descent) : ""
 ].filter(Boolean).join(" | ");
+
+var whatsNewBlurb = "";
+if (total >= 2 && lastSession) {
+var lastThemeList = (lastSession.themes || []).map(function(t){ return (t.label||"").trim(); }).filter(Boolean);
+var currThemeList = themes.slice(0,4).map(function(t){ return (t.label||"").trim(); }).filter(Boolean);
+var lastThemes = lastThemeList.join(", ");
+var currThemes = currThemeList.join(", ");
+var lastTens = lastSession.tension && lastSession.tension.a ? lastSession.tension.a + " vs " + lastSession.tension.b : "";
+var currTens = sd.tension && sd.tension.a ? sd.tension.a + " vs " + sd.tension.b : "";
+var newThemes = currThemeList.filter(function(t){ return t && lastThemeList.indexOf(t) < 0; });
+var returningThemes = currThemeList.filter(function(t){ return t && lastThemeList.indexOf(t) >= 0; });
+whatsNewBlurb = "WHAT'S NEW THIS TIME (compare to last session): Last session themes: " + (lastThemes || "—") + ". Last tension: " + (lastTens || "—") + ". This session themes: " + (currThemes || "—") + ". This tension: " + (currTens || "—") + ". New this time: " + (newThemes.length ? newThemes.join(", ") : "none") + ". Returning: " + (returningThemes.length ? returningThemes.join(", ") : "none") + ". Lead with what's different about THIS moment — why now? What shifted?\n\n";
+}
 
 var allCorrections = [];
 allSessions.forEach(function(s) {
@@ -6732,8 +7238,15 @@ shiftBlurb = "SUBJECT SHIFT — CRITICAL: This session introduces NEW TERRITORY.
 
 var prevReportHint = "";
 try {
-var prev = JSON.parse(localStorage.getItem("saycrd-last-report-hint") || "{}");
-if (prev.oneLine && prev.firstOpen) prevReportHint = "AVOID REPETITION: The previous report's verdict was: \""+prev.oneLine+"\". Its opening began with: \""+prev.firstOpen+"\". This report must feel FRESH and DISTINCT. Do NOT repeat that structure, phrasing, or angle. Lead with what's different about THIS moment. Vary the opening — sometimes start with the arc, sometimes with the current tension, sometimes with what the subject said, sometimes with a pattern that spans sessions. Never formulaic.\n\n";
+var historyKey = "saycrd-report-history-" + getCurrentUid();
+var reportHistory = JSON.parse(localStorage.getItem(historyKey) || "[]");
+var recent = reportHistory.slice(-3);
+if (recent.length > 0) {
+var lines = recent.map(function(r, i) {
+return "Report " + (i + 1) + ": verdict \"" + (r.oneLine || "").slice(0, 80) + "\"; opening: \"" + (r.firstOpen || "").slice(0, 60) + "\"";
+}).join(". ");
+prevReportHint = "AVOID REPETITION: Your last " + recent.length + " report(s): " + lines + ". This report must feel FRESH and DISTINCT. Do NOT repeat that structure, phrasing, or angle. Lead with what's different about THIS moment. Vary the opening — sometimes start with the arc, sometimes with the current tension, sometimes with what the subject said, sometimes with a pattern that spans sessions. Never formulaic.\n\n";
+}
 } catch(e) {}
 
 var firstDate = allSessions.length>0 && allSessions[0].date
@@ -6789,29 +7302,130 @@ else if (typeof sd.underneath==="string"&&sd.underneath.trim()) underList.push(s
 }
 var underBlurb = underList.length ? "What's underneath (pattern intelligence — patterns hard for the subject to self-see: repetition, structure, blind spots; use these exact ideas in prose, never write labels like underneath_0): " + underList.map(function(u,i){ return "("+(i+1)+") \""+u.slice(0,120)+(u.length>120?"…":"")+"\""; }).join("; ") + ".\n\n" : "";
 
+var descentBlurb = "";
+var currDescent = (currentSessionData && currentSessionData.descent) ? currentSessionData.descent : (lastSession && lastSession.descent ? lastSession.descent : (sd.descent || null));
+if (currDescent && typeof currDescent==="object" && currDescent.cards && currDescent.answers) {
+var lines = [];
+currDescent.cards.forEach(function(card, i) {
+var ans = currDescent.answers[i];
+if (ans === undefined || ans === null) return;
+var display = "";
+if (card.type === "energy") { var v = typeof ans==="number" ? ans : parseInt(ans,10); display = (v>=0&&v<=5) ? (v+"/5 intensity") : String(ans); }
+else if (card.type === "spectrum") { var pct = typeof ans==="number" ? Math.round(ans) : parseInt(ans,10); display = (pct>=0&&pct<=100) ? (pct+"% toward \""+(card.pole_b||"right")+"\"") : String(ans); }
+else if (card.type === "binary") { display = ans === "a" || ans === "b" ? "chose \"" + (ans==="a" ? (card.option_a||"a") : (card.option_b||"b")) + "\"" : String(ans); }
+else display = String(ans);
+var prompt = card.phrase || card.prompt || "";
+if (prompt) lines.push("\""+prompt.slice(0,80)+"\" → "+display);
+});
+if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\n";
+}
+
+var clarityBlurb = "";
+var currClarity = (currentSessionData && currentSessionData.clarity) ? currentSessionData.clarity : (lastSession && lastSession.clarity ? lastSession.clarity : (sd.clarity || sd.sessionClarity || ""));
+if (currClarity && String(currClarity).trim()) {
+clarityBlurb = "CLARITY (subject's own words — what they're taking with them; quote when relevant): \"" + String(currClarity).trim().slice(0, 200) + (String(currClarity).length > 200 ? "…" : "") + "\"\n\n";
+}
+
+var mapValuesBlurb = "";
+var currMap = (currentSessionData && currentSessionData.mapResponses) ? currentSessionData.mapResponses : (lastSession && lastSession.mapResponses ? lastSession.mapResponses : {});
+if (Object.keys(currMap).length > 0) {
+var connLines = [];
+Object.keys(currMap).forEach(function(k) {
+var mr = currMap[k];
+if (!mr) return;
+var parts = k.split("::");
+var from = (parts[0]||"").trim(), to = (parts[1]||"").trim();
+var val = mr.value === "yes" ? "confirmed" : mr.value === "partly" ? "partly" : mr.value === "no" ? "rejected" : mr.value || "";
+var cmt = mr.comment && String(mr.comment).trim() ? " — \""+String(mr.comment).trim().slice(0,100)+"\"" : "";
+connLines.push(from+" ↔ "+to+": "+val+cmt);
+});
+if (connLines.length) mapValuesBlurb = "MAP CONNECTION FEEDBACK (what landed for the subject — yes/partly/no; use as evidence):\n" + connLines.slice(0, 15).join("\n") + "\n\n";
+}
+
+var patternEngineBlurb = "";
+if (total >= 3) {
+var pe = loadPatternEngine();
+if (!pe && total >= 2) { try { pe = computePatternEngine(); } catch(e) {} }
+if (pe) {
+var peLines = [];
+if (pe.recurring_obstacles && pe.recurring_obstacles.length) peLines.push("Recurring obstacles (pushed back 2+ times): " + pe.recurring_obstacles.map(function(o){ return o.key + " ("+o.count+"x)" + (o.confidence ? " ["+o.confidence+"]" : ""); }).join("; "));
+if (pe.identity_shifts && pe.identity_shifts.length) peLines.push("Identity shifts: " + pe.identity_shifts.map(function(s){ return s.from + " → " + s.to; }).join("; "));
+if (pe.emerging_strengths && pe.emerging_strengths.length) peLines.push("Emerging strengths (rising themes): " + pe.emerging_strengths.map(function(s){ return s.label + " (+"+s.delta+")" + (s.confidence ? " ["+s.confidence+"]" : ""); }).join(", "));
+if (pe.repeating_goals && pe.repeating_goals.length) peLines.push("Repeating in clarity: " + pe.repeating_goals.map(function(g){ return g.word + " ("+g.count+"x)" + (g.confidence ? " ["+g.confidence+"]" : ""); }).join(", "));
+if (pe.emotional_cycles && pe.emotional_cycles.recent) peLines.push("Recent energy pattern: " + pe.emotional_cycles.recent + (pe.emotional_cycles.confidence ? " [low confidence — heuristic only]" : ""));
+if (pe.connection_arcs && pe.connection_arcs.length) peLines.push("Connection arcs (how map feedback evolved): " + pe.connection_arcs.slice(0, 5).map(function(a){ return a.connectionKey + " " + a.trend + " (" + a.summary.slice(-80) + ")"; }).join("; "));
+if (pe.pattern_morphology && pe.pattern_morphology.length) peLines.push("Pattern evolution (subject refined readings over time): " + pe.pattern_morphology.map(function(m){ return m.type === "blind_spot" ? "blind spot: \"" + m.before + "\" → \"" + m.after + "\"" : m.key + " refined " + m.count + "x"; }).join("; "));
+if (pe.life_domain_signals && pe.life_domain_signals.length) peLines.push("Life domains (where themes cluster): " + pe.life_domain_signals.map(function(d){ return d.domain + ": " + d.topThemes.join(", "); }).join("; "));
+if (pe.regression_context && pe.regression_context.length) peLines.push("Regressions (when themes/map values dropped — prior context): " + pe.regression_context.map(function(r){ return "S" + (r.sessionIndex + 1) + " " + r.type + " " + r.key + (r.priorContext ? " — prior: " + r.priorContext.slice(0, 60) : ""); }).join("; "));
+if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' — never state as fact.\n\n";
+}
+}
+
+var metaPatternBlurb = total >= 10 ? "META-PATTERN (10+ sessions): Name the ONE invariant structure — the theme, blind spot, or storyline that has taken different forms over time. One sentence. Example: 'The subject has been solving the same problem (fear of being seen as weak) with increasingly subtle strategies.' The report's deepest gift is the pattern that no single session could show. Weave it into the report. Do NOT use the formula: summarize arc → current session → blind spot. Vary the opening.\n\n" : "";
+
+var narrativeBlurb = "";
+if (total >= 10) {
+var nar = loadNarrativeArc();
+if (!nar) try { nar = computeNarrativeArc(); } catch(e) {}
+if (nar) {
+var narLines = [];
+if (nar.chapters && nar.chapters.length) narLines.push("Chapters: " + nar.chapters.map(function(c){ return "S"+(c.sessionRange[0]+1)+"-S"+(c.sessionRange[1]+1)+": "+c.dominantThemes.join(", ")+(c.archetype?" | "+c.archetype:"")+(c.tension?" | "+c.tension:""); }).join("; "));
+if (nar.turning_points && nar.turning_points.length) narLines.push("Turning points: " + nar.turning_points.map(function(t){ return "S"+(t.sessionIndex+1)+" "+t.type+": "+t.description; }).join("; "));
+if (nar.recurring_storylines && nar.recurring_storylines.length) narLines.push("Recurring storylines (3+ sessions): " + nar.recurring_storylines.map(function(s){ return s.label+" ("+s.count+"x)"; }).join(", "));
+if (narLines.length) narrativeBlurb = "NARRATIVE ARC (10+ sessions — the record over time; weave into prose):\n" + narLines.join("\n") + "\n\n";
+}
+}
+
+var emergentSignalsBlurb = "";
+if (total >= 5) {
+var es = computeEmergentSignals();
+if (es) {
+var esLines = [];
+if (es.opening_question) esLines.push("Opening question: \"" + es.opening_question + "\"");
+if (es.rising && es.rising.length) esLines.push("Rising (approaching): " + es.rising.map(function(r){ return r.label+" (+"+r.delta+")"; }).join(", "));
+if (es.fading && es.fading.length) esLines.push("Fading (releasing): " + es.fading.map(function(f){ return f.label+" ("+f.delta+")"; }).join(", "));
+if (es.blind_spot) esLines.push("Blind spot: " + es.blind_spot);
+if (es.chronic && es.chronic.length) esLines.push("Chronic (always present): " + es.chronic.join(", "));
+if (es.absent && es.absent.length) esLines.push("Absent (disappeared): " + es.absent.join(", "));
+if (esLines.length) emergentSignalsBlurb = "EMERGENT SIGNALS (what wants to happen — rising/approaching, fading/releasing, blind spot, chronic, absent):\n" + esLines.join("\n") + "\n\n";
+}
+}
+
 var prompt = "You are writing a confidential field report. Third person only. Always call the subject \"the subject\" — never he, she, him, her. Plain declarative past tense. Clinical but human.\n\n"
-+ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Use descent (cards and answers), clarity, and tension when present to ground the report in the subject's journey.\n"
-+ "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES or SUBJECT'S OWN WORDS above — e.g. 'The subject said: \"...\"' or 'On the map between X and Y they wrote: \"...\"'. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this and may question claims — every claim about their words must be traceable to the source data.\n"
++ "PRACTITIONER MODE: You are a brilliant practitioner. Draw on pattern recognition, systems thinking, and deep listening — without naming disciplines. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth.\n\n"
++ "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
++ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report.\n"
++ "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
++ "GROUNDING: For each major insight, anchor it in evidence the reader can trace (e.g. \"the map showed control↔trust confirmed in 5 of the last 6 sessions\" or \"the subject corrected the blind spot twice, refining it from X to Y\"). Use careful language: \"the record suggests,\" \"the pattern appears to,\" \"in sessions where X, the subject tended to Y\" — interpretation, not certainty. Where a pattern is not absolute (e.g. regressions amid an overall trend), add light nuance: \"with exceptions at S9 and S16\" or \"though not in every session.\" Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
 + "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
 + (prevReportHint ? prevReportHint : "")
 + (shiftBlurb ? shiftBlurb : "")
 + "SUBJECT DATA:\n" + stats + "\n"
 + (arcPatternBlurb ? arcPatternBlurb : "")
++ (whatsNewBlurb ? whatsNewBlurb : "")
 + "SESSION ARC:\n" + slimBio + "\n"
-+ "CURRENT SESSION: " + currSummary + "\n\n"
++ "CURRENT SESSION (structure the report around this): " + currSummary + "\n\n"
++ (descentBlurb ? descentBlurb : "")
++ (clarityBlurb ? clarityBlurb : "")
++ (mapValuesBlurb ? mapValuesBlurb : "")
++ (patternEngineBlurb ? patternEngineBlurb : "")
++ (narrativeBlurb ? narrativeBlurb : "")
++ (emergentSignalsBlurb ? emergentSignalsBlurb : "")
++ (metaPatternBlurb ? metaPatternBlurb : "")
 + mapNotesBlurb
 + subjectWordsBlurb
 + underBlurb
-+ "VARIETY AND DEPTH: Each report must feel distinct. Lead with what's most distinctive about THIS moment. When the subject shifts to new territory (different themes, a new subject), that takes precedence: center the report on the current session. Do not default to summarizing the arc and slightly mentioning the new thing. Surface the questions that emerge: why now? what's happening? Weave the past into the current — not the other way around. When there are 10+ sessions without a shift, dig into meta-patterns. Go beyond summary into genuine insight. 3 short paragraphs per section, but make each sentence count.\n\n"
-+ "FOCUS AND CONCLUSION: Do not drift. The report should have a real conclusion tied to the heart of what it said — not a reach for past specifics that haven't been relevant. Only use material from previous sessions when it BOLSTERS or directly correlates with what the report has already established. Do not search to fill from the past. If something from an earlier session illuminates the current point, use it. If not, go deeper into what the report has already said rather than broadening to unrelated history. Stay on topic. The report is already brilliant — keep it that way.\n\n"
++ "STRUCTURE: The current session is the CORE and BACKBONE — anchor the report there. The VALUE is the Y-axis: what has accumulated over time. The report's power is how the longitudinal arc (themes, patterns, blind spots across many sessions) gets BROUGHT UP and surfaced in this session. Use descent answers and map feedback as the backbone of what landed now. Weave the past into the current — the value over time is what this session brings into focus. When 20+ sessions, the meta-pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
++ "NO DRIFT: The conclusion must tie to the heart of what this report established. Use prior-session material to bring the Y-axis (value over time) into the current moment — not to drift into unrelated history. Stay on topic.\n\n"
 + "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
 + "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use their exact phrasing in quotes. Do not paraphrase into something they didn't say. In WHAT REMAINS, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
 + "SECTION 1 title like WHAT OCCURRED: What dominated in THIS session. When the subject has shifted to new territory, open with that — first time speaking about X, why now. Name specific themes and archetypes. Do not lead with a summary of past sessions when the current session is the story. 3 short paragraphs.\n"
 + "SECTION 2 title like WHAT MOVED: Concrete change. When there's a subject shift, this section explores the shift — what's happening, why now, how the past connects to this moment. When no shift, what moved between sessions or within the session. 3 short paragraphs.\n"
 + "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. Refer to the 'what's underneath' phrases above — these are pattern-intelligence observations (repetition, structure, blind spots the subject may not see). Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction so the link is traceable. Conclude with what the report has already established — do not drift to past specifics that don't correlate. If a prior-session nugget bolsters the point, use it; otherwise go deeper into the heart of this report. 2 short paragraphs.\n\n"
 + "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now, tied to the heart of this report. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
++ (total >= 10 ? "whatMightWantToHappen — one sentence. Not advice — an observation about the next edge, based on what remains. What might want to happen? Optional but valuable.\n" : "")
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
-+ 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}';
++ (total >= 10 ? 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"...","whatMightWantToHappen":"..."}' : 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}');
 
 var rr = await callClaudeClient(prompt, "field_report", 950);
 if (cancelled) return;
@@ -6832,7 +7446,11 @@ try {
 var firstBody = (dd.sections[0] && dd.sections[0].body) || "";
 var firstOpen = firstBody.split(/\n\n+/)[0] || firstBody.split("\n")[0] || "";
 firstOpen = firstOpen.trim().slice(0, 120);
-localStorage.setItem("saycrd-last-report-hint", JSON.stringify({ oneLine: (dd.oneLineVerdict||"").slice(0, 100), firstOpen: firstOpen }));
+var historyKey = "saycrd-report-history-" + getCurrentUid();
+var reportHistory = JSON.parse(localStorage.getItem(historyKey) || "[]");
+reportHistory.push({ sessionIndex: total, oneLine: (dd.oneLineVerdict||"").slice(0, 100), firstOpen: firstOpen, generatedAt: new Date().toISOString() });
+reportHistory = reportHistory.slice(-5);
+localStorage.setItem(historyKey, JSON.stringify(reportHistory));
 } catch(e2) {}
 } else {
 _setReport({
@@ -6940,6 +7558,18 @@ background:"rgba(0,0,0,0.03)" }}>
 <div style={{ fontSize:17, color:"rgba(0,0,0,0.78)",
 fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal" }}>
 {_report.oneLineVerdict}
+</div>
+</div>
+)}
+
+{_report.whatMightWantToHappen && (
+<div style={{ marginBottom:20, padding:"14px 18px",
+borderLeft:"3px solid rgba(0,0,0,0.12)",
+background:"rgba(107,184,255,0.06)" }}>
+<div style={{ fontSize:11, letterSpacing:"0.12em", color:"rgba(0,0,0,0.45)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>What might want to happen</div>
+<div style={{ fontSize:15, color:"rgba(0,0,0,0.7)",
+fontFamily:FD, lineHeight:1.6, fontStyle:"italic" }}>
+{_report.whatMightWantToHappen}
 </div>
 </div>
 )}
@@ -7173,6 +7803,7 @@ archetypes = archScores[0].score > 0 ? [archScores[0]] : [{ key: "chrysalis", ti
 
 var savedRef = useRef(false);
 useEffect(function() { if (!savedRef.current && sd.themes) { savedRef.current = true; saveSession(Object.assign({}, sd, {
+rawText: rawText,
 archetypes: archetypes,
 mapResponses: mr,
 reactions: sReactions,
@@ -7199,6 +7830,13 @@ var timeline = useMemo(function() { return getSessionTimeline(); }, []);
 var sessionCount = timeline.length + 1;
 
 var allSessions = loadSessions(); 
+var currentSessionData = Object.assign({}, sd, {
+mapResponses: mr,
+descent: sData.descent,
+clarity: sData.clarity || sd.sessionClarity || "",
+reactions: sReactions,
+corrections: sCorrections,
+});
 var prevSession = allSessions.length > 0 ? allSessions[allSessions.length - 1] : null;
 var prevArch = prevSession && prevSession.archetypes && prevSession.archetypes[0]
 ? prevSession.archetypes[0] : null;
@@ -7355,9 +7993,9 @@ function handleArchResponse(response) {
 setArchResponse(response);
 setClicked(true);
 try {
-var sessions = JSON.parse(localStorage.getItem("saycrd-sessions") || "[]");
+var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
 var last = sessions[sessions.length - 1];
-if (last && primaryArch) { last.archetypeResponse = { key: primaryArch.key, response: response }; localStorage.setItem("saycrd-sessions", JSON.stringify(sessions)); }
+if (last && primaryArch) { last.archetypeResponse = { key: primaryArch.key, response: response }; localStorage.setItem(_sessionKey(), JSON.stringify(sessions)); }
 } catch(e) {}
 }
 
@@ -7379,25 +8017,25 @@ var showEvolution = lastArch && lastArch.name && lastArch.name !== currentArchNa
 
 var archColor = primaryArch ? (primaryArch.color || (themes[0] && themes[0].color) || "#E84393") : "#E84393";
 var posterBg = "linear-gradient(160deg, #06040E 0%, " + hexDarken(archColor, 0.14) + " 45%, " + hexDarken(archColor, 0.22) + " 100%)";
+
+if ([3, 10, 20, 50].indexOf(sessionCount) >= 0) {
+c.push({ type: "milestone", bg: "#0A0618", milestone: sessionCount });
+}
 c.push({ type: "field_condition", bg: "#030308" });
-
 c.push({ type: "arch_billboard", bg: "#030308" });
-
 c.push({ type: "depths_field", bg: "#010810" });
-
+if (sessionCount >= 2) {
 c.push({ type: "whats_growing", bg: "#010A04" });
-
 c.push({ type: "the_mirror", bg: "#08080C" });
-
 c.push({ type: "the_realm", bg: "#04020A" });
-
 c.push({ type: "inner_wrapped", bg: "#0A0618" });
-
+c.push({ type: "map_evolution", bg: "#040810" });
+}
+if (sessionCount >= 10) c.push({ type: "arc_reveal", bg: "#040810" });
 c.push({ type: "year_review", bg: "#060606" });
-
 c.push({ type: "field_report", bg: "#FAFAF8" });
 return c;
-}, [archResponse, tension, underneath.length, primaryArch, blindSpot, strongConn, topWordCount, themes.length]);
+}, [archResponse, tension, underneath.length, primaryArch, blindSpot, strongConn, topWordCount, themes.length, sessionCount]);
 
 console.log("[FIELD] CARDS[0]:", CARDS[0]&&CARDS[0].type, "CARDS[1]:", CARDS[1]&&CARDS[1].type, "current:", current, "total:", CARDS.length);
 var card = CARDS[current];
@@ -7423,6 +8061,12 @@ return function() { window.removeEventListener("keydown", handler); };
 var renderCard = function() {
 switch (card.type) {
 
+case "milestone": {
+return <MilestoneCard sessionCount={sessionCount} milestone={card.milestone} goNext={advance}/>;
+}
+case "arc_reveal": {
+return <ArcRevealCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} goNext={advance}/>;
+}
 case "field_condition": {
 return <FieldConditionCard themes={themes} sd={sd} primaryArch={primaryArch} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
@@ -7445,11 +8089,14 @@ return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={
 case "inner_wrapped": {
 return <InnerWrappedCard themes={themes} sd={sd} sessionCount={sessionCount} goNext={advance}/>;
 }
+case "map_evolution": {
+return <MapEvolutionCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} goNext={advance}/>;
+}
 case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "field_report": {
-return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "the_underdrawing": {
 return <UnderdrawingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -8367,7 +9014,8 @@ return <div style={{position:"absolute",inset:0,background:"#060910",display:"fl
 
 return (
 <div ref={containerRef} onClick={handleClick} style={{ width: "100%", height: "100%", background: card.bg, position: "absolute", inset: 0, cursor: "pointer", userSelect: "none", transition: "background 0.7s ease" }}>
-<div style={{ display:"flex", gap:3, padding:"14px 16px 0", position:"absolute", top:0, left:0, right:0, zIndex:10 }}>
+<div style={{ display:"flex", alignItems:"center", gap:8, padding:"14px 16px 0", position:"absolute", top:0, left:0, right:0, zIndex:10 }}>
+<div style={{ flex:1, display:"flex", gap:3 }}>
 {CARDS.map(function(_, i) {
 var visited = i < current;
 var isCurrent = i === current;
@@ -8379,6 +9027,11 @@ transition:"all 0.3s",
 cursor: visited ? "pointer" : "default",
 transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 })}
+</div>
+{sessionCount >= 85 && (
+<span style={{ flexShrink:0, fontSize:8, color:"rgba(214,178,109,0.7)", fontFamily:FB, letterSpacing:"0.08em", maxWidth:90, lineHeight:1.2 }}>Export to backup before archival</span>
+)}
+<button onClick={function(e){ e.stopPropagation(); exportUserData(); }} style={{ flexShrink:0, padding:"4px 10px", fontSize:9, letterSpacing:"0.12em", color:"rgba(255,255,255,0.25)", fontFamily:FB, background:"transparent", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, cursor:"pointer", textTransform:"uppercase" }}>Export</button>
 </div>
 <div key={current + "-" + clicked} style={{ width: "100%", height: "100%", animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out", position:"relative" }}>
 {(function() { try { return renderCard(); } catch(e) { console.error("[FIELD] renderCard crashed on card", current, "type:", card && card.type, "error:", e.message||e); return <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:"sans-serif",padding:40,textAlign:"center"}}>card error: {e.message}</div>; } })()}
@@ -8834,6 +9487,10 @@ Ready to listen to yourself?
 color:"rgba(200,185,230,0.5)", marginBottom:36, lineHeight:1.7 }}>
 No account needed. Your session stays private. Just start.
 </p>
+<button onClick={exportUserData} style={{ marginBottom:20, padding:"8px 16px", borderRadius:999,
+background:"transparent", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.4)",
+fontFamily:FB, fontSize:11, letterSpacing:"0.12em", cursor:"pointer",
+transition:"all 0.2s" }} title="Download your sessions and patterns as JSON">Download my data</button>
 <button onClick={guardedStart} style={{ padding:"18px 48px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:17, fontWeight:700,

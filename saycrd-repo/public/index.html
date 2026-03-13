@@ -327,7 +327,7 @@ async function _hydrateFromServer() {
       return true;
     });
     merged.sort(function(a, b) { return a.date < b.date ? -1 : 1; });
-    if (merged.length > 50) merged = merged.slice(-50);
+    if (merged.length > 100) merged = merged.slice(-100);
 
     if (merged.length > localSessions.length) {
       localStorage.setItem(localKey, JSON.stringify(merged));
