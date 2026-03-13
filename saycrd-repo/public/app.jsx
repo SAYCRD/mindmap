@@ -7573,6 +7573,7 @@ boxSizing:"border-box"
 }}
 />
 {_reportNotes.trim() && (
+<>
 <div style={{ marginTop:16 }}>
 <div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Your notes</div>
 <div style={{ fontSize:15, color:"#5C4A3A", fontFamily:FD, fontStyle:"italic", lineHeight:1.75, padding:"12px 16px", background:"rgba(92,74,58,0.06)", borderLeft:"3px solid rgba(92,74,58,0.35)", borderRadius:4, whiteSpace:"pre-wrap" }}>
@@ -7621,6 +7622,8 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 {_notesSummary}
 </div>
 </div>
+)}
+</>
 )}
 {_report && (
 <button
