@@ -404,17 +404,20 @@ const [focused, setFocused] = useState(false);
 useEffect(() => { setWords(text.split(/\s+/).filter(x => x.length > 3)); }, [text]);
 const wc = text.split(/\s+/).filter(Boolean).length;
 return (
-<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "40px 24px 24px", paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 <FloatingWords words={words} color="#6BB8FF"/><Particles color="#6BB8FF" count={15}/>
-<div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1, flexShrink: 0 }}>POUR</div>
-<h1 style={{ fontSize: "clamp(28px, 8vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15, flexShrink: 0 }}>What's alive<br/>in you right now?</h1>
-<p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", fontFamily: FB, margin: "0 0 24px", textAlign: "center", zIndex: 1, flexShrink: 0 }}>Don't think. Just pour.</p>
-<div style={{ width: "100%", maxWidth: 380, minHeight: 180, flex: 1, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2, flexShrink: 0 }}>
-<textarea value={text} onChange={function(e){setText(e.target.value);}} onFocus={function(){setFocused(true);}} onBlur={function(){setFocused(false);}} placeholder="Start writing..." style={{ width: "100%", minHeight: 160, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.85)", fontSize: 17, fontFamily: FD, fontStyle: "italic", padding: 20, lineHeight: 1.7, display: "block" }}/>
+<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "40px 24px 24px", paddingBottom: 24 }}>
+<div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>
+<h1 style={{ fontSize: "clamp(28px, 8vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
+<p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", fontFamily: FB, margin: "0 0 24px", textAlign: "center", zIndex: 1 }}>Don't think. Just pour.</p>
+<div style={{ width: "100%", maxWidth: 380, minHeight: 160, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2 }}>
+<textarea value={text} onChange={function(e){setText(e.target.value);}} onFocus={function(){setFocused(true);}} onBlur={function(){setFocused(false);}} placeholder="Start writing..." style={{ width: "100%", minHeight: 140, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.85)", fontSize: 17, fontFamily: FD, fontStyle: "italic", padding: 20, lineHeight: 1.7, display: "block" }}/>
 </div>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 380, marginTop: 20, paddingBottom: "env(safe-area-inset-bottom, 0px)", zIndex: 1, flexShrink: 0, minHeight: 52 }}>
-<div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
-{wc>=20&&<button onClick={function(){ onComplete(text); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "12px 28px", minHeight: 48, minWidth: 140, color: "white", fontSize: 14, fontFamily: FB, fontWeight: 500, cursor: "pointer", animation: "riseUp 0.4s ease", touchAction: "manipulation" }}>Synthesize →</button>}
+<div style={{ marginTop: 16, fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
+</div>
+<div style={{ flexShrink: 0, padding: "16px 24px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 60%, transparent)", borderTop: "1px solid rgba(107,184,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 420, margin: "0 auto", boxSizing: "border-box" }}>
+<div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words</div>
+{wc>=20&&<button onClick={function(){ onComplete(text); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "14px 32px", minHeight: 52, minWidth: 160, color: "white", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", animation: "riseUp 0.4s ease", touchAction: "manipulation", boxShadow: "0 4px 20px rgba(107,184,255,0.35)" }}>Synthesize →</button>}
 </div>
 </div>
 );
