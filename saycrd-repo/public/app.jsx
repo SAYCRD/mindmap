@@ -1339,7 +1339,7 @@ return (
 background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a14 100%)" }}>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 100% 80% at 50% 30%, rgba(80,60,140,0.06) 0%, transparent 55%)", pointerEvents: "none", zIndex: 0 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
-<Particles color="rgba(107,184,255,0.2)" count={10}/>
+<Particles color="rgba(107,184,255,0.25)" count={14}/>
 <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
 <div style={{ fontSize: 9, letterSpacing: "0.35em", color: "rgba(255,255,255,0.25)", fontFamily: FB, textTransform: "uppercase", marginBottom: 4 }}>Your constellation</div>
 <div style={{ fontSize: 16, fontWeight: 500, color: "#F7F5F0", fontFamily: FD, letterSpacing: "0.03em" }}>
@@ -1378,7 +1378,8 @@ stroke=hasWord?"rgba(214,178,100,0.75)":"rgba(214,178,100,0.35)";
 sw=hasWord?2.5:1.5; dash="5 4";glowStroke="rgba(214,178,100,0.08)";
 }
 if(isAct){stroke=`${c.color}88`;sw=3;dash="none"; op=1;glowStroke=c.color+"22";}
-return <g key={k}><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={glowStroke} strokeWidth={sw+6} strokeLinecap="round" strokeDasharray={dash} opacity={0.8} style={{transition:"all 0.6s ease"}}/><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/></g>;
+var flowStroke = resp?.value==="yes" ? "rgba(107,211,198,0.55)" : resp?.value==="partly" ? "rgba(165,235,220,0.4)" : "rgba(255,255,255,0.06)";
+return <g key={k}><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={glowStroke} strokeWidth={sw+6} strokeLinecap="round" strokeDasharray={dash} opacity={0.8} style={{transition:"all 0.6s ease"}}/><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={flowStroke} strokeWidth={resp?.value==="yes"||resp?.value==="partly"?1.8:1} strokeLinecap="round" strokeDasharray="6 18" style={{animation:"flowLine "+(resp?.value==="yes"||resp?.value==="partly"?"2.2":"4")+"s linear infinite"}}/></g>;
 })}
 {selectedNode && (() => {
 const sc = ctr(selectedNode);
@@ -1461,10 +1462,10 @@ cursor: isDrag?"grabbing":"pointer", zIndex: isDrag?20: isSel||isSnap?10 :3,
 transition: isDrag?"none":"all 0.4s cubic-bezier(.25,.46,.45,.94)",
 transform: isDrag?"scale(1.12)": isSnap?"scale(1.15)": isSel?"scale(1.08)" :"scale(1)",
 boxShadow: isSnap
-? "0 0 24px rgba(125,183,174,0.45), 0 0 8px rgba(125,183,174,0.2)"
+? "0 0 28px rgba(125,183,174,0.5), 0 0 12px rgba(125,183,174,0.25)"
 : isSel
-? "0 0 24px rgba(107,255,184,0.3), 0 0 8px rgba(107,255,184,0.15)"
-: `0 0 ${isDrag?28:16}px ${n.color}${isDrag?"55":"25"}, 0 0 6px ${n.color}15`,
+? "0 0 28px rgba(107,255,184,0.35), 0 0 10px rgba(107,255,184,0.2)"
+: `0 0 ${isDrag?32:20}px ${n.color}${isDrag?"66":"35"}, 0 0 8px ${n.color}22`,
 touchAction: "none", userSelect: "none",
 animation: isDrag||isSel||isSnap ? "none" : "nodeBreathe 8s ease-in-out infinite",
 animationDelay: `${ni*-1.5}s`,
@@ -9063,7 +9064,8 @@ return (
 @keyframes floatWord{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 @keyframes connBlink{0%,100%{opacity:0.65;filter:brightness(1)}50%{opacity:1;filter:brightness(1.4)}}
 @keyframes ringPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.15)}}
-@keyframes nodeBreathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
+@keyframes nodeBreathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+@keyframes flowLine{0%{stroke-dashoffset:0}100%{stroke-dashoffset:24}}
 @keyframes shaftPulse { 0%,100%{opacity:0.7;transform:skewX(-8deg) scaleX(1)} 50%{opacity:1.4;transform:skewX(-5deg) scaleX(1.3)} }
 @keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.7}50%{transform:translate(-50%,-50%) scale(1.15);opacity:1}}
 @keyframes drawerIn{from{opacity:0;transform:translate(-50%,24px) scale(0.95)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
