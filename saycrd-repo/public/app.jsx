@@ -6007,34 +6007,97 @@ animation:"riseUp 0.8s ease 1.1s both" }}>
 );
 }
 
-function ConstellationMap({ thList, connList }) {
+function ConstellationMap({ thList, connList, dark, showInsight }) {
 var n = (thList || []).length;
+var [hoverNode, setHoverNode] = useState(null);
 if (n === 0) return <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>No themes yet</div>;
-var cx = 50, cy = 48, r = 32;
+var cx = 50, cy = 48, r = 34;
 var pts = (thList || []).map(function(t, i) {
 var ang = (i / n) * 2 * Math.PI - Math.PI / 2;
-return { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r * 0.85, label: t.label || t.name, color: getThemeColor(t, i) };
+return { x: cx + Math.cos(ang) * r, y: cy + Math.sin(ang) * r * 0.88, label: t.label || t.name, color: getThemeColor(t, i), i: i };
 });
+var isDark = dark !== false;
+var textFill = isDark ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.75)";
+var lineBase = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)";
+var lineActive = isDark ? "rgba(107,184,255,0.6)" : "rgba(107,184,255,0.7)";
+function arcPath(ax, ay, bx, by) {
+var mx = (ax + bx) / 2, my = (ay + by) / 2;
+var dx = bx - ax, dy = by - ay;
+var perp = Math.sqrt(dx*dx + dy*dy) * 0.35;
+var cpx = mx - dy * 0.15 + (cx - mx) * 0.3;
+var cpy = my + dx * 0.15 + (cy - my) * 0.3;
+return "M " + ax + " " + ay + " Q " + cpx + " " + cpy + " " + bx + " " + by;
+}
 return (
-<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ width: "100%", maxWidth: 320, height: 280 }}>
+<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ width: "100%", maxWidth: 320, height: 280 }}
+onMouseLeave={function(){ setHoverNode(null); }}>
+<defs>
+<filter id="cm_glow" x="-80%" y="-80%" width="260%" height="260%">
+<feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur"/>
+<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+<filter id="cm_soft" x="-100%" y="-100%" width="300%" height="300%">
+<feGaussianBlur stdDeviation="2"/>
+</filter>
+{pts.map(function(p, i) {
+return <radialGradient key={"g"+i} id={"cm_grad_"+i} cx="30%" cy="30%" r="70%">
+<stop offset="0%" stopColor={p.color} stopOpacity="1"/>
+<stop offset="60%" stopColor={p.color} stopOpacity="0.85"/>
+<stop offset="100%" stopColor={p.color} stopOpacity="0.4"/>
+</radialGradient>;
+})}
+</defs>
+{/* subtle depth layer */}
+<circle cx={cx} cy={cy} r={r+8} fill="none" stroke={isDark?"rgba(255,255,255,0.03)":"rgba(0,0,0,0.03)"} strokeWidth="0.5"/>
 {(connList || []).map(function(c, ci) {
 var a = pts.find(function(p){ return (p.label||"").toLowerCase() === (c.from||"").toLowerCase(); });
 var b = pts.find(function(p){ return (p.label||"").toLowerCase() === (c.to||"").toLowerCase(); });
 if (!a || !b) return null;
-return <line key={ci} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgba(255,255,255,0.2)" strokeWidth="0.4" strokeLinecap="round"/>;
+var ahov = hoverNode === a.i || hoverNode === b.i;
+var strokeCol = ahov ? lineActive : lineBase;
+var strokeW = ahov ? 0.7 : 0.5;
+var dashArray = ahov ? "4 3" : "2 4";
+return (
+<g key={ci}>
+<path d={arcPath(a.x, a.y, b.x, b.y)} fill="none" stroke={strokeCol} strokeWidth={strokeW} strokeLinecap="round" strokeDasharray={dashArray} opacity={ahov ? 1 : 0.85}
+style={{ transition: "stroke 0.3s, opacity 0.3s" }}/>
+{ahov && (
+<path d={arcPath(a.x, a.y, b.x, b.y)} fill="none" stroke={a.color} strokeWidth="0.25" strokeLinecap="round" strokeDasharray="2 2" opacity="0.5">
+<animate attributeName="stroke-dashoffset" from="0" to="4" dur="1.2s" repeatCount="indefinite"/>
+</path>
+)}
+</g>
+);
 })}
 {pts.map(function(p, i) {
-return <g key={i}>
-<circle cx={p.x} cy={p.y} r="2.5" fill={p.color} opacity="0.9">
-<animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite" begin={i*0.2+"s"}/>
+var isHov = hoverNode === i;
+return (
+<g key={i} onMouseEnter={function(){ setHoverNode(i); }} onMouseLeave={function(){ setHoverNode(null); }}
+style={{ cursor: "pointer" }}>
+<circle cx={p.x} cy={p.y} r={isHov ? 5.5 : 4} fill={"url(#cm_grad_"+i+")"} filter="url(#cm_glow)" opacity={isHov ? 1 : 0.92}>
+{!isHov && <animate attributeName="r" values="3.5;4.5;3.5" dur="2.5s" repeatCount="indefinite" begin={i*0.2+"s"}/>}
 </circle>
-<circle cx={p.x} cy={p.y} r="5" fill="none" stroke={p.color} strokeWidth="0.3" opacity="0.3">
-<animate attributeName="r" values="4;7;4" dur="3s" repeatCount="indefinite" begin={i*0.15+"s"}/>
+<circle cx={p.x} cy={p.y} r={isHov ? 10 : 7} fill="none" stroke={p.color} strokeWidth="0.4" opacity={isHov ? 0.5 : 0.22}>
+{!isHov && <animate attributeName="r" values="6;9;6" dur="3.2s" repeatCount="indefinite" begin={i*0.15+"s"}/>}
 </circle>
-<text x={p.x} y={p.y + 6} textAnchor="middle" fontSize="3.2" fill="rgba(255,255,255,0.85)" fontFamily={FB} fontWeight="600">
+<text x={p.x} y={p.y + 7} textAnchor="middle" fontSize="3.4" fill={textFill} fontFamily={FB} fontWeight={isHov ? 700 : 600}
+style={{ textShadow: isDark ? "0 0 12px "+p.color+"66" : "none", transition: "font-weight 0.2s" }}>
 {(p.label||"").toUpperCase().slice(0, 12)}
 </text>
-</g>;
+{showInsight !== false && isHov && (function(){
+var connsFrom = (connList||[]).filter(function(c){ return (c.from||"").toLowerCase() === (p.label||"").toLowerCase() || (c.to||"").toLowerCase() === (p.label||"").toLowerCase(); });
+var insight = connsFrom.map(function(c){ return c.insight || c.label || ""; }).filter(Boolean)[0];
+if (!insight) return null;
+return (
+<foreignObject x={Math.max(2, Math.min(p.x-14, 72))} y={Math.max(2, p.y-16)} width={28} height={14} style={{ overflow: "visible" }}>
+<div xmlns="http://www.w3.org/1999/xhtml" style={{ fontSize: 8, fontFamily: FD, fontStyle: "italic", color: isDark ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.85)", lineHeight: 1.25, padding: "3px 6px", background: isDark ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.95)", borderRadius: 4, border: "1px solid "+(p.color+"66"), boxShadow: "0 2px 8px rgba(0,0,0,0.5)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+{insight.slice(0, 42)}{insight.length > 42 ? "…" : ""}
+</div>
+</foreignObject>
+);
+})()}
+</g>
+);
 })}
 </svg>
 );
