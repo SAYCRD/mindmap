@@ -419,18 +419,18 @@ const wc = text.split(/\s+/).filter(Boolean).length;
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 <FloatingWords words={words} color="#6BB8FF"/><Particles color="#6BB8FF" count={15}/>
-<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "40px 24px 24px", paddingBottom: 24 }}>
+<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "40px 24px 24px", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>
 <h1 style={{ fontSize: "clamp(28px, 8vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
-<p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", fontFamily: FB, margin: "0 0 24px", textAlign: "center", zIndex: 1 }}>Don't think. Just pour.</p>
-<div style={{ width: "100%", maxWidth: 380, minHeight: 160, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2 }}>
-<textarea value={text} onChange={function(e){setText(e.target.value);}} onFocus={function(){setFocused(true);}} onBlur={function(){setFocused(false);}} placeholder="Start writing..." style={{ width: "100%", minHeight: 140, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.85)", fontSize: 17, fontFamily: FD, fontStyle: "italic", padding: 20, lineHeight: 1.7, display: "block" }}/>
+<p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic", margin: "0 0 24px", textAlign: "center", zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
+<div style={{ width: "100%", maxWidth: 380, minHeight: 180, zIndex: 1, borderRadius: 16, background: focused?"rgba(107,184,255,0.06)":"rgba(255,255,255,0.03)", border: `1px solid ${focused?"rgba(107,184,255,0.2)":"rgba(255,255,255,0.06)"}`, transition: "all 0.4s", padding: 2 }}>
+<textarea value={text} onChange={function(e){setText(e.target.value);}} onFocus={function(){setFocused(true);}} onBlur={function(){setFocused(false);}} placeholder="Let the words flow through you…" style={{ width: "100%", minHeight: 160, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.92)", fontSize: "clamp(18px, 4.5vw, 22px)", fontFamily: FD, fontStyle: "italic", padding: 22, lineHeight: 1.75, display: "block", letterSpacing: "0.02em" }}/>
 </div>
 <div style={{ marginTop: 16, fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
 </div>
-<div style={{ flexShrink: 0, padding: "16px 24px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 60%, transparent)", borderTop: "1px solid rgba(107,184,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", maxWidth: 420, margin: "0 auto", boxSizing: "border-box" }}>
+<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "16px 24px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.97) 70%, transparent)", borderTop: "1px solid rgba(107,184,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", boxSizing: "border-box", zIndex: 20 }}>
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words</div>
-{wc>=20&&<button onClick={function(){ onComplete(text); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "14px 32px", minHeight: 52, minWidth: 160, color: "white", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", animation: "riseUp 0.4s ease", touchAction: "manipulation", boxShadow: "0 4px 20px rgba(107,184,255,0.35)" }}>Synthesize →</button>}
+{wc>=20&&<button onClick={function(){ onComplete(text); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "14px 32px", minHeight: 52, minWidth: 160, color: "white", fontSize: 16, fontFamily: FB, fontWeight: 600, cursor: "pointer", animation: "riseUp 0.4s ease", touchAction: "manipulation", boxShadow: "0 4px 20px rgba(107,184,255,0.35)", WebkitTapHighlightColor: "transparent" }}>Synthesize →</button>}
 </div>
 </div>
 );
@@ -6007,19 +6007,6 @@ animation:"riseUp 0.8s ease 1.1s both" }}>
 );
 }
 
-function InnerWrappedCard({ themes, sd, sessionCount, goNext }) {
-themes = themes || []; sd = sd || {};
-var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
-var _fieldState = (function(){ try { return computeFieldState(); } catch(e){ return null; } })();
-var _themeHistory = (function(){ try { return getThemeHistory(); } catch(e){ return {}; } })();
-var [slide, setSlide] = useState(0);
-var [selectedSessionIdx, setSelectedSessionIdx] = useState(Math.max(0, _all.length - 1));
-var currentThemes = themes.length > 0 ? themes : (_all[selectedSessionIdx] && _all[selectedSessionIdx].themes) || [];
-var currentConns = (sd && sd.connections) || (_all[selectedSessionIdx] && _all[selectedSessionIdx].connections) || [];
-var hasPatterns = !!(_fieldState && ((_fieldState.rising && _fieldState.rising.length > 0) || (_fieldState.fading && _fieldState.fading.length > 0) || (_fieldState.chronic && _fieldState.chronic.length > 0) || (_fieldState.absent && _fieldState.absent.length > 0)));
-var hasMultiSession = _all.length > 1;
-var maxSlides = 5;
-
 function ConstellationMap({ thList, connList }) {
 var n = (thList || []).length;
 if (n === 0) return <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>No themes yet</div>;
@@ -6053,12 +6040,18 @@ return <g key={i}>
 );
 }
 
+function InnerWrappedCard({ themes, sd, sessionCount, goNext }) {
+themes = themes || []; sd = sd || {};
+var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
+var _lastIdx = Math.max(0, _all.length - 1);
+var [slide, setSlide] = useState(0);
+var currentThemes = themes.length > 0 ? themes : (_all[_lastIdx] && _all[_lastIdx].themes) || [];
+var currentConns = (sd && sd.connections) || (_all[_lastIdx] && _all[_lastIdx].connections) || [];
+var maxSlides = 2;
+
 var advanceSlide = function() {
-var next = slide + 1;
-if (next === 2 && !hasPatterns) next = 3;
-if (next === 3 && !hasMultiSession) next = 4;
-if (next >= 5) { goNext && goNext(); return; }
-setSlide(next);
+if (slide + 1 >= maxSlides) { goNext && goNext(); return; }
+setSlide(slide + 1);
 };
 useEffect(function() {
 var h = function(e) {
@@ -6067,7 +6060,7 @@ if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); if (slide 
 };
 window.addEventListener("keydown", h, true);
 return function() { window.removeEventListener("keydown", h, true); };
-}, [slide, hasPatterns, hasMultiSession]);
+}, [slide]);
 return (
 <div data-noadvance="true" onClick={function(e){ e.stopPropagation(); if (!e.target.closest("button") && !e.target.closest("[data-nolink]")) advanceSlide(); }}
 style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
@@ -6092,79 +6085,15 @@ WEATHER
 )}
 
 {slide === 1 && (
-<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both" }}>
-<div style={{ fontSize:9, letterSpacing:"0.4em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:20, textTransform:"uppercase" }}>YOUR SKY THIS SESSION</div>
-<div style={{ width:"100%", display:"flex", justifyContent:"center" }}>
+<div style={{ position:"relative", width:"100%", display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both", perspective:"1000px" }}>
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 100% 80% at 50% 50%, rgba(107,184,255,0.12) 0%, transparent 60%)", pointerEvents:"none", animation:"pulse 4s ease-in-out infinite" }}/>
+<div style={{ width:"100%", display:"flex", justifyContent:"center", transform:"rotateX(8deg)", transformStyle:"preserve-3d", transition:"transform 0.6s ease" }}>
+<div style={{ position:"relative", filter:"drop-shadow(0 0 40px rgba(107,184,255,0.25)) drop-shadow(0 0 80px rgba(180,100,255,0.05))" }}>
 <ConstellationMap thList={currentThemes.map(function(t,i){ return Object.assign({}, t, { color: getThemeColor(t, i) }); })} connList={currentConns}/>
 </div>
-<div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:16 }}>themes as constellations</div>
 </div>
-)}
-
-{slide === 2 && hasPatterns && (
-<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both", width:"100%", maxWidth: 300 }}>
-<div style={{ fontSize:9, letterSpacing:"0.4em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:24, textTransform:"uppercase" }}>WHAT PATTERNS SHOW</div>
-<div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-{_fieldState.rising && _fieldState.rising.length > 0 && (
-<div style={{ display:"flex", alignItems:"center", gap:12 }}>
-<div style={{ width:8, height:8, borderRadius:"50%", background:"#6BFFB8", boxShadow:"0 0 12px rgba(107,255,184,0.5)" }}/>
-<div><div style={{ fontSize:14, fontWeight:600, color:"white", fontFamily:FB }}>Rising</div><div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:FD }}>{_fieldState.rising.map(function(r){return r.label;}).join(", ")}</div></div>
-</div>
-)}
-{_fieldState.chronic && _fieldState.chronic.length > 0 && (
-<div style={{ display:"flex", alignItems:"center", gap:12 }}>
-<div style={{ width:8, height:8, borderRadius:"50%", background:"#D6B26D", boxShadow:"0 0 12px rgba(214,178,109,0.4)" }}/>
-<div><div style={{ fontSize:14, fontWeight:600, color:"white", fontFamily:FB }}>Always present</div><div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:FD }}>{_fieldState.chronic.join(", ")}</div></div>
-</div>
-)}
-{_fieldState.fading && _fieldState.fading.length > 0 && (
-<div style={{ display:"flex", alignItems:"center", gap:12 }}>
-<div style={{ width:8, height:8, borderRadius:"50%", background:"#6BB8FF", opacity:0.7 }}/>
-<div><div style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.8)", fontFamily:FB }}>Fading</div><div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", fontFamily:FD }}>{_fieldState.fading.map(function(f){return f.label;}).join(", ")}</div></div>
-</div>
-)}
-{_fieldState.absent && _fieldState.absent.length > 0 && (
-<div style={{ display:"flex", alignItems:"center", gap:12 }}>
-<div style={{ width:6, height:6, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.2)", background:"transparent" }}/>
-<div><div style={{ fontSize:13, fontWeight:500, color:"rgba(255,255,255,0.5)", fontFamily:FB }}>Absent</div><div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", fontFamily:FD }}>{_fieldState.absent.slice(0,3).join(", ")}</div></div>
-</div>
-)}
-</div>
-</div>
-)}
-
-{slide === 3 && (
-<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both", width:"100%" }}>
-<div style={{ fontSize:9, letterSpacing:"0.4em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:20, textTransform:"uppercase" }}>SCROLL THROUGH</div>
-<div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center", marginBottom:24 }}>
-{_all.map(function(s, si) {
-var isSel = selectedSessionIdx === si;
-var d = s.date ? new Date(s.date) : null;
-var dateStr = d && !isNaN(d) ? (d.getMonth()+1)+"/"+d.getDate() : (si+1);
-return (
-<button key={si} data-nolink onClick={function(){ setSelectedSessionIdx(si); }}
-style={{ padding:"8px 14px", borderRadius:12, border: isSel ? "1.5px solid rgba(214,178,109,0.6)" : "1px solid rgba(255,255,255,0.15)", background: isSel ? "rgba(214,178,109,0.12)" : "rgba(255,255,255,0.04)", color: isSel ? "white" : "rgba(255,255,255,0.5)", fontFamily:FB, fontSize:12, cursor:"pointer", transition:"all 0.3s ease" }}>
-Session {dateStr}
-</button>
-);
-})}
-</div>
-<div style={{ width:"100%", display:"flex", justifyContent:"center" }}>
-<ConstellationMap thList={(_all[selectedSessionIdx] && _all[selectedSessionIdx].themes) || []} connList={(_all[selectedSessionIdx] && _all[selectedSessionIdx].connections) || []}/>
-</div>
-</div>
-)}
-
-{slide === 4 && (
-<div style={{ textAlign:"center", animation:"riseUp 0.8s ease both" }}>
-<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:24, textTransform:"uppercase" }}>IMAGINAL</div>
-<div style={{ fontSize:28, fontWeight:700, color:"white", fontFamily:FB, letterSpacing:"0.06em", lineHeight:1.2, marginBottom:12 }}>
-What's forming
-</div>
-<div style={{ fontSize:15, color:"rgba(255,255,255,0.45)", fontFamily:FD, fontStyle:"italic", lineHeight:1.6, maxWidth:260, margin:"0 auto" }}>
-The patterns beneath the patterns. The cells that hold the blueprint.
-</div>
-<div style={{ marginTop:32, fontSize:11, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.2em" }}>tap to continue</div>
+<div style={{ marginTop:20, fontSize:11, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", fontFamily:FB, textTransform:"uppercase" }}>themes as constellations</div>
+<div style={{ marginTop:8, fontSize:13, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>tap to explore</div>
 </div>
 )}
 
@@ -6259,7 +6188,10 @@ var currentEntry = Object.assign({}, currentSessionData, { themes: currThemes, d
 var evoSessions = allSessions.concat([currentEntry]);
 var [idx, setIdx] = useState(evoSessions.length - 1);
 var sel = evoSessions[Math.min(idx, evoSessions.length - 1)] || {};
-var selThemes = (sel.themes || []).map(function(t){ return typeof t === "string" ? { label: t, weight: 1 } : t; });
+var selThemes = (sel.themes || []).map(function(t,i){ var o = typeof t === "object" ? t : { label: t }; return Object.assign({}, o, { color: getThemeColor(o, i) }); });
+var selConns = sel.connections || [];
+var selArch = (sel.archetypes && sel.archetypes[0]) ? sel.archetypes[0] : null;
+var prevArch = idx > 0 ? (evoSessions[idx - 1].archetypes && evoSessions[idx - 1].archetypes[0]) : null;
 return (
 <div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("input")) goNext && goNext(); }}
 style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
@@ -6268,11 +6200,11 @@ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"cen
 <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% 30%, rgba(100,180,255,0.06) 0%, transparent 60%)", pointerEvents:"none" }}/>
 <div style={{ position:"absolute", top:48, left:28, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, textTransform:"uppercase" }}>LIVING MAP</div>
 <div style={{ position:"absolute", top:48, right:28, fontSize:9, letterSpacing:"0.2em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>SESSION {idx + 1} of {evoSessions.length}</div>
-<div style={{ textAlign:"center", marginBottom:24, animation:"riseUp 0.6s ease both" }}>
+<div style={{ textAlign:"center", marginBottom:16, animation:"riseUp 0.6s ease both" }}>
 <div style={{ fontSize:28, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", lineHeight:1.1 }}>MAP EVOLUTION</div>
-<div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:8 }}>how your themes have moved through time</div>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:8 }}>how your inner sky has shifted</div>
 </div>
-<div style={{ width:"min(320px, 90%)", marginBottom:20 }}>
+<div style={{ width:"min(320px, 90%)", marginBottom:16 }}>
 <input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
 onChange={function(e){ setIdx(parseInt(e.target.value, 10)); }}
 onClick={function(e){ e.stopPropagation(); }}
@@ -6282,16 +6214,32 @@ style={{ width:"100%", accentColor:"#6BB8FF", cursor:"pointer" }}/>
 <span>Session {evoSessions.length}</span>
 </div>
 </div>
-<div style={{ display:"flex", flexWrap:"wrap", gap:10, justifyContent:"center", maxWidth:340, padding:"0 20px" }}>
-{selThemes.length === 0 ? <div style={{ fontSize:14, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>No themes for this session</div> : null}
-{selThemes.map(function(t, i){ return (
-<div key={i} style={{ padding:"8px 14px", borderRadius:12, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)",
-fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, letterSpacing:"0.04em" }}>
-{t.label || t}
+<div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:12, minHeight:140 }}>
+{(prevArch && selArch && prevArch.name !== selArch.name) ? (
+<>
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease both" }}>
+<ArchGlyph name={prevArch.name||""} color={prevArch.color||getThemeColor(prevArch,0)} size={44}/>
+<div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.15em", marginTop:6 }}>was</div>
+<div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", fontFamily:FB, fontWeight:600 }}>{prevArch.name}</div>
 </div>
-); })}
+<div style={{ fontSize:18, color:"rgba(107,184,255,0.5)", animation:"pulse 1.5s ease infinite" }}>→</div>
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease 0.1s both" }}>
+<ArchGlyph name={selArch.name||""} color={selArch.color||getThemeColor(selArch,1)} size={52}/>
+<div style={{ fontSize:9, color:"rgba(107,184,255,0.7)", fontFamily:FB, letterSpacing:"0.15em", marginTop:6 }}>now</div>
+<div style={{ fontSize:12, color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:600 }}>{selArch.name}</div>
 </div>
-{sel.date && <div style={{ marginTop:20, fontSize:10, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.12em" }}>{new Date(sel.date).toLocaleDateString("en-US", { month:"short", day:"numeric", year: sel.isCurrent ? "numeric" : undefined })}</div>}
+</>
+) : selArch ? (
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease both" }}>
+<ArchGlyph name={selArch.name||""} color={selArch.color||getThemeColor(selArch,0)} size={70}/>
+<div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", fontFamily:FB, fontWeight:600, marginTop:8 }}>{selArch.name}</div>
+</div>
+) : null}
+</div>
+<div style={{ width:"100%", display:"flex", justifyContent:"center", animation:"riseUp 0.6s ease 0.15s both" }}>
+<ConstellationMap thList={selThemes} connList={selConns}/>
+</div>
+{sel.date && <div style={{ marginTop:12, fontSize:10, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.12em" }}>{new Date(sel.date).toLocaleDateString("en-US", { month:"short", day:"numeric", year: sel.isCurrent ? "numeric" : undefined })}</div>}
 <div style={{ position:"absolute", bottom:28, fontSize:9, letterSpacing:"0.3em", color:"rgba(255,255,255,0.18)", fontFamily:FB }}>TAP TO CONTINUE</div>
 </div>
 );
@@ -7674,7 +7622,32 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 </div>
 </div>
 )}
-</div>
+{_report && (
+<button
+onClick={function(){
+var thList = (themes || []).map(function(t,i){ return { label: t.label||t, color: getThemeColor(t,i) }; });
+var connList = sd.connections || [];
+var n = thList.length;
+var cx=50, cy=48, r=32;
+var pts = [];
+for(var i=0;i<n;i++){ var ang=(i/n)*2*Math.PI-Math.PI/2; pts.push({ x: cx+Math.cos(ang)*r, y: cy+Math.sin(ang)*r*0.85, label: thList[i].label, color: thList[i].color||THEME_COLORS[i%THEME_COLORS.length] }); }
+var lineEls = "";
+(connList||[]).forEach(function(c){
+var a=pts.find(function(p){ return (p.label||"").toLowerCase()===(c.from||"").toLowerCase(); });
+var b=pts.find(function(p){ return (p.label||"").toLowerCase()===(c.to||"").toLowerCase(); });
+if(a&&b) lineEls += '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="rgba(0,0,0,0.2)" stroke-width="0.8"/>';
+});
+var circleEls = pts.map(function(p){ return '<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="'+p.color+'"/><text x="'+p.x+'" y="'+(p.y+5)+'" text-anchor="middle" font-size="4" fill="#333" font-family="Georgia">'+(p.label||"").toUpperCase().slice(0,10)+'</text>'; }).join("");
+var svg = n>0 ? '<svg viewBox="0 0 100 100" style="width:200px;height:200px;display:block;margin:16px auto"><g transform="translate(0,0)">'+lineEls+circleEls+'</g></svg>' : "";
+var summary = (_report && _report.oneLineVerdict ? _report.oneLineVerdict : "") + (_notesSummary ? "\n\n" + _notesSummary : "");
+var body = (_report && _report.sections) ? (_report.sections||[]).slice(0,2).map(function(s){ return (s.body||"").slice(0,300)+(s.body&&s.body.length>300?"…":""); }).join("\n\n") : "";
+var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Session Summary</title><style>body{font-family:Georgia,serif;max-width:400px;margin:24px auto;padding:20px;color:#333;line-height:1.6} h1{font-size:18px;margin-bottom:12px}.map{text-align:center;margin:20px 0} @media print{body{padding:0}}</style></head><body><h1>Session Summary</h1><p style="font-style:italic;color:#555">'+summary.replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")+'</p>'+svg+'<div class="map" style="font-size:11px;color:#888">SAYCRD · '+sessionCount+' session'+(sessionCount!==1?"s":"")+'</div><p style="margin-top:24px;font-size:12px;color:#666">'+body.replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")+'</p></body></html>';
+var w = window.open("","_blank","width=480,height=640");
+if(w){ w.document.write(html); w.document.close(); w.focus(); }
+}}
+style={{ marginTop:16, padding:"12px 20px", fontSize:12, letterSpacing:"0.2em", fontFamily:FB, background:_accent, color:"white", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>
+Create shareable summary
+</button>
 )}
 </div>
 
@@ -8032,7 +8005,6 @@ c.push({ type: "the_realm", bg: "#04020A" });
 c.push({ type: "inner_wrapped", bg: "#0A0618" });
 c.push({ type: "map_evolution", bg: "#040810" });
 }
-if (sessionCount >= 10) c.push({ type: "arc_reveal", bg: "#040810" });
 c.push({ type: "year_review", bg: "#060606" });
 c.push({ type: "field_report", bg: "#FAFAF8" });
 return c;
@@ -8064,9 +8036,6 @@ switch (card.type) {
 
 case "milestone": {
 return <MilestoneCard sessionCount={sessionCount} milestone={card.milestone} goNext={advance}/>;
-}
-case "arc_reveal": {
-return <ArcRevealCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} goNext={advance}/>;
 }
 case "field_condition": {
 return <FieldConditionCard themes={themes} sd={sd} primaryArch={primaryArch} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
