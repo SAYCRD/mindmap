@@ -5781,8 +5781,6 @@ Same archetype, deeper work — you're staying with it.
 </div>
 )}
 </div>
-
-</div>
 )}
 </div>
 
