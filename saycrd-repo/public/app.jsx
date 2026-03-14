@@ -9876,5 +9876,3 @@ button:active{transform:scale(0.97)}
 </div>
 );
 }
-
-(function(){var root=ReactDOM.createRoot(document.getElementById('root'));root.render(React.createElement(SAYCRDFlow));})();
