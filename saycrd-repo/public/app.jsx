@@ -9181,7 +9181,6 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 <button onClick={function(e){ e.stopPropagation(); exportUserData(); }} style={{ flexShrink:0, padding:"4px 10px", minHeight: isMobile ? 44 : undefined, fontSize:9, letterSpacing:"0.12em", color:"rgba(255,255,255,0.25)", fontFamily:FB, background:"transparent", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, cursor:"pointer", textTransform:"uppercase", touchAction:"manipulation" }}>Export</button>
 </div>
 {isMobile && <div style={{ padding:"6px 0 0", fontSize:10, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.1em" }}>{current + 1} of {CARDS.length}</div>}
-</div>
 <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
 <div style={{ pointerEvents:"auto" }}>
 {current > 0 ? (
