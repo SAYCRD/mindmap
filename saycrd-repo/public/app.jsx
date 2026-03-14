@@ -879,22 +879,22 @@ const s = dragPos ? { left: dragPos.x, top: dragPos.y, transform: "none" }
 return (
 <div ref={ref} onPointerDown={handlePD} onClick={function(e){e.stopPropagation();}} style={{
 position: mobileSheet ? "fixed" : "absolute", ...s, width: mobileSheet ? "100%" : 320, maxWidth: mobileSheet ? "100%" : "94%",
-background: `linear-gradient(160deg, rgba(10,12,20,0.98), rgba(20,15,35,0.96))`,
-border: `1.5px solid ${accent}55`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
+background: `linear-gradient(160deg, rgba(18,20,35,0.98), rgba(28,25,50,0.96))`,
+border: `1.5px solid ${accent}88`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
 zIndex: 30, cursor: dragOff?"grabbing":"grab",
 animation: "drawerIn 0.4s cubic-bezier(.25,.46,.45,.94) forwards",
 touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.6)`,
 }}>
 <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 2, background: `linear-gradient(90deg, transparent, ${accent}88, transparent)`, borderRadius: 1 }}/>
-<button onClick={function(e){e.stopPropagation();onClose();}} style={{ position: "absolute", top: 12, right: 14, width: isMobile ? 44 : 26, height: isMobile ? 44 : 26, minWidth: isMobile ? 44 : 26, minHeight: isMobile ? 44 : 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>{"\u2715"}</button>
+<button onClick={function(e){e.stopPropagation();onClose();}} style={{ position: "absolute", top: 12, right: 14, width: isMobile ? 44 : 26, height: isMobile ? 44 : 26, minWidth: isMobile ? 44 : 26, minHeight: isMobile ? 44 : 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.12)", color: "#fff", fontSize: 12, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>{"\u2715"}</button>
 <div style={{ padding: "22px 22px 20px" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.2em", color: `${accent}99`, fontFamily: FB, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>{connection.nodeA} {"\u2194"} {connection.nodeB}</div>
+<div style={{ fontSize: 11, letterSpacing: "0.2em", color: accent, fontFamily: FB, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>{connection.nodeA} {"\u2194"} {connection.nodeB}</div>
 <div style={{ marginBottom:20 }}>
-<div style={{ fontSize:9, letterSpacing:"0.18em", color:accent+"55", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>ai read</div>
-<div style={{ fontSize:17, color:"rgba(255,255,255,0.85)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>{connection.insight}</div>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:accent, fontFamily:FB, textTransform:"uppercase", marginBottom:6, opacity:0.9 }}>ai read</div>
+<div style={{ fontSize:17, color:"#fff", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>{connection.insight}</div>
 </div>
 {!done && <div data-slider="true">
-<div style={{ fontSize: 11, color: `${accent}88`, fontFamily: FB, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14, textAlign: "center" }}>how much does this feel like your life?</div>
+<div style={{ fontSize: 12, color: accent, fontFamily: FB, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14, textAlign: "center" }}>how much does this feel like your life?</div>
 <SpectrumSlider color={accent} poleA="not how it lives in me" poleB="very alive in me" onSet={handleSet} value={value} />
 </div>}
 {done && !showComment && <div style={{textAlign:"center",padding:"8px 0",animation:"riseUp 0.5s ease"}}>
@@ -904,8 +904,8 @@ touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.
 ? <div style={{fontSize:14,fontFamily:FB,color:accent,fontWeight:600}}>there's something real here ✓</div>
 : <div style={{fontSize:13,fontFamily:FB,color:"rgba(214,178,100,0.8)",fontWeight:600}}>not quite how it lives in you</div>
 }
-{value >= 33 && <button onClick={function(e){e.stopPropagation();setShowComment(true);}} style={{display:"block",margin:"10px auto 0",fontSize:11,color:"rgba(255,255,255,0.22)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.08em",textDecoration:"underline",textUnderlineOffset:3}}>add a note →</button>}
-<div style={{fontSize:10,color:"rgba(255,255,255,0.2)",fontFamily:FB,letterSpacing:"0.08em",marginTop:12}}>Enter to close</div>
+{value >= 33 && <button onClick={function(e){e.stopPropagation();setShowComment(true);}} style={{display:"block",margin:"10px auto 0",fontSize:11,color:"rgba(255,255,255,0.7)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.08em",textDecoration:"underline",textUnderlineOffset:3}}>add a note →</button>}
+<div style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontFamily:FB,letterSpacing:"0.08em",marginTop:12}}>Enter to close</div>
 </div>}
 {done && showComment && <div style={{animation:"riseUp 0.4s ease",marginTop:8}}>
 {value <= 33
@@ -924,16 +924,16 @@ lineHeight:1.6,boxSizing:"border-box"}}
 />
 <div style={{display:"flex",justifyContent:"space-between",marginTop:8,alignItems:"center"}}>
 {value<=33
-? <div style={{fontSize:10,color:"rgba(214,178,100,0.4)",fontFamily:FB}}>your words are how this lives in you</div>
-: <button onClick={onClose} style={{fontSize:11,color:"rgba(255,255,255,0.22)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.06em"}}>close without note</button>
+? <div style={{fontSize:10,color:"rgba(214,178,100,0.9)",fontFamily:FB}}>your words are how this lives in you</div>
+: <button onClick={onClose} style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontFamily:FB,background:"transparent",border:"none",cursor:"pointer",letterSpacing:"0.06em"}}>close without note</button>
 }
 <button onClick={function(){submitComment();onClose();}}
 style={{fontSize:12,fontFamily:FB,background:"transparent",
-border:"1px solid "+(comment.trim()?(value<=33?"rgba(214,178,100,0.6)":accent+"44"):"rgba(255,255,255,0.1)"),
+border:"1px solid "+(comment.trim()?(value<=33?"rgba(214,178,100,0.8)":accent+"99"):"rgba(255,255,255,0.3)"),
 borderRadius:16,padding:"6px 18px",cursor:"pointer",
-color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.2)"
+color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.6)"
 }}>{value<=33?"this is how it lives":"noted"}</button>
-<div style={{fontSize:10,color:"rgba(255,255,255,0.2)",fontFamily:FB,letterSpacing:"0.08em",marginTop:8}}>Enter to close</div>
+<div style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontFamily:FB,letterSpacing:"0.08em",marginTop:8}}>Enter to close</div>
 </div>
 </div>}
 </div>
@@ -1430,22 +1430,7 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
 <Particles color="rgba(107,184,255,0.25)" count={isMobile ? 6 : 14}/>
 <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
-<div style={{ fontSize: 14, letterSpacing: "0.4em", color: "rgba(255,255,255,0.7)", fontFamily: FB, textTransform: "uppercase", marginBottom: 6, fontWeight: 600 }}>YOUR CONSTELLATION</div>
-<div style={{ fontSize: 20, fontWeight: 600, color: "#F7F5F0", fontFamily: FD, letterSpacing: "0.02em", lineHeight: 1.2 }}>
-What’s pulling you right now
-</div>
-{sd && sd.tension && sd.tension.a && sd.tension.b && (
-<div style={{ marginTop: 6, display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: 999, background: "rgba(10,30,60,0.7)", border: "1px solid rgba(123,183,255,0.5)", fontSize: 12, fontFamily: FB, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(205,227,255,0.96)" }}>
-{sd.tension.a} &nbsp;↔&nbsp; {sd.tension.b}
-</div>
-)}
-{(()=>{ var growthCount = allConns.filter(function(c){ var r=responses[K(c)]; return r&&(r.value==="partly"||r.value==="no"); }).length; return growthCount>0 ? (
-<div style={{ marginTop:8, display:"flex", alignItems:"center", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
-<span style={{ fontSize:14, letterSpacing:"0.2em", color:"rgba(165,235,220,0.95)", fontFamily:FB, fontWeight:600 }}>● partly</span>
-<span style={{ fontSize:14, letterSpacing:"0.2em", color:"rgba(214,178,100,0.95)", fontFamily:FB, fontWeight:600 }}>● resisted</span>
-<span style={{ fontSize:13, letterSpacing:"0.15em", color:"rgba(255,255,255,0.6)", fontFamily:FB }}>— growth edges</span>
-</div>
-) : null; })()}
+<div style={{ fontSize: 18, letterSpacing: "0.2em", color: "#fff", fontFamily: FB, fontWeight: 600 }}>Your Current Constellation</div>
 </div>
 <div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("textarea") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); if (explored >= 1 && !mapInputOpen) setMapInputOpen(true); } }} onMouseEnter={function(){ if (explored >= 1 && discoveredConns.length === 0 && !mapInputOpen) setShowHint(true); }} onMouseLeave={function(){ setShowHint(false); }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
@@ -1495,10 +1480,10 @@ if(!_lpa||!_lpb)return null;
 return (
 <div key={k} onClick={function(e){e.stopPropagation();setActiveConn(c);}} style={{
 position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
-padding: "6px 12px", borderRadius: 8, fontSize: 9, fontWeight: 700, fontFamily: FB,
+padding: "6px 12px", borderRadius: 8, fontSize: 10, fontWeight: 700, fontFamily: FB,
 letterSpacing: "0.06em", textTransform: "uppercase",
-color: isAct?"white":isUserDefined?"#D6B264":isExp?accent+"cc":accent,
-background: isAct?accent+"33":isUserDefined?"rgba(40,30,10,0.9)":"rgba(8,10,20,0.85)",
+color: isAct?"white":isUserDefined?"#D6B264":isExp?accent:"#fff",
+background: isAct?accent+"44":isUserDefined?"rgba(50,40,15,0.95)":"rgba(12,14,28,0.92)",
 border:"1.5px solid "+(isAct?accent:isUserDefined?"rgba(214,178,100,0.5)":isExp?accent+"44":accent+"66"),
 cursor: "pointer", whiteSpace: "normal", maxWidth: 160, textAlign: "center", lineHeight: 1.25,
 zIndex: isAct ? 15 : 5,
@@ -1517,7 +1502,7 @@ boxShadow: isAct ? `0 4px 16px rgba(0,0,0,0.35), 0 0 20px ${accent}33` : !isExp 
 {allConns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 if(!resp?.correction) return null;
-return <div key={"a-"+k} style={{ position:"absolute",left:m.x,top:m.y+16,transform:"translate(-50%,0)",fontSize:10,fontFamily:FD,fontStyle:"italic",color:"rgba(165,235,220,0.65)",maxWidth:140,textAlign:"center",lineHeight:1.3,animation:"riseUp 0.5s ease" }}>"{resp.correction.length>45?resp.correction.slice(0,43)+"…":resp.correction}"</div>;
+return <div key={"a-"+k} style={{ position:"absolute",left:m.x,top:m.y+16,transform:"translate(-50%,0)",fontSize:10,fontFamily:FD,fontStyle:"italic",color:"rgba(165,235,220,0.95)",maxWidth:140,textAlign:"center",lineHeight:1.3,animation:"riseUp 0.5s ease" }}>"{resp.correction.length>45?resp.correction.slice(0,43)+"…":resp.correction}"</div>;
 })}
 {nodes.map((n, ni) => {
 var _pi=nodes.indexOf(n); var _fbc=nodes.length; var _fbr=90; var p=pos[n.key]||{x:fieldSize?(fieldSize.w/2-55+Math.cos(2*Math.PI*_pi/_fbc)*_fbr):100, y:fieldSize?(fieldSize.h/2-18+Math.sin(2*Math.PI*_pi/_fbc)*_fbr):100}; const isDrag=dragging&&dragging.key===n.key;
@@ -1579,8 +1564,8 @@ textOverflow: "ellipsis",
 <div onClick={function(e){e.stopPropagation();}} style={{
 position:"absolute", left:16, right:16, bottom: explored>=1 ? (isMobile ? "calc(100px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))") : 14,
 zIndex:30,
-background:"rgba(8,10,20,0.9)",
-border:"1px solid rgba(255,255,255,0.12)",
+background:"rgba(12,14,28,0.95)",
+border:"1px solid rgba(255,255,255,0.25)",
 borderRadius:14,
 padding:"12px 14px",
 backdropFilter:"blur(10px)",
@@ -1588,22 +1573,22 @@ boxShadow:"0 12px 40px rgba(0,0,0,0.35)"
 }}>
 <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12 }}>
 <div style={{ minWidth:0 }}>
-<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Selected</div>
-<div style={{ fontSize:18, color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:800, letterSpacing:"0.04em", textTransform:"uppercase", lineHeight:1.15, wordBreak:"break-word" }}>
+<div style={{ fontSize:11, letterSpacing:"0.18em", color:"rgba(255,255,255,0.85)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Selected</div>
+<div style={{ fontSize:18, color:"#fff", fontFamily:FB, fontWeight:800, letterSpacing:"0.04em", textTransform:"uppercase", lineHeight:1.15, wordBreak:"break-word" }}>
 {selectedDetail.label}
 </div>
 </div>
 <button onClick={function(){ setSelectedNode(null); }} style={{
-fontSize:12, color:"rgba(255,255,255,0.4)", fontFamily:FB,
-background:"transparent", border:"1px solid rgba(255,255,255,0.12)",
+fontSize:12, color:"#fff", fontFamily:FB,
+background:"transparent", border:"1px solid rgba(255,255,255,0.4)",
 borderRadius:12, padding:"6px 10px", cursor:"pointer", flexShrink:0
 }}>close</button>
 </div>
 
 {selectedDetail.whyNode && (
 <div style={{ marginTop:12, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
-<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(107,184,255,0.85)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Where this came from</div>
-<div style={{ fontSize:14, color:"rgba(255,255,255,0.82)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"#6BB8FF", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Where this came from</div>
+<div style={{ fontSize:14, color:"#fff", fontFamily:FD, fontStyle:"italic", lineHeight:1.55 }}>
 {selectedDetail.whyNode}
 </div>
 </div>
@@ -1611,14 +1596,14 @@ borderRadius:12, padding:"6px 10px", cursor:"pointer", flexShrink:0
 
 {selectedDetail.notes && selectedDetail.notes.length > 0 && (
 <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
-<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.28)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Your notes</div>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.8)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>Your notes</div>
 <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:120, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
 {selectedDetail.notes.slice(0,4).map(function(n) {
 var tone = n.value === "yes" ? "rgba(107,255,184,0.85)" : n.value === "partly" ? "rgba(165,235,220,0.75)" : "rgba(214,178,100,0.85)";
 return (
-<div key={n.k} style={{ fontSize:13, color:"rgba(255,255,255,0.62)", fontFamily:FD, lineHeight:1.45 }}>
+<div key={n.k} style={{ fontSize:13, color:"rgba(255,255,255,0.95)", fontFamily:FD, lineHeight:1.45 }}>
 <span style={{ fontFamily:FB, fontSize:10, letterSpacing:"0.12em", textTransform:"uppercase", color:tone }}>{n.other}</span>
-<span style={{ color:"rgba(255,255,255,0.35)" }}> — </span>
+<span style={{ color:"rgba(255,255,255,0.7)" }}> — </span>
 {n.comment}
 </div>
 );
@@ -1629,7 +1614,7 @@ return (
 
 {selectedDetail.related && selectedDetail.related.length > 0 && (
 <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.08)" }}>
-<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.28)", fontFamily:FB, textTransform:"uppercase", marginBottom:8 }}>Links</div>
+<div style={{ fontSize:10, letterSpacing:"0.18em", color:"rgba(255,255,255,0.8)", fontFamily:FB, textTransform:"uppercase", marginBottom:8 }}>Links</div>
 <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
 {selectedDetail.related.slice(0,8).map(function(c) {
 var other = c.from === selectedDetail.label ? c.to : c.from;
@@ -1637,9 +1622,9 @@ return (
 <div key={c.from+"::"+c.to} onClick={function(e){ e.stopPropagation(); setActiveConn(c); }} style={{
 fontSize:10, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
 padding:"6px 10px", borderRadius:999,
-border:"1px solid rgba(255,255,255,0.12)",
-background:"rgba(255,255,255,0.03)",
-color:"rgba(255,255,255,0.6)", cursor:"pointer"
+border:"1px solid rgba(255,255,255,0.35)",
+background:"rgba(255,255,255,0.08)",
+color:"#fff", cursor:"pointer"
 }} title={"open link: "+other}>
 {other}
 </div>
@@ -1682,23 +1667,23 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 </div>
 {mapInputOpen ? (
 <div style={{ position:"absolute", bottom: 0, left: 0, right: 0, zIndex: 20, padding: "12px 16px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 100%)", borderTop: "1px solid rgba(107,184,255,0.25)", display: "flex", gap: 10, alignItems: "center" }}>
-<textarea value={mapInputText} onChange={function(e){setMapInputText(e.target.value);}} placeholder="What's coming up…" 
-style={{ flex: 1, minHeight: 44, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(107,184,255,0.3)", borderRadius: 12, color: "rgba(255,255,255,0.95)", fontFamily: FD, fontSize: 15, padding: "10px 14px", resize: "none", outline: "none", lineHeight: 1.5, boxSizing: "border-box" }}
+<textarea className="map-add-input" value={mapInputText} onChange={function(e){setMapInputText(e.target.value);}} placeholder="What's coming up…" 
+style={{ flex: 1, minHeight: 44, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(107,184,255,0.4)", borderRadius: 12, color: "#fff", fontFamily: FD, fontSize: 15, padding: "10px 14px", resize: "none", outline: "none", lineHeight: 1.5, boxSizing: "border-box" }}
 onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();makeConnFromText(mapInputText);}}}
 />
 <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
-<button onClick={function(){setMapInputOpen(false);setMapInputText("");}} style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, background: "transparent", border: "none", cursor: "pointer" }}>cancel</button>
-<button onClick={function(){makeConnFromText(mapInputText);}} disabled={!mapInputText.trim()||mapInputBusy} style={{ fontSize: 12, fontFamily: FB, background: mapInputText.trim()&&!mapInputBusy ? "rgba(107,184,255,0.25)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(107,184,255,0.4)", borderRadius: 8, padding: "6px 16px", color: "rgba(107,184,255,0.95)", cursor: mapInputText.trim()&&!mapInputBusy ? "pointer" : "not-allowed" }}>{mapInputBusy ? "…" : "add"}</button>
+<button onClick={function(){setMapInputOpen(false);setMapInputText("");}} style={{ fontSize: 12, color: "#fff", fontFamily: FB, background: "transparent", border: "none", cursor: "pointer" }}>cancel</button>
+<button onClick={function(){makeConnFromText(mapInputText);}} disabled={!mapInputText.trim()||mapInputBusy} style={{ fontSize: 13, fontFamily: FB, fontWeight: 600, background: mapInputText.trim()&&!mapInputBusy ? "rgba(107,184,255,0.35)" : "rgba(255,255,255,0.12)", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 8, padding: "6px 16px", color: mapInputText.trim()&&!mapInputBusy ? "#fff" : "rgba(255,255,255,0.7)", cursor: mapInputText.trim()&&!mapInputBusy ? "pointer" : "not-allowed" }}>{mapInputBusy ? "…" : "add"}</button>
 </div>
 </div>
 ) : (
 showHint && explored >= 1 && discoveredConns.length === 0 && !isMobile ? (
-<div style={{ position:"absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 5, fontSize: 12, color: "rgba(107,184,255,0.6)", fontFamily: FD, fontStyle: "italic", pointerEvents: "none" }}>add something coming up</div>
+<div style={{ position:"absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 5, fontSize: 12, color: "rgba(107,184,255,0.95)", fontFamily: FD, fontStyle: "italic", pointerEvents: "none" }}>add something coming up</div>
 ) : null
 )}
 {explored>=1&&(
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
-<button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "rgba(255,255,255,0.95)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>continue →</button>
+<button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "#fff", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>continue →</button>
 </div>
 )}
 </div>
@@ -1747,8 +1732,8 @@ onSet(Math.round(p));
 }
 return <div>
 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-<span style={{ fontSize:13, color: p < 40 ? color : "rgba(255,255,255,0.35)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleA}</span>
-<span style={{ fontSize:13, color: p > 60 ? color : "rgba(255,255,255,0.35)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleB}</span>
+<span style={{ fontSize:13, color: p < 40 ? color : "rgba(255,255,255,0.75)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleA}</span>
+<span style={{ fontSize:13, color: p > 60 ? color : "rgba(255,255,255,0.75)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleB}</span>
 </div>
 <div ref={tr} onPointerDown={hd} style={{ position:"relative", height:36, display:"flex", alignItems:"center", cursor:"pointer", touchAction:"none" }}>
 <div style={{ position:"absolute", left:0, right:0, height:3, background:"rgba(255,255,255,0.06)", borderRadius:2 }} />
@@ -7555,11 +7540,39 @@ if (!text) return null;
 var paras = text.split(/\n\n+/);
 if (paras.length <= 1) paras = text.split(/\n/);
 paras = paras.filter(function(p){ return p.trim(); });
+function boldLead(s, wordCount) {
+var words = s.trim().split(/\s+/);
+if (words.length <= wordCount) return [s, ""];
+var lead = words.slice(0, wordCount).join(" ");
+var rest = words.slice(wordCount).join(" ");
+return [lead, rest ? " " + rest : ""];
+}
 return paras.map(function(para, pi) {
+var p = para.trim();
 var isFirst = emphasizeFirst && pi === 0;
+var fontSize = isFirst ? 18 : 17;
+var lines = p.split(/\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+var bulletLines = lines.filter(function(l){ return /^[-•]\s/.test(l) || /^\d+\.\s/.test(l); });
+var isBulletBlock = bulletLines.length >= 2 || (bulletLines.length === 1 && lines.length === 1);
+if (isBulletBlock && bulletLines.length > 0) {
 return (
-<div key={pi} style={{ marginBottom: pi < paras.length-1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: isFirst ? 18 : 17 }}>
-{para.trim()}
+<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontSize: fontSize }}>
+{bulletLines.map(function(line, li) {
+var clean = line.replace(/^[-•]\s*/, "").replace(/^\d+\.\s*/, "");
+return (
+<div key={li} style={{ display: "flex", gap: 10, marginBottom: li < bulletLines.length - 1 ? 8 : 0, lineHeight: 1.7 }}>
+<span style={{ flexShrink: 0, color: "rgba(0,0,0,0.5)", fontWeight: 600 }}>•</span>
+<span style={{ flex: 1 }}>{clean}</span>
+</div>
+);
+})}
+</div>
+);
+}
+var _bold = boldLead(p, 4);
+return (
+<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85 }}>
+{_bold[0] ? <span style={{ fontWeight: 600 }}>{_bold[0]}</span> : null}{_bold[1]}
 </div>
 );
 });
@@ -7638,32 +7651,6 @@ fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal" }}>
 </div>
 </div>
 )}
-
-{(() => {
-var histKey = "saycrd-report-history-" + getCurrentUid();
-var hist = []; try { hist = JSON.parse(localStorage.getItem(histKey) || "[]"); } catch(e) {}
-var pastVerdicts = hist.filter(function(h){ return h.oneLine && h.oneLine.trim(); });
-var toShow = pastVerdicts.slice(-10);
-if (_report && _report.oneLineVerdict && toShow.length > 0) toShow = toShow.slice(0, -1);
-if (toShow.length < 1) return null;
-return (
-<div style={{ marginBottom:26, padding:"18px 20px", background:"rgba(0,0,0,0.02)", borderRadius:10, border:"1px solid rgba(0,0,0,0.06)" }}>
-<div style={{ fontSize:10, letterSpacing:"0.25em", color:"rgba(0,0,0,0.4)", fontFamily:FB, textTransform:"uppercase", marginBottom:14, fontWeight:600 }}>What the report said</div>
-<div style={{ display:"flex", flexDirection:"column", gap:12, maxHeight:180, overflowY:"auto" }}>
-{toShow.map(function(h, i) {
-var d = h.generatedAt ? new Date(h.generatedAt) : null;
-var dateStr = d ? d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined }) : ("Session " + (h.sessionIndex || (i+1)));
-return (
-<div key={i} style={{ paddingBottom:12, borderBottom: i < toShow.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none" }}>
-<div style={{ fontSize:11, color:"rgba(0,0,0,0.35)", fontFamily:FB, letterSpacing:"0.08em", marginBottom:4 }}>{dateStr}</div>
-<div style={{ fontSize:14, color:"rgba(0,0,0,0.72)", fontFamily:FD, lineHeight:1.5, fontStyle:"italic" }}>{h.oneLine}</div>
-</div>
-);
-})}
-</div>
-</div>
-);
-})()}
 
 {_report.whatMightWantToHappen && (
 <div style={{ marginBottom:20, padding:"14px 18px",
@@ -9927,6 +9914,7 @@ return (
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow:hidden}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
+.map-add-input::placeholder{color:rgba(255,255,255,0.7);font-style:italic}
 .pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
 textarea{caret-color:#6BB8FF}
 button:active{transform:scale(0.97)}
