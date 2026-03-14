@@ -6324,9 +6324,7 @@ style={{ width:"100%", accentColor:"#6BB8FF", cursor:"pointer" }}/>
 <ConstellationMap thList={selThemes} connList={selConns}/>
 </div>
 <div style={{ width:"min(340px, 92%)", padding:"0 20px", maxHeight:140, overflowY:"auto", animation:"riseUp 0.6s ease 0.2s both" }}>
-{selArch && selArch.line && <div style={{ fontSize:15, color:"rgba(255,255,255,0.65)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55, marginBottom:12 }}>
-"{selArch.line}"
-</div>}
+{selArch && selArch.line && <div style={{ fontSize:15, color:"rgba(255,255,255,0.65)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55, marginBottom:12 }}>{'"'}{selArch.line}{'"'}</div>}
 <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.12em", marginBottom:8 }}>{dateStr}{timeStr ? " · " + timeStr : ""}</div>
 <div style={{ fontSize:15, color:"rgba(255,255,255,0.78)", fontFamily:FD, lineHeight:1.65, fontWeight:400 }}>{desc}</div>
 </div>
@@ -9879,5 +9877,5 @@ button:active{transform:scale(0.97)}
 );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+var root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(React.createElement(SAYCRDFlow));
