@@ -372,16 +372,19 @@ fill={nd.col} fillOpacity="0.7" fontFamily="'DM Sans', sans-serif" letterSpacing
 );
 }
 
+var FieldMobileContext = React.createContext(false);
 function FieldParticles({ color, count = 20 }) {
+var isMobile = React.useContext(FieldMobileContext);
+var effectiveCount = isMobile ? Math.min(count, 12) : count;
 const particles = useMemo(() =>
-Array.from({ length: count }).map(() => ({
+Array.from({ length: effectiveCount }).map(() => ({
 left: Math.random() * 100,
 top: Math.random() * 100,
 size: 2 + Math.random() * 3,
 opacity: 0.15 + Math.random() * 0.25,
 dur: 4 + Math.random() * 6,
 delay: Math.random() * 5,
-})), [count]);
+})), [effectiveCount]);
 return (
 <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
 {particles.map((p, i) => (
@@ -411,24 +414,61 @@ return <div style={{ display: "flex", gap: 3, padding: "14px 20px 0", position: 
 }
 
 function PourPhase({ onComplete }) {
-const [text, setText] = useState("");
+var _draftKey = "saycrd-pour-draft";
+var _restored = (function(){ try { var d = localStorage.getItem(_draftKey); return d ? d : ""; } catch(e){ return ""; } })();
+const [text, setText] = useState(_restored);
 const [words, setWords] = useState([]);
-useEffect(() => { setWords(text.split(/\s+/).filter(x => x.length > 3)); }, [text]);
-const wc = text.split(/\s+/).filter(Boolean).length;
-const canContinue = wc >= 20;
+const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
+useEffect(function(){ setWords(text.split(/\s+/).filter(function(x){ return x.length > 3; })); }, [text]);
+useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
+useEffect(function(){ if (!text.trim()) return; try { localStorage.setItem(_draftKey, text); } catch(e){} }, [text]);
+var wc = text.split(/\s+/).filter(Boolean).length;
+var canContinue = wc >= 20;
+var progress = Math.min(1, wc / 20);
+var showFloating = !isMobile && words.length >= 5;
+var _handleComplete = function(){ try { localStorage.removeItem(_draftKey); } catch(e){} onComplete(text); };
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-<FloatingWords words={words} color="#6BB8FF"/><Particles color="#6BB8FF" count={15}/>
-<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "24px 20px 32px", paddingBottom: "calc(32px + env(safe-area-inset-bottom, 0px))" }}>
-<div style={{ fontSize: 12, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 12, fontFamily: FB, zIndex: 1 }}>POUR</div>
-<h1 style={{ fontSize: "clamp(26px, 7vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
-<p style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", fontFamily: FD, fontStyle: "italic", margin: "0 0 24px", textAlign: "center", zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
-<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 140, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
+{showFloating ? <FloatingWords words={words} color="#6BB8FF"/> : null}
+<Particles color="#6BB8FF" count={isMobile ? 8 : 15}/>
+<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: isMobile ? "20px 20px 80px" : "32px 24px 40px", paddingBottom: "calc(" + (isMobile ? "80px" : "40px") + " + env(safe-area-inset-bottom, 0px))" }}>
+{isMobile ? (
+<>
+<div style={{ padding: "16px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.15)", marginBottom: 16 }}>
+<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 220, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
+</div>
+<div style={{ fontSize: 11, letterSpacing: "0.35em", fontWeight: 600, color: "#6BB8FF", marginBottom: 8, fontFamily: FB, zIndex: 1 }}>POUR</div>
+<p style={{ fontSize: 15, fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.2 }}>What's alive in you right now?</p>
+<p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: FD, fontStyle: "italic", margin: "0 0 20px", textAlign: "center", zIndex: 1 }}>Don't think. Just pour.</p>
+</>
+) : (
+<>
+{!isMobile && <div style={{ fontSize: 12, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>}
+<h1 style={{ fontSize: "clamp(26px, 7vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 12px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
+<p style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", fontFamily: FD, fontStyle: "italic", margin: "0 0 32px", textAlign: "center", zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
+<div style={{ padding: "24px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.15)", marginBottom: 24 }}>
+<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 200, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
+</div>
+</>
+)}
 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-<div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.6)"}}> · keep going</span>}</div>
-<button onClick={function(){ if(canContinue) onComplete(text); }} disabled={!canContinue} style={{ width: "100%", maxWidth: 320, background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.12)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.25)", borderRadius: 24, padding: "14px 24px", minHeight: 48, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none", WebkitTapHighlightColor: "transparent", opacity: canContinue ? 1 : 0.9 }}>{canContinue ? "Synthesize →" : "20 words to continue"}</button>
+<div style={{ width: "100%", maxWidth: 340, display: "flex", flexDirection: "column", gap: 8 }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+<span style={{ fontSize: 14, fontWeight: 600, color: wc >= 20 ? "rgba(107,184,255,0.95)" : "rgba(255,255,255,0.5)", fontFamily: FB }}>{wc}/20 words</span>
+{wc > 0 && wc < 20 && <span style={{ fontSize: 12, color: "rgba(107,184,255,0.7)", fontFamily: FB }}>keep going</span>}
+</div>
+<div style={{ width: "100%", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+<div style={{ width: (progress * 100) + "%", height: "100%", borderRadius: 3, background: wc >= 20 ? "linear-gradient(90deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.4)", transition: "width 0.3s ease" }}/>
 </div>
 </div>
+{!isMobile && <button onClick={_handleComplete} disabled={!canContinue} style={{ width: "100%", maxWidth: 340, background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.12)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.25)", borderRadius: 24, padding: "18px 28px", minHeight: 56, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none", WebkitTapHighlightColor: "transparent", opacity: canContinue ? 1 : 0.9 }}>{canContinue ? "Synthesize →" : "20 words to continue"}</button>}
+</div>
+</div>
+{isMobile && (
+<div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(10,10,46,0.98) 0%, rgba(10,10,46,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.2)", zIndex: 50, display: "flex", justifyContent: "center", boxSizing: "border-box" }}>
+<button onClick={_handleComplete} disabled={!canContinue} style={{ width: "100%", maxWidth: 340, background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.15)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.3)", borderRadius: 24, padding: "16px 24px", minHeight: 52, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none" }}>{canContinue ? "Synthesize →" : wc + "/20 words"}</button>
+</div>
+)}
 </div>
 );
 }
@@ -795,7 +835,7 @@ return (
 );
 }
 
-function InsightDrawer({ connection, position, onClose, onRespond, initialResponse, rawText }) {
+function InsightDrawer({ connection, position, onClose, onRespond, initialResponse, rawText, isMobile }) {
 const [value, setValue] = useState(initialResponse ? (typeof initialResponse.slider === "number" ? initialResponse.slider : (initialResponse.value==="yes"?80:initialResponse.value==="partly"?50:20)) : null);
 const [done, setDone] = useState(!!initialResponse);
 const [comment, setComment] = useState(initialResponse && initialResponse.comment ? initialResponse.comment : "");
@@ -831,19 +871,22 @@ onRespond(mapped, userWord||null, value, userWord);
 }
 
 const accent = connection.color || "#6BB8FF";
+const mobileSheet = isMobile && !dragPos;
 const s = dragPos ? { left: dragPos.x, top: dragPos.y, transform: "none" }
-: { left: "50%", top: Math.max(10, Math.min(position.y - 60, 240)), transform: "translate(-50%, 0)" };
+: mobileSheet
+  ? { position: "fixed", left: 0, right: 0, bottom: 0, width: "100%", maxWidth: "100%", transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
+  : { left: "50%", top: Math.max(10, Math.min(position.y - 60, 240)), transform: "translate(-50%, 0)" };
 return (
 <div ref={ref} onPointerDown={handlePD} onClick={function(e){e.stopPropagation();}} style={{
-position: "absolute", ...s, width: 320, maxWidth: "94%",
+position: mobileSheet ? "fixed" : "absolute", ...s, width: mobileSheet ? "100%" : 320, maxWidth: mobileSheet ? "100%" : "94%",
 background: `linear-gradient(160deg, rgba(10,12,20,0.98), rgba(20,15,35,0.96))`,
-border: `1.5px solid ${accent}55`, borderRadius: 18, backdropFilter: "blur(20px)",
+border: `1.5px solid ${accent}55`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
 zIndex: 30, cursor: dragOff?"grabbing":"grab",
 animation: "drawerIn 0.4s cubic-bezier(.25,.46,.45,.94) forwards",
 touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.6)`,
 }}>
 <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 2, background: `linear-gradient(90deg, transparent, ${accent}88, transparent)`, borderRadius: 1 }}/>
-<button onClick={function(e){e.stopPropagation();onClose();}} style={{ position: "absolute", top: 12, right: 14, width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "grid", placeItems: "center" }}>{"\u2715"}</button>
+<button onClick={function(e){e.stopPropagation();onClose();}} style={{ position: "absolute", top: 12, right: 14, width: isMobile ? 44 : 26, height: isMobile ? 44 : 26, minWidth: isMobile ? 44 : 26, minHeight: isMobile ? 44 : 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>{"\u2715"}</button>
 <div style={{ padding: "22px 22px 20px" }}>
 <div style={{ fontSize: 10, letterSpacing: "0.2em", color: `${accent}99`, fontFamily: FB, textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>{connection.nodeA} {"\u2194"} {connection.nodeB}</div>
 <div style={{ marginBottom:20 }}>
@@ -1290,8 +1333,38 @@ const allConns = [...conns, ...discoveredConns];
 var K = function(c) { return c.from+"::"+c.to; };
 const explored = Object.keys(responses).length + discoveredConns.length;
 const didDrag = useRef(false);
-const snapRef = useRef(null); 
-var startDrag = function(key, e) { e.stopPropagation(); e.preventDefault(); didDrag.current = false; snapRef.current = null; const r=fieldRef.current?.getBoundingClientRect(); if(!r)return; var _pi2=nodes.findIndex(function(nd){return nd.key===key;}); var _fbc2=nodes.length; var _fbr2=90; var _fpx=fieldSize?(fieldSize.w/2-55+Math.cos(2*Math.PI*_pi2/_fbc2)*_fbr2):100; var _fpy=fieldSize?(fieldSize.h/2-18+Math.sin(2*Math.PI*_pi2/_fbc2)*_fbr2):100; const p=pos[key]||{x:_fpx,y:_fpy}; setDragging({key,ox:(e.clientX||e.touches&&e.touches[0]&&e.touches[0].clientX)-r.left-p.x,oy:(e.clientY||e.touches&&e.touches[0]&&e.touches[0].clientY)-r.top-p.y}); };
+const snapRef = useRef(null);
+const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
+const [showHint, setShowHint] = useState(function(){ try { return !localStorage.getItem("saycrd-map-hint-seen"); } catch(e){ return true; } });
+const [pointerDownKey, setPointerDownKey] = useState(null);
+const pointerDownPos = useRef(null);
+useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
+useEffect(function(){
+if (!pointerDownKey) return;
+var m = function(e){
+var x = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+var y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+var pd = pointerDownPos.current; if (!pd) return;
+if (Math.hypot(x - pd.x, y - pd.y) > 10) {
+didDrag.current = true; snapRef.current = null;
+var r = fieldRef.current && fieldRef.current.getBoundingClientRect(); if (!r) { setPointerDownKey(null); return; }
+var p = pos[pointerDownKey] || { x: 0, y: 0 };
+setDragging({ key: pointerDownKey, ox: x - r.left - p.x, oy: y - r.top - p.y });
+setPointerDownKey(null);
+}
+};
+var u = function(){ if (pointerDownKey) { handleNodeTap(pointerDownKey); setPointerDownKey(null); } };
+window.addEventListener("pointermove", m); window.addEventListener("pointerup", u);
+return function(){ window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
+}, [pointerDownKey]);
+var startDrag = function(key, e) {
+e.stopPropagation(); e.preventDefault();
+didDrag.current = false;
+var x = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+var y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+pointerDownPos.current = { x: x, y: y };
+setPointerDownKey(key);
+};
 useEffect(() => {
 if(!dragging) return;
 const m = e => {
@@ -1342,18 +1415,20 @@ return next;
 setDragging(null);
 setSnapTarget(null);
 snapRef.current = null;
+didDrag.current = false;
 };
 window.addEventListener("pointermove", m);
 window.addEventListener("pointerup", u);
 return () => { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
 }, [dragging, selectedNode]);
 
+var _bottomPad = explored >= 1 ? (isMobile ? "calc(110px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))") : "0";
 return (
-<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "22px 0 0", overflow: "hidden",
+<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "22px 0 " + _bottomPad + " 0", overflow: "hidden",
 background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a14 100%)" }}>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 100% 80% at 50% 30%, rgba(80,60,140,0.06) 0%, transparent 55%)", pointerEvents: "none", zIndex: 0 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
-<Particles color="rgba(107,184,255,0.25)" count={14}/>
+<Particles color="rgba(107,184,255,0.25)" count={isMobile ? 6 : 14}/>
 <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
 <div style={{ fontSize: 12, letterSpacing: "0.35em", color: "rgba(255,255,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: 4 }}>Your constellation</div>
 <div style={{ fontSize: 16, fontWeight: 500, color: "#F7F5F0", fontFamily: FD, letterSpacing: "0.03em" }}>
@@ -1370,9 +1445,14 @@ What’s pulling you right now
   : selectedNode
     ? `${selectedNode} · tap another to link`
     : explored===0
-      ? "Drag the circles · connect what feels related"
+      ? "Tap a circle, then tap another to connect"
       : `${explored} connections explored`}
 </p>
+{showHint && explored === 0 && (
+<div onClick={function(){ try { localStorage.setItem("saycrd-map-hint-seen", "1"); } catch(e){} setShowHint(false); }} style={{ marginTop: 10, padding: "10px 14px", background: "rgba(107,184,255,0.12)", border: "1px solid rgba(107,184,255,0.3)", borderRadius: 12, fontSize: 12, color: "rgba(178,216,255,0.9)", fontFamily: FB, lineHeight: 1.4, cursor: "pointer" }}>
+Tap a circle, then tap another to connect. Or drag one toward another. <span style={{ opacity: 0.7 }}>Tap to dismiss</span>
+</div>
+)}
 {(()=>{ var growthCount = allConns.filter(function(c){ var r=responses[K(c)]; return r&&(r.value==="partly"||r.value==="no"); }).length; return growthCount>0 ? (
 <div style={{ marginTop:8, display:"flex", alignItems:"center", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
 <span style={{ fontSize:12, letterSpacing:"0.2em", color:"rgba(165,235,220,0.8)", fontFamily:FB }}>● partly</span>
@@ -1420,6 +1500,7 @@ return <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#7DB7AE" stroke
 {allConns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 const isAct = activeConn && K(activeConn)===k;
+if (isMobile && !isAct) return null;
 var isUserDefined = resp && resp.value==="no" && resp.comment && resp.comment.trim();
 var isExp = !!resp; var accent = isUserDefined ? "#D6B264" : c.color;
 var _lpa=pos[c.from],_lpb=pos[c.to];
@@ -1471,7 +1552,8 @@ return l <= 10 ? 12 : l <= 14 ? 11 : l <= 18 ? 10 : 9;
 })(),
 fontWeight: 700, fontFamily: FB, color: "white",
 textAlign: "center", lineHeight: 1.2,
-padding: "10px 18px",
+padding: isMobile ? "14px 22px" : "10px 18px",
+minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined,
 textTransform: "uppercase", letterSpacing: "0.06em",
 whiteSpace: "nowrap", maxWidth: 140,
 background: isSnap
@@ -1508,7 +1590,7 @@ textOverflow: "ellipsis",
 
 {selectedDetail && !activeConn && (
 <div onClick={function(e){e.stopPropagation();}} style={{
-position:"absolute", left:16, right:16, bottom:14,
+position:"absolute", left:16, right:16, bottom: explored>=1 ? (isMobile ? "calc(100px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))") : 14,
 zIndex:30,
 background:"rgba(8,10,20,0.9)",
 border:"1px solid rgba(255,255,255,0.12)",
@@ -1584,6 +1666,7 @@ color:"rgba(255,255,255,0.6)", cursor:"pointer"
 {activeConn && <InsightDrawer
 connection={{nodeA:activeConn.from,nodeB:activeConn.to,label:activeConn.label,insight:activeConn.insight,color:activeConn.color,evidence_quote:activeConn.evidence_quote,whyFromShare:activeConn.whyFromShare,mechanism:activeConn.mechanism}}
 position={mid(activeConn)}
+isMobile={isMobile}
 initialResponse={responses[K(activeConn)]}
 onClose={function(){setActiveConn(null);}}
 onRespond={function(v,c,slider,cmt){
@@ -1705,7 +1788,7 @@ confirm
 </div>;
 }
 
-function GuideHoldSave({ color, onSave }) {
+function GuideHoldSave({ color, onSave, isMobile }) {
 var [prog, setProg] = useState(0);
 var [holding, setHolding] = useState(false);
 var ref = useRef(null);
@@ -1713,7 +1796,7 @@ var startT = useRef(0);
 function start(e) {
 e.stopPropagation(); setHolding(true); startT.current = Date.now();
 ref.current = setInterval(function() {
-var p = Math.min((Date.now() - startT.current) / 900, 1);
+var p = Math.min((Date.now() - startT.current) / (isMobile ? 800 : 900), 1);
 setProg(p);
 if (p >= 1) { clearInterval(ref.current); setHolding(false); setProg(0); onSave(); }
 }, 30);
@@ -1722,14 +1805,14 @@ function end() { if (ref.current) clearInterval(ref.current); setHolding(false);
 return <div
 onMouseDown={start} onMouseUp={end} onMouseLeave={end}
 onTouchStart={start} onTouchEnd={end}
-style={{ position: "relative", padding: "6px 18px", borderRadius: 20, background: color + (Math.round(8 + prog * 40)).toString(16).padStart(2, "0"), border: "1px solid " + color + "44", color: color, fontSize: 12, fontFamily: FB, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", overflow: "hidden" }}
+style={{ position: "relative", padding: "6px 18px", borderRadius: 20, minHeight: isMobile ? 44 : undefined, display: "inline-flex", alignItems: "center", background: color + (Math.round(8 + prog * 40)).toString(16).padStart(2, "0"), border: "1px solid " + color + "44", color: color, fontSize: 12, fontFamily: FB, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", overflow: "hidden", touchAction: "manipulation" }}
 >
 <div style={{ position: "absolute", bottom: 0, left: 0, width: prog * 100 + "%", height: 2, background: color, transition: holding ? "none" : "width 0.2s" }} />
 {holding ? "..." : "hold"}
 </div>;
 }
 
-function GuideItem({ item, index, onPatchSynthesis, allGuide }) {
+function GuideItem({ item, index, onPatchSynthesis, allGuide, isMobile }) {
 const [expanded, setExpanded] = useState(false);
 const [response, setResponse] = useState("");
 const [saved, setSaved] = useState(false);
@@ -1780,7 +1863,7 @@ placeholder="In your words…" rows={2} autoFocus
 style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: `1px solid ${gt.color}33`, borderRadius: 10, color: "rgba(255,255,255,0.8)", padding: "10px 14px", fontFamily: FB, fontSize: 14, resize: "none", outline: "none", lineHeight: 1.5 }} />
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.1)", fontFamily: FB }}>hold to save</span>
-{response.trim() && <GuideHoldSave color={gt.color} onSave={submit} />}
+{response.trim() && <GuideHoldSave color={gt.color} onSave={submit} isMobile={isMobile} />}
 </div>
 </div>
 )}
@@ -1806,7 +1889,7 @@ fontStyle:"italic", lineHeight:1.6, margin:0 }}>{echo}</p>
 );
 }
 
-function DescentGame({ cards: propCards, onDone }) {
+function DescentGame({ cards: propCards, onDone, onSkip, isMobile }) {
 const DESCENT_CARDS = (propCards && propCards.length > 0 ? propCards.slice(0, 4) : [
 { type: "energy", phrase: "wanting to be seen but not watched", color: "#FFB86B" },
 { type: "binary", prompt: "right now you're drawn to", option_a: "building slowly", option_b: "leaping first", color: "#FF6B9D" },
@@ -1827,9 +1910,6 @@ setTimeout(function(){ setShowCompletion(true); }, 1200);
 }
 }
 const allDone = Object.keys(answers).length >= DESCENT_CARDS.length;
-useEffect(function() {
-if (showCompletion) setTimeout(function(){ onDone({ answers: answers, cards: DESCENT_CARDS }); }, 3500);
-}, [showCompletion]);
 
 const [swipeX, setSwipeX] = useState(0);
 const [swiping, setSwiping] = useState(false);
@@ -1873,7 +1953,7 @@ e.stopPropagation();
 setEnergyHolding(true);
 holdStartT.current = Date.now();
 holdRef.current = setInterval(function() {
-var p = Math.min((Date.now() - holdStartT.current) / 1800, 1);
+var p = Math.min((Date.now() - holdStartT.current) / (isMobile ? 1200 : 1800), 1);
 setHoldProg(p);
 if (p >= 1) { clearInterval(holdRef.current); setEnergyHolding(false); record(5); }
 }, 30);
@@ -1910,6 +1990,9 @@ return (
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB, letterSpacing: "0.1em" }}>
 {Object.keys(answers).length} questions, {Object.keys(answers).length} honest answers.
 </div>
+<button onClick={function(){ onDone({ answers: answers, cards: DESCENT_CARDS }); }} style={{ marginTop: 24, padding: "14px 32px", borderRadius: 24, border: "none", background: "rgba(214,178,109,0.2)", color: "#D6B26D", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", touchAction: "manipulation", minHeight: 48 }}>
+Continue →
+</button>
 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", maxWidth: 280, margin: "20px auto 0" }}>
 {DESCENT_CARDS.map(function(card, i) {
 var ans = answers[i];
@@ -1932,7 +2015,7 @@ return <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
 </div>}
 
 {!showCompletion && <><div style={{ display: "flex", gap: 8, marginBottom: 20, justifyContent: "center" }}>
-{DESCENT_CARDS.map(function(_, i) { return <div key={i} style={{ width: i === ci ? 12 : 7, height: 7, borderRadius: 4, background: i < ci ? DESCENT_CARDS[i].color + "88" : i === ci ? "white" : "rgba(255,255,255,0.1)", transition: "all 0.4s" }} />; })}
+{DESCENT_CARDS.map(function(_, i) { var w = isMobile ? (i === ci ? 14 : 10) : (i === ci ? 12 : 7); return <div key={i} style={{ width: w, height: w, borderRadius: 4, background: i < ci ? DESCENT_CARDS[i].color + "88" : i === ci ? "white" : "rgba(255,255,255,0.1)", transition: "all 0.4s" }} />; })}
 </div>
 
 <div key={ci} style={{ animation: "slideIn 0.4s ease" }}>
@@ -1945,14 +2028,15 @@ style={{ borderRadius: 22, padding: "40px 24px", background: "linear-gradient(16
 <div style={{ display:"flex", gap:12, justifyContent:"center", marginBottom:20 }}>
 {[1,2,3,4,5].map(function(dot) {
 var lit = ans ? (answers[ci] || 0) >= dot : holdProg * 5 >= dot;
+var dotSz = isMobile ? 28 : 18;
 return <div key={dot}
 onClick={function(e){ if(!ans){ e.stopPropagation(); record(dot); } }}
-style={{ width:18, height:18, borderRadius:"50%",
+style={{ width: dotSz, height: dotSz, minWidth: dotSz, minHeight: dotSz, borderRadius:"50%",
 background: lit ? c.color : "rgba(255,255,255,0.08)",
 boxShadow: lit ? "0 0 12px "+c.color+"88" : "none",
 border:"1px solid "+(lit ? c.color+"88" : "rgba(255,255,255,0.12)"),
 cursor: ans ? "default" : "pointer",
-transition:"all 0.2s" }} />;
+transition:"all 0.2s", touchAction: "manipulation" }} />;
 })}
 </div>
 {!ans && <div style={{ fontSize:11, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.08em", marginBottom:8 }}>tap a dot or hold to fill</div>}
@@ -1973,7 +2057,7 @@ onMouseDown={!ans ? onMouseDown : undefined}
 onMouseMove={!ans ? onMouseMove : undefined}
 onMouseUp={!ans ? onMouseUp : undefined}
 onMouseLeave={!ans ? onMouseUp : undefined}
-style={{ borderRadius: 22, padding: "36px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", textAlign: "center", userSelect: "none", WebkitUserSelect: "none", cursor: ans ? "default" : "grab", position: "relative", overflow: "hidden", transform: ans ? "none" : "translateX(" + swipeX * 0.3 + "px) rotate(" + swipeX * 0.02 + "deg)", transition: swiping ? "none" : "transform 0.3s ease" }}
+style={{ borderRadius: 22, padding: "36px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", textAlign: "center", userSelect: "none", WebkitUserSelect: "none", cursor: ans ? "default" : "grab", position: "relative", overflow: "hidden", transform: ans ? "none" : "translateX(" + swipeX * 0.3 + "px) rotate(" + swipeX * 0.02 + "deg)", transition: swiping ? "none" : "transform 0.3s ease", touchAction: !ans ? "pan-y" : undefined }}
 >
 <div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 24 }}>{c.prompt}</div>
 
@@ -1983,21 +2067,21 @@ style={{ borderRadius: 22, padding: "36px 24px", background: "linear-gradient(16
 </div>}
 {!ans && <div style={{ marginTop: 18, display: "flex", gap: 10 }}>
 <button onClick={function(e){ e.stopPropagation(); record("a"); }}
-style={{ flex:1, padding:"12px 8px", borderRadius:14,
+style={{ flex:1, padding:"12px 8px", borderRadius:14, minHeight: isMobile ? 44 : undefined,
 background: swipeDir==="a" ? c.color+"22" : "rgba(255,255,255,0.04)",
 border:"1px solid "+(swipeDir==="a" ? c.color+"66" : "rgba(255,255,255,0.1)"),
 color: swipeDir==="a" ? c.color : "rgba(255,255,255,0.55)",
 fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
 whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
-transition:"all 0.2s" }}>{c.option_a}</button>
+transition:"all 0.2s", touchAction:"manipulation" }}>{c.option_a}</button>
 <button onClick={function(e){ e.stopPropagation(); record("b"); }}
-style={{ flex:1, padding:"12px 8px", borderRadius:14,
+style={{ flex:1, padding:"12px 8px", borderRadius:14, minHeight: isMobile ? 44 : undefined,
 background: swipeDir==="b" ? c.color+"22" : "rgba(255,255,255,0.04)",
 border:"1px solid "+(swipeDir==="b" ? c.color+"66" : "rgba(255,255,255,0.1)"),
 color: swipeDir==="b" ? c.color : "rgba(255,255,255,0.55)",
 fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
 whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
-transition:"all 0.2s" }}>{c.option_b}</button>
+transition:"all 0.2s", touchAction:"manipulation" }}>{c.option_b}</button>
 </div>}
 {!ans && <div style={{ fontSize:10, color:"rgba(255,255,255,0.12)", fontFamily:FB, letterSpacing:"0.1em", marginTop:10, textAlign:"center" }}>tap or swipe</div>}
 
@@ -2026,7 +2110,8 @@ function TappableSentence({ text, synthesisData, onReact }) {
 var [state, setState] = useState("idle"); 
 var [swipeX, setSwipeX] = useState(0);
 var [swiping, setSwiping] = useState(false);
-var swipeStart = useRef(0);
+var swipeStart = useRef({ x: 0, y: 0 });
+var swipeIntent = useRef(null);
 var holdTimer = useRef(null);
 var holdStartT = useRef(0);
 var [holdProg, setHoldProg] = useState(0);
@@ -2034,26 +2119,35 @@ var [noteOpen, setNoteOpen] = React.useState(false);
 var [noteDraft, setNoteDraft] = React.useState("");
 var [noteSaved, setNoteSaved] = React.useState("");
 var threshold = 60;
+var swipeThreshold = 15;
 
-function onStart(clientX, e) {
+function onStart(clientX, clientY, e) {
 if (state !== "idle") return;
 e.stopPropagation();
 setState("active");
-swipeStart.current = clientX;
+swipeStart.current = { x: clientX, y: clientY != null ? clientY : 0 };
+swipeIntent.current = null;
 setSwiping(true);
 setSwipeX(0);
 holdStartT.current = Date.now();
 holdTimer.current = setInterval(function() {
-var p = Math.min((Date.now() - holdStartT.current) / 1200, 1);
+var p = Math.min((Date.now() - holdStartT.current) / 1000, 1);
 setHoldProg(p);
 if (p >= 1) { clearInterval(holdTimer.current); setState("held"); setSwiping(false); setSwipeX(0); setHoldProg(0); if (onReact) onReact(text, "held"); }
 }, 30);
 }
-function onMove(clientX) {
+function onMove(clientX, clientY) {
 if (!swiping || state !== "active") return;
-var dx = clientX - swipeStart.current;
+var dx = clientX - swipeStart.current.x;
+var dy = (clientY != null ? clientY : swipeStart.current.y) - swipeStart.current.y;
+if (swipeIntent.current === null && (Math.abs(dx) > swipeThreshold || Math.abs(dy) > swipeThreshold)) {
+swipeIntent.current = Math.abs(dx) >= Math.abs(dy) ? "swipe" : "scroll";
+if (swipeIntent.current === "scroll" && holdTimer.current) { clearInterval(holdTimer.current); setHoldProg(0); }
+}
+if (swipeIntent.current === "swipe") {
 setSwipeX(dx);
 if (Math.abs(dx) > 10 && holdTimer.current) { clearInterval(holdTimer.current); setHoldProg(0); }
+}
 }
 function onEnd() {
 if (holdTimer.current) clearInterval(holdTimer.current);
@@ -2061,6 +2155,7 @@ setHoldProg(0);
 if (!swiping) return;
 setSwiping(false);
 if (state === "held") return;
+if (swipeIntent.current === "scroll") { setState("idle"); setSwipeX(0); return; }
 if (swipeX < -threshold) { setState("landed"); if (onReact) onReact(text, "landed"); }
 else if (swipeX > threshold) { setState("resisted"); if (onReact) onReact(text, "resisted"); }
 else if (Math.abs(swipeX) < 15) { setState("landed"); if (onReact) onReact(text, "landed"); }
@@ -2070,7 +2165,7 @@ setSwipeX(0);
 
 useEffect(function() {
 if (!swiping || state !== "active") return;
-function m(e) { var x = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0); onMove(x); }
+function m(e) { var x = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0); var y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0); onMove(x, y); }
 function u() { onEnd(); }
 window.addEventListener("pointermove", m);
 window.addEventListener("pointerup", u);
@@ -2082,11 +2177,11 @@ var dir = swipeX < 0 ? "land" : swipeX > 0 ? "resist" : null;
 
 if (state === "idle") {
 return <span
-onTouchStart={function(e) { onStart(e.touches[0].clientX, e); }}
-onTouchMove={function(e) { onMove(e.touches[0].clientX); }}
+onTouchStart={function(e) { onStart(e.touches[0].clientX, e.touches[0].clientY, e); }}
+onTouchMove={function(e) { onMove(e.touches[0].clientX, e.touches[0].clientY); }}
 onTouchEnd={onEnd}
-onMouseDown={function(e) { onStart(e.clientX, e); }}
-onMouseMove={function(e) { onMove(e.clientX); }}
+onMouseDown={function(e) { onStart(e.clientX, e.clientY, e); }}
+onMouseMove={function(e) { onMove(e.clientX, e.clientY); }}
 onMouseUp={onEnd}
 onMouseLeave={onEnd}
 style={{ cursor: "pointer", color: "inherit", borderBottom: "1px dotted rgba(214,178,109,0.15)", paddingBottom: 1, transition: "color 0.2s" }}
@@ -2095,9 +2190,9 @@ style={{ cursor: "pointer", color: "inherit", borderBottom: "1px dotted rgba(214
 
 if (state === "active") {
 return <span
-onTouchMove={function(e) { onMove(e.touches[0].clientX); }}
+onTouchMove={function(e) { onMove(e.touches[0].clientX, e.touches[0].clientY); }}
 onTouchEnd={onEnd}
-onMouseMove={function(e) { onMove(e.clientX); }}
+onMouseMove={function(e) { onMove(e.clientX, e.clientY); }}
 onMouseUp={onEnd}
 onMouseLeave={onEnd}
 style={{
@@ -2190,11 +2285,12 @@ return <TappableSentence key={i} text={s.trim()} synthesisData={synthesisData} o
 })}</span>;
 }
 
-function ClarityHoldInput({ value, onChange, onSave }) {
+function ClarityHoldInput({ value, onChange, onSave, isMobile }) {
 var [holdProg, setHoldProg] = useState(0);
 var [holding, setHolding] = useState(false);
 var holdRef = useRef(null);
 var holdStartT = useRef(0);
+var holdMs = isMobile ? 1000 : 1200;
 
 function startHold(e) {
 if (!value.trim()) return;
@@ -2202,7 +2298,7 @@ e.stopPropagation();
 setHolding(true);
 holdStartT.current = Date.now();
 holdRef.current = setInterval(function() {
-var p = Math.min((Date.now() - holdStartT.current) / 1200, 1);
+var p = Math.min((Date.now() - holdStartT.current) / holdMs, 1);
 setHoldProg(p);
 if (p >= 1) { clearInterval(holdRef.current); setHolding(false); setHoldProg(0); onSave(); }
 }, 30);
@@ -2223,14 +2319,16 @@ onMouseDown={startHold} onMouseUp={endHold} onMouseLeave={endHold}
 onTouchStart={startHold} onTouchEnd={endHold}
 style={{
 padding: "14px 24px", borderRadius: 20, textAlign: "center", cursor: "pointer",
+minHeight: isMobile ? 44 : undefined,
 background: "rgba(214,178,109," + (0.04 + holdProg * 0.12) + ")",
 border: "1px solid rgba(214,178,109," + (0.15 + holdProg * 0.35) + ")",
 color: "#D6B26D", fontSize: 13, fontFamily: FB, userSelect: "none", WebkitUserSelect: "none",
 transition: holding ? "none" : "all 0.3s",
 transform: "scale(" + (1 + holdProg * 0.04) + ")",
+touchAction: "manipulation",
 }}
 >
-{holding ? "locking in\u2026" : "hold to keep this"}
+{holding ? "locking in\u2026" : (isMobile ? "hold 1 sec to keep this" : "hold to keep this")}
 </div>
 <div style={{ position: "absolute", bottom: 0, left: 0, width: holdProg * 100 + "%", height: 2, borderRadius: 1, background: "#D6B26D", transition: holding ? "none" : "width 0.2s ease", opacity: 0.6 }} />
 </div>}
@@ -2245,6 +2343,9 @@ const [clarity, setClarity] = useState("");
 const [claritySaved, setClaritySaved] = useState(false);
 const [showNoticing, setShowNoticing] = useState(false);
 const scrollRef = useRef(null);
+const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
+const [showSwipeHint, setShowSwipeHint] = useState(function(){ try { return !localStorage.getItem("saycrd-session-swipe-hint-seen"); } catch(e){ return true; } });
+useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 
 
 const [reactions, setReactions] = useState({});
@@ -2347,8 +2448,8 @@ var descentCards = (sd.descent_cards && sd.descent_cards.length > 0) ? sd.descen
 
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
-<Particles color="rgba(214,178,109,0.15)" count={8} />
-<div style={{ maxWidth: 380, margin: "0 auto", padding: "60px 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1 }}>
+<Particles color="rgba(214,178,109,0.15)" count={isMobile ? 4 : 8} />
+<div style={{ maxWidth: 380, margin: "0 auto", padding: (isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1 }}>
 
 <div style={{ marginBottom: archData ? 18 : 28, animation: "riseUp 0.5s ease" }}>
 <div style={{ fontSize: 14, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.38)", fontFamily: FB }}>
@@ -2356,10 +2457,10 @@ SESSION {sessionNum} · {new Date().toLocaleDateString("en-US", { month: "long",
 </div>
 </div>
 
-{archData && <div style={{ marginBottom: 36, animation: "riseUp 0.7s ease 0.05s both" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", color: "rgba(232,67,147,0.75)", fontFamily: FB, marginBottom: 10, textTransform: "uppercase" }}>your pattern</div>
-<div style={{ fontSize: 34, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: 8 }}>{archData.name}</div>
-{archData.line && <div style={{ fontSize: 17, color: "rgba(255,255,255,0.72)", fontFamily: FD, lineHeight: 1.55 }}>{archData.line}</div>}
+{archData && <div style={{ marginBottom: isMobile ? 24 : 36, animation: "riseUp 0.7s ease 0.05s both" }}>
+<div style={{ fontSize: 9, letterSpacing: "0.45em", color: "rgba(232,67,147,0.75)", fontFamily: FB, marginBottom: isMobile ? 6 : 10, textTransform: "uppercase" }}>your pattern</div>
+<div style={{ fontSize: isMobile ? 26 : 34, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: isMobile ? 6 : 8 }}>{archData.name}</div>
+{archData.line && <div style={{ fontSize: isMobile ? 15 : 17, color: "rgba(255,255,255,0.72)", fontFamily: FD, lineHeight: 1.55 }}>{archData.line}</div>}
 </div>}
 
 {THEMES.length > 0 && <div style={{ marginBottom: 32, animation: "riseUp 0.5s ease 0.08s both" }}>
@@ -2403,10 +2504,15 @@ background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", 
 </div>}
 
 {underneath.length > 0 && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.2s both" }}>
-<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
 <div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#B86BFF", fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>what{"'"}s underneath</div>
-<div style={{ fontSize: 14, color: "rgba(183,107,255,0.38)", fontFamily: FB, letterSpacing: "0.05em" }}>swipe right to push back</div>
+<div style={{ fontSize: 14, color: "rgba(183,107,255,0.38)", fontFamily: FB, letterSpacing: "0.05em" }}>swipe right to mark · swipe left to push back</div>
 </div>
+{showSwipeHint && (
+<div onClick={function(){ try { localStorage.setItem("saycrd-session-swipe-hint-seen", "1"); } catch(e){} setShowSwipeHint(false); }} style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(183,107,255,0.1)", border: "1px solid rgba(183,107,255,0.25)", borderRadius: 12, fontSize: 12, color: "rgba(200,180,255,0.9)", fontFamily: FB, lineHeight: 1.4, cursor: "pointer" }}>
+Swipe right on a sentence to mark it. Swipe left to push back. <span style={{ opacity: 0.7 }}>Tap to dismiss</span>
+</div>
+)}
 {underneath.map(function(t, i) {
 var uKey = "underneath_" + i;
 var uReaction = reactions[uKey];
@@ -2444,8 +2550,8 @@ background: uReaction === "landed" ? "#6BFFB8" : uReaction === "resisted" ? "rgb
 : tension.text && <p style={{ fontSize: 15, color: reactions["tension"] === "resisted" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.62)", fontFamily: FD, lineHeight: 1.6, margin: "0 0 12px" }}>{tension.text}</p>
 )}
 {!reactions["tension"] && <div style={{ display: "flex", gap: 8 }}>
-<button onClick={function() { handleReact("tension", "landed"); }} style={{ flex: 1, fontSize: 15, color: "rgba(107,255,184,0.45)", fontFamily: FB, background: "rgba(107,255,184,0.04)", border: "1px solid rgba(107,255,184,0.1)", borderRadius: 16, padding: "8px 0", cursor: "pointer", letterSpacing: "0.06em" }}>this lands ←</button>
-<button onClick={function() { handleReact("tension", "resisted"); }} style={{ flex: 1, fontSize: 15, color: "rgba(255,96,144,0.45)", fontFamily: FB, background: "rgba(255,96,144,0.04)", border: "1px solid rgba(255,96,144,0.1)", borderRadius: 16, padding: "8px 0", cursor: "pointer", letterSpacing: "0.06em" }}>→ not right</button>
+<button onClick={function() { handleReact("tension", "landed"); }} style={{ flex: 1, fontSize: 15, color: "rgba(107,255,184,0.45)", fontFamily: FB, background: "rgba(107,255,184,0.04)", border: "1px solid rgba(107,255,184,0.1)", borderRadius: 16, padding: "8px 0", minHeight: 44, cursor: "pointer", letterSpacing: "0.06em", touchAction: "manipulation" }}>this lands ←</button>
+<button onClick={function() { handleReact("tension", "resisted"); }} style={{ flex: 1, fontSize: 15, color: "rgba(255,96,144,0.45)", fontFamily: FB, background: "rgba(255,96,144,0.04)", border: "1px solid rgba(255,96,144,0.1)", borderRadius: 16, padding: "8px 0", minHeight: 44, cursor: "pointer", letterSpacing: "0.06em", touchAction: "manipulation" }}>→ not right</button>
 </div>}
 {reactions["tension"] === "landed" && <div style={{ fontSize: 14, color: "rgba(107,255,184,0.4)", fontFamily: FB, letterSpacing: "0.15em", animation: "riseUp 0.3s ease" }}>← noted</div>}
 {reactions["tension"] === "resisted" && <div style={{ fontSize:14, color:"rgba(255,255,255,0.3)", fontFamily:FB, letterSpacing:"0.12em", animation:"riseUp 0.3s ease" }}>signal incorporated</div>}
@@ -2459,7 +2565,7 @@ background: uReaction === "landed" ? "#6BFFB8" : uReaction === "resisted" ? "rgb
 {GUIDE_ITEMS.length > 0 && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.4s both" }}>
 <div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#7DB7AE", marginBottom: 14, fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>your guide</div>
 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-{GUIDE_ITEMS.map(function(item, i) { return <GuideItem key={i} item={item} index={i} onPatchSynthesis={onPatchSynthesis} allGuide={sd.guide||[]} />; })}
+{GUIDE_ITEMS.map(function(item, i) { return <GuideItem key={i} item={item} index={i} onPatchSynthesis={onPatchSynthesis} allGuide={sd.guide||[]} isMobile={isMobile} />; })}
 </div>
 </div>}
 
@@ -2477,9 +2583,12 @@ animation: "riseUp 0.5s ease 0.6s both",
 </div>
 )}
 {descentOpen && !descentDone && (
-<div style={{ animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 8, fontFamily: FB, textAlign: "center" }}>THE DESCENT</div>
-<DescentGame cards={descentCards} onDone={function(data) { setDescentResult(data); setDescentDone(true); }} />
+<div style={{ animation: "riseUp 0.5s ease", position: isMobile ? "fixed" : "relative", inset: isMobile ? 0 : undefined, zIndex: isMobile ? 40 : undefined, background: isMobile ? "linear-gradient(160deg, #0A0A1E 0%, #1A1A3B 40%, #2D1B5B 100%)" : undefined, overflowY: isMobile ? "auto" : undefined, paddingTop: isMobile ? "calc(20px + env(safe-area-inset-top, 0px))" : undefined, paddingBottom: isMobile ? "calc(20px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+<div style={{ position: "relative", fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 8, fontFamily: FB, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+{isMobile && <button onClick={function(){ setDescentOpen(false); }} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>×</button>}
+<span>THE DESCENT</span>
+</div>
+<DescentGame cards={descentCards} onDone={function(data) { setDescentResult(data); setDescentDone(true); }} onSkip={isMobile ? function(){ setDescentOpen(false); } : undefined} isMobile={isMobile} />
 </div>
 )}
 {descentDone && <div style={{ textAlign: "center", padding: "20px 0", animation: "riseUp 0.5s ease" }}>
@@ -2505,7 +2614,7 @@ return <div key={i} style={{ padding: "6px 12px", borderRadius: 16, background: 
 <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "rgba(214,178,109,0.35)", marginBottom: 14, fontFamily: FB }}>WHAT ARE YOU TAKING WITH YOU?</div>
 {!claritySaved ? (
-<ClarityHoldInput value={clarity} onChange={setClarity} onSave={saveClarity} />
+<ClarityHoldInput value={clarity} onChange={setClarity} onSave={saveClarity} isMobile={isMobile} />
 ) : (
 <div style={{ animation: "riseUp 0.5s ease" }}>
 <div style={{ fontSize: 16, color: "#D6B26D", fontFamily: FB, lineHeight: 1.55, letterSpacing: "0.02em" }}>{clarity}</div>
@@ -5630,6 +5739,9 @@ SAYCRD
 color:"rgba(220,235,255,0.7)", fontFamily:FB, fontWeight:600 }}>
 THE MIRROR
 </div>
+<div style={{ fontSize:13, color:"rgba(200,220,255,0.6)", fontFamily:FD, marginTop:8, lineHeight:1.5 }}>
+Comparing your last session to this one
+</div>
 </div>
 
 <div style={{ flex:1, minHeight:0, display:"flex", flexDirection:"column",
@@ -5651,16 +5763,16 @@ The mirror needs two sessions to show you what moved. Come back.
 ) : (
 <div>
 
-<div style={{ marginBottom:44, animation:"riseUp 0.7s ease 0.1s both" }}>
-<div style={{ fontSize:10, letterSpacing:"0.45em",
-color:"rgba(200,220,255,0.5)", fontFamily:FB, marginBottom:20 }}>
-WHAT MOVED
+<div style={{ marginBottom:32, animation:"riseUp 0.7s ease 0.1s both" }}>
+<div style={{ fontSize:11, letterSpacing:"0.2em",
+color:"rgba(200,220,255,0.6)", fontFamily:FB, marginBottom:12 }}>
+In one sentence, what shifted:
 </div>
 
 {_ready && _shift ? (
-<div style={{ fontSize:23, fontWeight:600,
-color:"rgba(255,255,255,0.95)", fontFamily:FD,
-lineHeight:1.55, wordBreak:"break-word",
+<div style={{ fontSize:22, fontWeight:600,
+color:"rgba(255,255,255,0.98)", fontFamily:FD,
+lineHeight:1.5, wordBreak:"break-word",
 overflowWrap:"break-word" }}>
 {_shift}
 </div>
@@ -5678,6 +5790,9 @@ animation:"breathe 1.5s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 
 <div style={{ animation:"riseUp 0.6s ease 0.4s both" }}>
+<div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, marginBottom:16 }}>
+Before and after
+</div>
 {(() => {
 var _tTxt = (_thenWords || []).join(" ");
 var _nTxt = (_nowWords || []).join(" ");
@@ -5686,9 +5801,9 @@ return (
 <div style={{ display:"flex", flexDirection: stackCols ? "column" : "row", alignItems:"stretch", gap:16 }}>
 
 <div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:9, letterSpacing:"0.4em",
-color:"rgba(140,170,230,0.65)", fontFamily:FB, marginBottom:10 }}>
-{_thenLabel}
+<div style={{ fontSize:11, fontWeight:600, letterSpacing:"0.15em",
+color:"rgba(140,170,230,0.9)", fontFamily:FB, marginBottom:10 }}>
+LAST SESSION{_prevDate ? " · " + _prevDate : ""}
 </div>
 <div style={{
 padding:"18px 18px",
@@ -5729,17 +5844,18 @@ lineHeight:1.25
 <div style={{
 paddingTop: stackCols ? 2 : 22,
 textAlign:"center",
-color:"rgba(200,220,255,0.4)",
-fontSize:20,
-flexShrink:0
+color:"rgba(200,220,255,0.5)",
+fontSize:22,
+flexShrink:0,
+fontWeight:600
 }}>
 {stackCols ? "↓" : "→"}
 </div>
 
 <div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:9, letterSpacing:"0.4em",
-color:_currColor+"cc", fontFamily:FB, marginBottom:10 }}>
-{_nowLabel}
+<div style={{ fontSize:11, fontWeight:600, letterSpacing:"0.15em",
+color:_currColor, fontFamily:FB, marginBottom:10 }}>
+THIS SESSION
 </div>
 <div style={{
 padding:"18px 18px",
@@ -5780,9 +5896,9 @@ lineHeight:1.25
 })()}
 
 {!_archShifted && _prevArch && (
-<div style={{ marginTop:12, fontSize:12,
-color:"rgba(200,220,255,0.5)", fontFamily:FB, letterSpacing:"0.1em" }}>
-SAME GROUND · DEEPER WORK
+<div style={{ marginTop:16, padding:"12px 16px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", fontSize:13,
+color:"rgba(220,235,255,0.8)", fontFamily:FD, lineHeight:1.5 }}>
+Same archetype, deeper work — you're staying with it.
 </div>
 )}
 </div>
@@ -7134,9 +7250,18 @@ background: di===Math.min(sessionCount,20)-1
 );
 }
 
+function _reportSectionSubtitle(title) {
+var t = (title || "").toUpperCase();
+if (/OCCURRED|THIS SESSION/.test(t)) return "What dominated this session";
+if (/MOVED|SHIFTED|CHANGED/.test(t)) return "What changed between sessions";
+if (/REMAINS|RETURNING|STILL HERE/.test(t)) return "What's still unresolved";
+return "";
+}
+
 function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, portrait, portraitReady, goNext }) {
 themes = themes || [];
 allSessions = allSessions || [];
+var isMobile = React.useContext(FieldMobileContext);
 currentSessionData = currentSessionData || null;
 
 var [_report, _setReport] = useState(null);
@@ -7410,12 +7535,14 @@ if (esLines.length) emergentSignalsBlurb = "EMERGENT SIGNALS (what wants to happ
 }
 }
 
-var prompt = "You are writing a confidential field report. Third person only. Always call the subject \"the subject\" — never he, she, him, her. Plain declarative past tense. Clinical but human.\n\n"
-+ "PRACTITIONER MODE: You are a brilliant practitioner. Draw on pattern recognition, systems thinking, and deep listening — without naming disciplines. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth.\n\n"
+var prompt = "You are writing a confidential field report. Plain declarative past tense. Clinical but human. The report is for the subject — they will read it.\n\n"
++ "CLARITY: Write for a reader with a college or strong high school education. Use plain words. Avoid jargon: say \"over time\" not \"longitudinal arc,\" \"the big pattern\" not \"meta-pattern,\" \"what the data points to\" not \"pattern-intelligence.\" Lead each section with the simplest version of the insight. Add nuance in the next sentence. Don't pack theme + tension + archetype into one long opening.\n\n"
++ "VOICE: Use \"you\" when quoting the subject's words (e.g. \"You said: \\\"...\\\"\") or in the one-line verdict when it fits. The report is for them — \"you\" makes it feel personal. Otherwise third person is fine. Never use he, she, him, her.\n\n"
++ "PRACTITIONER MODE: Draw on pattern recognition, systems thinking, and deep listening — without naming disciplines. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth.\n\n"
 + "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
-+ "GROUNDING: For each major insight, anchor it in evidence the reader can trace (e.g. \"the map showed control↔trust confirmed in 5 of the last 6 sessions\" or \"the subject corrected the blind spot twice, refining it from X to Y\"). Use careful language: \"the record suggests,\" \"the pattern appears to,\" \"in sessions where X, the subject tended to Y\" — interpretation, not certainty. Where a pattern is not absolute (e.g. regressions amid an overall trend), add light nuance: \"with exceptions at S9 and S16\" or \"though not in every session.\" Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
++ "GROUNDING: For each major insight, anchor it in evidence the reader can trace (e.g. \"the map showed control↔trust confirmed in 5 of the last 6 sessions\" or \"you corrected the blind spot twice, refining it from X to Y\"). Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, you tended to Y\" — interpretation, not certainty. Prefer \"you showed up with\" over \"the subject exhibited.\" Where a pattern is not absolute, add light nuance: \"with exceptions at S9 and S16\" or \"though not in every session.\" Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
 + "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
 + (prevReportHint ? prevReportHint : "")
 + (shiftBlurb ? shiftBlurb : "")
@@ -7437,11 +7564,12 @@ var prompt = "You are writing a confidential field report. Third person only. Al
 + "STRUCTURE: The current session is the CORE and BACKBONE — anchor the report there. The VALUE is the Y-axis: what has accumulated over time. The report's power is how the longitudinal arc (themes, patterns, blind spots across many sessions) gets BROUGHT UP and surfaced in this session. Use descent answers and map feedback as the backbone of what landed now. Weave the past into the current — the value over time is what this session brings into focus. When 20+ sessions, the meta-pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
 + "NO DRIFT: The conclusion must tie to the heart of what this report established. Use prior-session material to bring the Y-axis (value over time) into the current moment — not to drift into unrelated history. Stay on topic.\n\n"
 + "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
-+ "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use their exact phrasing in quotes. Do not paraphrase into something they didn't say. In WHAT REMAINS, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
-+ "SECTION 1 title like WHAT OCCURRED: What dominated in THIS session. When the subject has shifted to new territory, open with that — first time speaking about X, why now. Name specific themes and archetypes. Do not lead with a summary of past sessions when the current session is the story. 3 short paragraphs.\n"
-+ "SECTION 2 title like WHAT MOVED: Concrete change. When there's a subject shift, this section explores the shift — what's happening, why now, how the past connects to this moment. When no shift, what moved between sessions or within the session. 3 short paragraphs.\n"
-+ "SECTION 3 title like WHAT REMAINS: Still unresolved. Still returning. No comfort. Refer to the 'what's underneath' phrases above — these are pattern-intelligence observations (repetition, structure, blind spots the subject may not see). Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction so the link is traceable. Conclude with what the report has already established — do not drift to past specifics that don't correlate. If a prior-session nugget bolsters the point, use it; otherwise go deeper into the heart of this report. 2 short paragraphs.\n\n"
-+ "Also: oneLineVerdict — one plain third-person sentence (12-16 words). The single most honest thing about this subject right now, tied to the heart of this report. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
++ "SECTION TITLES: Prefer clear, plain titles. Section 1: WHAT OCCURRED or THIS SESSION. Section 2: WHAT SHIFTED or WHAT CHANGED (not WHAT MOVED — too vague). Section 3: WHAT KEEPS RETURNING or WHAT'S STILL HERE (not WHAT REMAINS — too vague).\n"
++ "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use \"You said: \\\"...\\\"\" with their exact phrasing. Do not paraphrase into something they didn't say. In the third section, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
++ "SECTION 1 (WHAT OCCURRED / THIS SESSION): What dominated in THIS session. When the subject has shifted to new territory, open with that — first time speaking about X, why now. Name specific themes and archetypes. Lead with the simplest version. Do not lead with a summary of past sessions when the current session is the story. 3 short paragraphs.\n"
++ "SECTION 2 (WHAT SHIFTED / WHAT CHANGED): Concrete change. When there's a subject shift, explore the shift — what's happening, why now, how the past connects to this moment. When no shift, what moved between sessions or within the session. 3 short paragraphs.\n"
++ "SECTION 3 (WHAT KEEPS RETURNING / WHAT'S STILL HERE): Still unresolved. Still returning. Refer to the 'what's underneath' phrases above — repetition, structure, blind spots the subject may not see. Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction. Conclude with what the report has already established. 2 short paragraphs.\n\n"
++ "Also: oneLineVerdict — one plain sentence (12-16 words). The single most honest thing about this person right now, tied to the heart of this report. You may use \"you\" here. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
 + (total >= 10 ? "whatMightWantToHappen — one sentence. Not advice — an observation about the next edge, based on what remains. What might want to happen? Optional but valuable.\n" : "")
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
 + (total >= 10 ? 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"...","whatMightWantToHappen":"..."}' : 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}');
@@ -7468,15 +7596,15 @@ firstOpen = firstOpen.trim().slice(0, 120);
 var historyKey = "saycrd-report-history-" + getCurrentUid();
 var reportHistory = JSON.parse(localStorage.getItem(historyKey) || "[]");
 reportHistory.push({ sessionIndex: total, oneLine: (dd.oneLineVerdict||"").slice(0, 100), firstOpen: firstOpen, generatedAt: new Date().toISOString() });
-reportHistory = reportHistory.slice(-5);
+reportHistory = reportHistory.slice(-10);
 localStorage.setItem(historyKey, JSON.stringify(reportHistory));
 } catch(e2) {}
 } else {
 _setReport({
 sections:[
 {title:"WHAT OCCURRED", body:"The sessions are on record.\n\nThe patterns are clear."},
-{title:"WHAT MOVED", body:"Something shifted between the early and recent sessions.\n\nThe evidence is in the arc."},
-{title:"WHAT REMAINS", body:"Some things have not moved.\n\nThey are still present."}
+{title:"WHAT SHIFTED", body:"Something changed between the early and recent sessions.\n\nThe evidence is in the arc."},
+{title:"WHAT KEEPS RETURNING", body:"Some things have not moved.\n\nThey are still present."}
 ],
 dateRange: firstDate && lastDate ? firstDate+" to "+lastDate : "",
 oneLineVerdict:"The subject has done sustained inner work that has not yet fully resolved."
@@ -7493,14 +7621,15 @@ return function(){ cancelled = true; };
 
 var _accent = (themes[0] && themes[0].color) || "#111";
 
-function renderBody(text) {
+function renderBody(text, emphasizeFirst) {
 if (!text) return null;
 var paras = text.split(/\n\n+/);
 if (paras.length <= 1) paras = text.split(/\n/);
 paras = paras.filter(function(p){ return p.trim(); });
 return paras.map(function(para, pi) {
+var isFirst = emphasizeFirst && pi === 0;
 return (
-<div key={pi} style={{ marginBottom: pi < paras.length-1 ? 16 : 0 }}>
+<div key={pi} style={{ marginBottom: pi < paras.length-1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: isFirst ? 18 : 17 }}>
 {para.trim()}
 </div>
 );
@@ -7581,6 +7710,32 @@ fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal" }}>
 </div>
 )}
 
+{(() => {
+var histKey = "saycrd-report-history-" + getCurrentUid();
+var hist = []; try { hist = JSON.parse(localStorage.getItem(histKey) || "[]"); } catch(e) {}
+var pastVerdicts = hist.filter(function(h){ return h.oneLine && h.oneLine.trim(); });
+var toShow = pastVerdicts.slice(-10);
+if (_report && _report.oneLineVerdict && toShow.length > 0) toShow = toShow.slice(0, -1);
+if (toShow.length < 1) return null;
+return (
+<div style={{ marginBottom:26, padding:"18px 20px", background:"rgba(0,0,0,0.02)", borderRadius:10, border:"1px solid rgba(0,0,0,0.06)" }}>
+<div style={{ fontSize:10, letterSpacing:"0.25em", color:"rgba(0,0,0,0.4)", fontFamily:FB, textTransform:"uppercase", marginBottom:14, fontWeight:600 }}>What the report said</div>
+<div style={{ display:"flex", flexDirection:"column", gap:12, maxHeight:180, overflowY:"auto" }}>
+{toShow.map(function(h, i) {
+var d = h.generatedAt ? new Date(h.generatedAt) : null;
+var dateStr = d ? d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:d.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined }) : ("Session " + (h.sessionIndex || (i+1)));
+return (
+<div key={i} style={{ paddingBottom:12, borderBottom: i < toShow.length - 1 ? "1px solid rgba(0,0,0,0.06)" : "none" }}>
+<div style={{ fontSize:11, color:"rgba(0,0,0,0.35)", fontFamily:FB, letterSpacing:"0.08em", marginBottom:4 }}>{dateStr}</div>
+<div style={{ fontSize:14, color:"rgba(0,0,0,0.72)", fontFamily:FD, lineHeight:1.5, fontStyle:"italic" }}>{h.oneLine}</div>
+</div>
+);
+})}
+</div>
+</div>
+);
+})()}
+
 {_report.whatMightWantToHappen && (
 <div style={{ marginBottom:20, padding:"14px 18px",
 borderLeft:"3px solid rgba(0,0,0,0.12)",
@@ -7605,20 +7760,38 @@ return hasMapOrSessionWords ? (
 ) : null;
 })()}
 
+{isMobile && (_report.sections||[]).length >= 2 && (
+<div style={{ marginBottom:20, padding:"14px 0", borderBottom:"1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize:10, letterSpacing:"0.2em", color:"rgba(0,0,0,0.35)", fontFamily:FB, marginBottom:10 }}>Jump to section</div>
+<div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
 {(_report.sections||[]).map(function(sec, si) {
 return (
-<div key={si} style={{ marginBottom:30, paddingBottom:30,
+<a key={si} href={"#report-sec-"+si} onClick={function(e){ e.preventDefault(); var el=document.getElementById("report-sec-"+si); if(el) el.scrollIntoView({behavior:"smooth"}); }} style={{ fontSize:12, color:_accent, fontFamily:FB, letterSpacing:"0.08em", textDecoration:"none", padding:"6px 12px", background:"rgba(0,0,0,0.04)", borderRadius:8, border:"1px solid rgba(0,0,0,0.08)" }}>
+{si+1}. {sec.title}
+</a>
+);
+})}
+</div>
+</div>
+)}
+
+{(_report.sections||[]).map(function(sec, si) {
+var sub = _reportSectionSubtitle(sec.title);
+return (
+<div key={si} id={"report-sec-"+si} style={{ marginBottom:30, padding:"24px 20px", paddingBottom:30,
+background:"rgba(0,0,0,0.02)", borderRadius:12, border:"1px solid rgba(0,0,0,0.06)",
 borderBottom: si<2 ? "1px solid rgba(0,0,0,0.09)" : "none",
 animation:"riseUp 0.5s ease "+(si*0.12)+"s both" }}>
 
 <div style={{ fontSize:13, letterSpacing:"0.5em",
-color:_accent, marginBottom:16, fontWeight:700, opacity:0.75 }}>
+color:_accent, marginBottom: sub ? 6 : 16, fontWeight:700, opacity:0.75 }}>
 {sec.title}
 </div>
+{sub && <div style={{ fontSize:12, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:16 }}>{sub}</div>}
 
 <div style={{ fontSize:17, color:"rgba(0,0,0,0.76)",
 fontFamily:FD, lineHeight:1.9, fontWeight:400, fontStyle:"normal" }}>
-{renderBody(sec.body)}
+{renderBody(sec.body, true)}
 </div>
 
 </div>
@@ -7774,8 +7947,9 @@ setTimeout(function(){ try{ window.close(); } catch(e){} }, 1400);
 }}
 style={{ display:"inline-block", fontSize:10, letterSpacing:"0.35em",
 color:"rgba(0,0,0,0.2)", fontFamily:FB, cursor:"pointer",
-padding:"10px 20px", borderTop:"1px solid rgba(0,0,0,0.08)",
-transition:"color 0.2s" }}
+padding:"10px 20px", minHeight: isMobile ? 44 : undefined,
+borderTop:"1px solid rgba(0,0,0,0.08)",
+transition:"color 0.2s", touchAction:"manipulation" }}
 onMouseEnter={function(e){ e.currentTarget.style.color="rgba(0,0,0,0.45)"; }}
 onMouseLeave={function(e){ e.currentTarget.style.color="rgba(0,0,0,0.2)"; }}>
 ✕ CLOSE SESSION
@@ -7956,6 +8130,8 @@ var alchColor = alchInfo.color || "#888";
 var [archResponse, setArchResponse] = useState(null);
 var [current, setCurrent] = useState(0);
 var [clicked, setClicked] = useState(false);
+var [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
+useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 
 var [portrait, setPortrait] = useState(null);
 var [portraitReady, setPortraitReady] = useState(false);
@@ -9056,35 +9232,48 @@ return <div style={{position:"absolute",inset:0,background:"#060910",display:"fl
 }
 
 return (
+<FieldMobileContext.Provider value={isMobile}>
 <div ref={containerRef} onClick={handleClick} style={{ width: "100%", height: "100%", background: card.bg, position: "absolute", inset: 0, cursor: "pointer", userSelect: "none", transition: "background 0.7s ease" }}>
-<div style={{ display:"flex", alignItems:"center", gap:8, padding:"14px 16px 0", position:"absolute", top:0, left:0, right:0, zIndex:10 }}>
+<div style={{ display:"flex", flexDirection:"column", gap:0, padding:"14px 16px 0", position:"absolute", top:0, left:0, right:0, zIndex:10 }}>
+<div style={{ display:"flex", alignItems:"center", gap:8 }}>
 <div style={{ flex:1, display:"flex", gap:3 }}>
 {CARDS.map(function(_, i) {
 var visited = i < current;
 var isCurrent = i === current;
+var dotH = isMobile ? (isCurrent ? 5 : 4) : (isCurrent ? 3 : 2.5);
 return <div key={i}
 onClick={function(e){ e.stopPropagation(); if (i <= current) { setCurrent(i); setClicked(false); } }}
-style={{ flex:1, height: isCurrent ? 3 : 2.5, borderRadius:2,
+style={{ flex:1, height: dotH, borderRadius:2,
 background: visited ? "rgba(255,255,255,0.6)" : isCurrent ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.12)",
 transition:"all 0.3s",
 cursor: visited ? "pointer" : "default",
 transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 })}
 </div>
-{sessionCount >= 85 && (
+{sessionCount >= 85 && !isMobile && (
 <span style={{ flexShrink:0, fontSize:8, color:"rgba(214,178,109,0.7)", fontFamily:FB, letterSpacing:"0.08em", maxWidth:90, lineHeight:1.2 }}>Export to backup before archival</span>
 )}
-<button onClick={function(e){ e.stopPropagation(); exportUserData(); }} style={{ flexShrink:0, padding:"4px 10px", fontSize:9, letterSpacing:"0.12em", color:"rgba(255,255,255,0.25)", fontFamily:FB, background:"transparent", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, cursor:"pointer", textTransform:"uppercase" }}>Export</button>
+<button onClick={function(e){ e.stopPropagation(); exportUserData(); }} style={{ flexShrink:0, padding:"4px 10px", minHeight: isMobile ? 44 : undefined, fontSize:9, letterSpacing:"0.12em", color:"rgba(255,255,255,0.25)", fontFamily:FB, background:"transparent", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, cursor:"pointer", textTransform:"uppercase", touchAction:"manipulation" }}>Export</button>
 </div>
-{current < CARDS.length - 1 && (
-<div style={{ position:"absolute", bottom:"max(16px, env(safe-area-inset-bottom))", left:"50%", transform:"translateX(-50%)", zIndex:8, pointerEvents:"none", display:"flex", alignItems:"center", gap:6 }}>
-<span style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontFamily:FB, letterSpacing:"0.2em", textTransform:"uppercase" }}>Tap right →</span>
+{isMobile && <div style={{ padding:"6px 0 0", fontSize:10, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.1em" }}>{current + 1} of {CARDS.length}</div>}
 </div>
-)}
+<div style={{ position:"absolute", bottom:"max(16px, env(safe-area-inset-bottom))", left:0, right:0, zIndex:8, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 20px", pointerEvents:"none" }}>
+<div style={{ pointerEvents:"auto" }}>
+{current > 0 ? (
+<button onClick={function(e){e.stopPropagation();goBack();}} style={{ padding:"10px 18px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.7)", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>← Back</button>
+) : <div style={{ width: isMobile ? 44 : 60 }}/>}
+</div>
+<div style={{ pointerEvents:"auto" }}>
+{current < CARDS.length - 1 ? (
+<button onClick={function(e){e.stopPropagation();advance();}} style={{ padding:"10px 18px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.9)", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:12, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>Next →</button>
+) : <div style={{ width: isMobile ? 44 : 60 }}/>}
+</div>
+</div>
 <div key={current + "-" + clicked} style={{ width: "100%", height: "100%", animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out", position:"relative" }}>
 {(function() { try { return renderCard(); } catch(e) { console.error("[FIELD] renderCard crashed on card", current, "type:", card && card.type, "error:", e.message||e); return <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:"sans-serif",padding:40,textAlign:"center"}}>card error: {e.message}</div>; } })()}
 </div>
 </div>
+</FieldMobileContext.Provider>
 );
 }
 
