@@ -7138,6 +7138,7 @@ var _notesKey = "saycrd-report-notes-" + sessionCount;
 var [_reportNotes, _setReportNotes] = useState("");
 var [_notesSummary, _setNotesSummary] = useState("");
 var [_notesSummarizing, _setNotesSummarizing] = useState(false);
+var [_shareableLoading, _setShareableLoading] = useState(false);
 useEffect(function() {
 try {
 var n = localStorage.getItem(_notesKey) || "";
@@ -7691,29 +7692,54 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 )}
 {_report && (
 <button
-onClick={function(){
-var thList = (themes || []).map(function(t,i){ return { label: t.label||t, color: getThemeColor(t,i) }; });
-var connList = sd.connections || [];
+disabled={_shareableLoading}
+onClick={async function(){
+_setShareableLoading(true);
+try {
+var thList = (themes || []).map(function(t,i){ return { label: (t&&t.label)||String(t), color: getThemeColor(t,i) }; });
+var connList = [];
+var mr = (currentSessionData && currentSessionData.mapResponses) ? currentSessionData.mapResponses : {};
+Object.keys(mr).forEach(function(k){
+var r = mr[k];
+if (r && (r.value==="yes"||r.value==="partly") && r.from && r.to) connList.push({ from: r.from, to: r.to, insight: r.insight||r.comment||"" });
+});
+if (connList.length === 0 && sd.connections) connList = sd.connections.map(function(c){ return { from: c.from, to: c.to, insight: c.insight||"" }; });
+var mapTitle = sd.map_title || sd.mapTitle || "";
+var reportText = (_report.sections||[]).map(function(s){ return (s.title||"")+": "+(s.body||""); }).join("\n\n");
+var rev = currentSessionData && currentSessionData.revisedSynthesis;
+var synthesis = (rev ? (typeof rev==="string" ? rev : rev.synthesis) : sd.synthesis) || "";
+synthesis = synthesis.slice(0,200);
+var opening = (typeof sd.opening==="string" ? sd.opening : (sd.opening&&sd.opening.text) ? sd.opening.text : "").slice(0,120);
+var clarity = (sd.clarity||(currentSessionData&&currentSessionData.clarity)||"").slice(0,100);
+var prompt = "You are a world-leading linguist combined with Peter Thiel and Seth Godin. Write a shareable summary of this reflective session.\n\nVOICE: Precise. Punchy. Every word earns its place. Contrarian where useful. Memorable. Zero filler. Pull the 3-5 most salient points — what actually matters.\n\nINPUT:\n"+reportText+"\n\nSynthesis: "+synthesis+"\nOpening: "+opening+"\nClarity: "+clarity+"\nThemes: "+(thList.map(function(t){return t.label;}).join(", ")||"—")+"\nTension: "+(sd.tension&&sd.tension.a?sd.tension.a+" vs "+sd.tension.b:"—")+"\nMap: "+mapTitle+"\nConnections: "+(connList.map(function(c){return c.from+" ↔ "+c.to+(c.insight?" — "+c.insight.slice(0,60):"");}).join("; ")||"—")+"\n\nReturn JSON only: {\"hook\":\"One sentence that captures the essence. Makes the reader lean in. Not generic.\",\"bullets\":[\"Salient point 1\",\"Salient point 2\",\"Salient point 3\"]}\nMax 4 bullets. Each bullet max 25 words.";
+var raw = await callClaudeClient(prompt, "shareable", 400);
+var parsed = parseJSON(raw);
+var hook = (parsed&&parsed.hook) ? String(parsed.hook).trim() : (_report.oneLineVerdict||"").trim();
+var bullets = (parsed&&Array.isArray(parsed.bullets)&&parsed.bullets.length>0) ? parsed.bullets : [];
 var n = thList.length;
 var cx=50, cy=48, r=32;
 var pts = [];
 for(var i=0;i<n;i++){ var ang=(i/n)*2*Math.PI-Math.PI/2; pts.push({ x: cx+Math.cos(ang)*r, y: cy+Math.sin(ang)*r*0.85, label: thList[i].label, color: thList[i].color||THEME_COLORS[i%THEME_COLORS.length] }); }
 var lineEls = "";
-(connList||[]).forEach(function(c){
+connList.forEach(function(c){
 var a=pts.find(function(p){ return (p.label||"").toLowerCase()===(c.from||"").toLowerCase(); });
 var b=pts.find(function(p){ return (p.label||"").toLowerCase()===(c.to||"").toLowerCase(); });
 if(a&&b) lineEls += '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="rgba(0,0,0,0.2)" stroke-width="0.8"/>';
 });
-var circleEls = pts.map(function(p){ return '<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="'+p.color+'"/><text x="'+p.x+'" y="'+(p.y+5)+'" text-anchor="middle" font-size="4" fill="#333" font-family="Georgia">'+(p.label||"").toUpperCase().slice(0,10)+'</text>'; }).join("");
-var svg = n>0 ? '<svg viewBox="0 0 100 100" style="width:200px;height:200px;display:block;margin:16px auto"><g transform="translate(0,0)">'+lineEls+circleEls+'</g></svg>' : "";
-var summary = (_report && _report.oneLineVerdict ? _report.oneLineVerdict : "") + (_notesSummary ? "\n\n" + _notesSummary : "");
-var body = (_report && _report.sections) ? (_report.sections||[]).slice(0,2).map(function(s){ return (s.body||"").slice(0,300)+(s.body&&s.body.length>300?"…":""); }).join("\n\n") : "";
-var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Session Summary</title><style>body{font-family:Georgia,serif;max-width:400px;margin:24px auto;padding:20px;color:#333;line-height:1.6} h1{font-size:18px;margin-bottom:12px}.map{text-align:center;margin:20px 0} @media print{body{padding:0}}</style></head><body><h1>Session Summary</h1><p style="font-style:italic;color:#555">'+summary.replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")+'</p>'+svg+'<div class="map" style="font-size:11px;color:#888">SAYCRD · '+sessionCount+' session'+(sessionCount!==1?"s":"")+'</div><p style="margin-top:24px;font-size:12px;color:#666">'+body.replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")+'</p></body></html>';
-var w = window.open("","_blank","width=480,height=640");
+var circleEls = pts.map(function(p){ return '<circle cx="'+p.x+'" cy="'+p.y+'" r="4" fill="'+p.color+'"/>'; }).join("");
+var svg = n>0 ? '<svg viewBox="0 0 100 100" style="width:220px;height:220px;display:block;margin:20px auto"><g>'+lineEls+circleEls+'</g></svg>' : "";
+var esc = function(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); };
+var themeListHtml = thList.length>0 ? '<div style="margin:16px 0;padding:12px 0;border-top:1px solid rgba(0,0,0,0.08)"><div style="font-size:10px;letter-spacing:0.2em;color:#888;margin-bottom:8px">THEMES</div><div style="font-size:13px;line-height:1.6;color:#444">'+thList.map(function(t){return esc(t.label);}).join(" · ")+'</div></div>' : "";
+var connListHtml = connList.length>0 ? '<div style="margin:16px 0;padding:12px 0;border-top:1px solid rgba(0,0,0,0.08)"><div style="font-size:10px;letter-spacing:0.2em;color:#888;margin-bottom:8px">CONNECTIONS</div><div style="font-size:12px;line-height:1.8;color:#555">'+connList.map(function(c){var ins = (c.insight||"").trim();return esc(c.from||"")+" ↔ "+esc(c.to||"")+(ins?"<br/><em style=\"font-size:11px;color:#777\">"+esc(ins.length>80?ins.slice(0,80)+"…":ins)+"</em>":"");}).join("<br/>")+'</div></div>' : "";
+var bulletsHtml = bullets.length>0 ? '<ul style="margin:20px 0;padding-left:20px;font-size:14px;line-height:1.7;color:#444">'+bullets.map(function(b){return '<li>'+String(b).replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</li>';}).join("")+'</ul>' : "";
+var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Session Summary</title><style>body{font-family:Georgia,serif;max-width:420px;margin:28px auto;padding:24px;color:#222;line-height:1.65;font-size:15px} h1{font-size:20px;margin-bottom:8px;font-weight:600;letter-spacing:-0.02em} .hook{font-size:17px;font-style:italic;color:#444;margin:16px 0;line-height:1.5} .map-label{text-align:center;font-size:11px;color:#999;margin-top:8px} @media print{body{padding:0;max-width:100%}}</style></head><body><h1>Session Summary</h1><p class="hook">'+(hook.replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>"))+'</p>'+bulletsHtml+svg+'<div class="map-label">'+(mapTitle?mapTitle+" · ":"")+'SAYCRD · '+sessionCount+' session'+(sessionCount!==1?"s":"")+'</div>'+themeListHtml+connListHtml+'</body></html>';
+var w = window.open("","_blank","width=500,height=720");
 if(w){ w.document.write(html); w.document.close(); w.focus(); }
+} catch(e) { console.warn("[SAYCRD] Shareable summary failed:", e); }
+_setShareableLoading(false);
 }}
-style={{ marginTop:16, padding:"12px 20px", fontSize:12, letterSpacing:"0.2em", fontFamily:FB, background:_accent, color:"white", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>
-Create shareable summary
+style={{ marginTop:16, padding:"12px 20px", fontSize:12, letterSpacing:"0.2em", fontFamily:FB, background:_shareableLoading?"rgba(0,0,0,0.2)":_accent, color:"white", border:"none", borderRadius:8, cursor:_shareableLoading?"wait":"pointer", fontWeight:600 }}>
+{_shareableLoading ? "Generating…" : "Create shareable summary"}
 </button>
 )}
 </div>
