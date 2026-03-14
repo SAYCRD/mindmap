@@ -736,8 +736,9 @@ if (ps.cardFeedback) {
 Object.keys(ps.cardFeedback).forEach(function(cardKey) {
 var fb = ps.cardFeedback[cardKey];
 if (!fb) return;
-if (fb.slider !== undefined && fb.slider <= 32) {
-bannedReadings.push("the " + cardKey + " reading (user pushed this away)");
+if (fb.slider !== undefined) {
+var pushThresh = (cardKey === "connection") ? 40 : 32;
+if (fb.slider <= pushThresh) bannedReadings.push("the " + cardKey + " reading (user pushed this away)");
 }
 if (fb.comment && fb.comment.trim()) {
 pastUserWords.push(fb.comment.trim());
@@ -3204,7 +3205,11 @@ var al = s.alchemy ? s.alchemy.stage : "";
 var tn = s.tension ? "[" + s.tension.a + " vs " + s.tension.b + "]" : "";
 var fb = s.cardFeedback ? Object.keys(s.cardFeedback).map(function(k) {
 var f = s.cardFeedback[k];
-var score = f.slider !== undefined ? (f.slider >= 68 ? k + "=landed" : f.slider <= 32 ? k + "=pushed_away" : null) : null;
+var score = f.slider !== undefined ? (function(){
+var land = (k === "connection") ? 55 : 68;
+var push = (k === "connection") ? 40 : 32;
+return f.slider >= land ? k + "=landed" : f.slider <= push ? k + "=pushed_away" : null;
+})() : null;
 return score;
 }).filter(Boolean).join(",") : "";
 return "Session " + (i+1) + ": [" + th + "]" + (al ? " " + al : "") + (tn ? " tension=" + tn : "") + (fb ? " feedback={" + fb + "}" : "");
@@ -4361,9 +4366,11 @@ transition: "all 0.5s cubic-bezier(.34,1.56,.64,1)",
 </div>;
 }
 
-function AccuracySlider({ value, onSlide, color = "#D6B26D", leftLabel = "not quite", rightLabel = "exactly this" }) {
+function AccuracySlider({ value, onSlide, color = "#D6B26D", leftLabel = "not quite", rightLabel = "exactly this", landedAt, pushedAt }) {
 var trackRef = React.useRef(null);
 var [dragging, setDragging] = React.useState(false);
+var _landed = landedAt != null ? landedAt : 68;
+var _pushed = pushedAt != null ? pushedAt : 32;
 function posToValue(clientX) {
 var r = trackRef.current ? trackRef.current.getBoundingClientRect() : null;
 if (!r) return value || 50;
@@ -4395,8 +4402,8 @@ window.removeEventListener("touchend", onUp);
 }, [dragging]);
 function onUp() { setDragging(false); }
 var pct = value;
-var alive = pct >= 68;
-var away = pct <= 32;
+var alive = pct >= _landed;
+var away = pct <= _pushed;
 
 return (
 <div onClick={function(e){ e.stopPropagation(); }} style={{ width:"100%", maxWidth:300, marginTop:22, animation:"riseUp 0.6s ease 1.4s both" }}>
@@ -5519,8 +5526,11 @@ fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break
 );
 }
 
-function MirrorCard({ themes, sd, sessionCount, rawText, portrait, portraitReady, goNext }) {
+function MirrorCard({ themes, sd, sessionCount, rawText, portrait, portraitReady, goNext, setSlider, sliderValues }) {
 themes = themes || [];
+
+var _landVal = (sliderValues && sliderValues.the_mirror !== undefined) ? sliderValues.the_mirror : 50;
+var _setLand = setSlider ? function(v) { setSlider("the_mirror", v); } : function() {};
 
 var _allSessions = (function() {
 try { return loadSessions(); } catch(e) { return []; }
@@ -5659,7 +5669,11 @@ Before and after
 var _tTxt = (_thenWords || []).join(" ");
 var _nTxt = (_nowWords || []).join(" ");
 var stackCols = (_tTxt.length > 22 || _nTxt.length > 22);
+var _opacity = 0.35 + (_landVal / 100) * 0.65;
+var _brightness = 0.5 + (_landVal / 100) * 0.8;
 return (
+<div>
+<div style={{ opacity: _opacity, filter: "brightness(" + _brightness + ")", transition: "opacity 0.25s, filter 0.25s" }}>
 <div style={{ display:"flex", flexDirection: stackCols ? "column" : "row", alignItems:"stretch", gap:16 }}>
 
 <div style={{ flex:1, minWidth:0 }}>
@@ -5752,7 +5766,10 @@ lineHeight:1.25
 )}
 </div>
 </div>
-
+</div>
+<div style={{ marginTop:20 }} data-noadvance>
+<AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
+</div>
 </div>
 );
 })()}
@@ -6103,51 +6120,64 @@ var isEmerging = stageKey === "emerging" || stageKey === "too_soon";
 return (
 <svg viewBox="0 0 260 200" style={{ width: "100%", maxWidth: 280, display: "block" }}>
 <defs>
-<radialGradient id={"mvg_"+stageKey}><stop offset="0%" stopColor={c} stopOpacity="0.2"/><stop offset="100%" stopColor={c} stopOpacity="0"/></radialGradient>
-<linearGradient id="mvl_cat" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6BFFB8"/><stop offset="100%" stopColor="#4ae88a"/></linearGradient>
-<linearGradient id={"mvw_"+stageKey} x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#E8A0D4"/><stop offset="50%" stopColor="#C470E8"/><stop offset="100%" stopColor="#7744CC"/></linearGradient>
+<radialGradient id={"mvg_"+stageKey}><stop offset="0%" stopColor={c} stopOpacity="0.25"/><stop offset="100%" stopColor={c} stopOpacity="0"/></radialGradient>
+<linearGradient id="mvl_cat" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#7BFFC8"/><stop offset="50%" stopColor="#5BDF9A"/><stop offset="100%" stopColor="#3AB872"/></linearGradient>
+<linearGradient id={"mvw_"+stageKey} x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#F0B0E0"/><stop offset="40%" stopColor="#D080E8"/><stop offset="70%" stopColor="#A050D8"/><stop offset="100%" stopColor="#6838B8"/></linearGradient>
+<radialGradient id="mv_inner_digesting" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#B8A8D8" stopOpacity="0.55"/><stop offset="60%" stopColor="#9080B8" stopOpacity="0.2"/><stop offset="100%" stopColor="#706090" stopOpacity="0"/></radialGradient>
 </defs>
 <ellipse cx="130" cy="100" rx="90" ry="70" fill={"url(#mvg_"+stageKey+")"}/>
 {isCaterpillar && (
 <g>
-<ellipse cx="100" cy="140" rx="45" ry="12" fill="url(#mvl_cat)" opacity="0.9"><animate attributeName="opacity" values="0.85;0.95;0.85" dur="3s" repeatCount="indefinite"/></ellipse>
-{[0,1,2,3,4,5].map(function(i){ return <circle key={i} cx={70+i*18} cy={138} r={3} fill="#5BAA7A" opacity={0.8}/>; })}
-<path d="M 55 135 Q 50 125 55 118" stroke="#6BFFB8" strokeWidth="2" fill="none" opacity="0.7"/>
-<ellipse cx="180" cy="125" rx="25" ry="18" fill="#2d5a3d" opacity="0.6"/>
-<ellipse cx="195" cy="120" rx="15" ry="12" fill="#1a3d28" opacity="0.5"/>
-{stageKey === "eating" && <circle cx="165" cy="128" r="4" fill="#4ae88a" opacity="0.6"><animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/></circle>}
+<ellipse cx="100" cy="140" rx="45" ry="12" fill="url(#mvl_cat)" opacity="0.92"><animate attributeName="opacity" values="0.88;0.98;0.88" dur="2.8s" repeatCount="indefinite"/></ellipse>
+{[0,1,2,3,4,5].map(function(i){ return <circle key={i} cx={70+i*18} cy={138} r={3.2} fill="#4B9A6A" opacity={0.85}/>; })}
+<path d="M 55 135 Q 50 125 55 118" stroke="#6BFFB8" strokeWidth="2.2" fill="none" opacity="0.8"/>
+<ellipse cx="180" cy="125" rx="25" ry="18" fill="#2d5a3d" opacity="0.65"/>
+<ellipse cx="195" cy="120" rx="15" ry="12" fill="#1a3d28" opacity="0.55"/>
+{stageKey === "eating" && <circle cx="165" cy="128" r="4.5" fill="#5BFFA0" opacity="0.7"><animate attributeName="r" values="3.5;5.5;3.5" dur="1.4s" repeatCount="indefinite"/></circle>}
 {stageKey === "spinning" && (
-<path d="M 130 90 Q 110 70 90 85 Q 100 100 130 95" stroke="rgba(200,220,200,0.5)" strokeWidth="1" fill="none" strokeDasharray="4 6"><animate attributeName="stroke-dashoffset" values="0;20" dur="2s" repeatCount="indefinite"/></path>
+<path d="M 130 90 Q 110 70 90 85 Q 100 100 130 95" stroke="rgba(180,220,180,0.6)" strokeWidth="1.2" fill="none" strokeDasharray="4 6"><animate attributeName="stroke-dashoffset" values="0;24" dur="1.8s" repeatCount="indefinite"/></path>
 )}
 </g>
 )}
 {isChrysalis && (
 <g>
-<ellipse cx="130" cy="105" rx={stageKey==="fighting"?28:24} ry={stageKey==="fighting"?55:50} fill="rgba(90,70,120,0.4)" stroke={c} strokeWidth="1" strokeOpacity="0.4">
-<animate attributeName="ry" values={50+";"+54+";"+50} dur="4s" repeatCount="indefinite"/>
+<ellipse cx="130" cy="105" rx={stageKey==="fighting"?29:25} ry={stageKey==="fighting"?56:52} fill="rgba(70,55,95,0.5)" stroke={c} strokeWidth="1.5" strokeOpacity="0.5">
+<animate attributeName="ry" values={52+";"+57+";"+52} dur="3.5s" repeatCount="indefinite"/>
 </ellipse>
-{stageKey === "digesting" && <ellipse cx="130" cy="108" rx="12" ry="18" fill="rgba(180,160,200,0.15)"><animate attributeName="opacity" values="0.2;0.5;0.2" dur="2.5s" repeatCount="indefinite"/></ellipse>}
+{stageKey === "digesting" && (
+<g>
+<ellipse cx="130" cy="108" rx="14" ry="20" fill="url(#mv_inner_digesting)" opacity="0.9"><animate attributeName="opacity" values="0.5;0.95;0.5" dur="2.8s" repeatCount="indefinite"/></ellipse>
+<circle cx="118" cy="100" r="3" fill={c} opacity="0.4"><animate attributeName="opacity" values="0.2;0.6;0.2" dur="2s" repeatCount="indefinite"/></circle>
+<circle cx="142" cy="112" r="2.5" fill={c} opacity="0.35"><animate attributeName="opacity" values="0.15;0.55;0.15" dur="2.3s" repeatCount="indefinite"/></circle>
+</g>
+)}
 {stageKey === "fighting" && [[-15,0],[12,-20],[-8,25],[18,10]].map(function(xy,i){
-return <g key={i}><circle cx={130+xy[0]} cy={105+xy[1]} r="3" fill={c} opacity="0.6"><animate attributeName="opacity" values="0.3;0.8;0.3" dur={(1.2+i*0.2)+"s"} repeatCount="indefinite"/></circle><circle cx={130-xy[0]*0.7} cy={105-xy[1]*0.7} r="2" fill="rgba(180,170,160,0.4)"><animate attributeName="opacity" values="0.5;0.2;0.5" dur={(1.5+i*0.3)+"s"} repeatCount="indefinite"/></circle></g>;
+return <g key={i}><circle cx={130+xy[0]} cy={105+xy[1]} r="3.5" fill={c} opacity="0.7"><animate attributeName="opacity" values="0.35;0.9;0.35" dur={(1.1+i*0.18)+"s"} repeatCount="indefinite"/></circle><circle cx={130-xy[0]*0.7} cy={105-xy[1]*0.7} r="2.2" fill="rgba(160,150,140,0.5)"><animate attributeName="opacity" values="0.6;0.15;0.6" dur={(1.4+i*0.25)+"s"} repeatCount="indefinite"/></circle></g>;
 })}
 {(stageKey === "forming" || stageKey === "emerging") && (
-<path d="M 130 95 Q 85 75 70 100 Q 55 125 90 145 Q 115 155 130 135" fill={"url(#mvw_"+stageKey+")"} fillOpacity="0.25" stroke={c} strokeWidth="0.8" strokeOpacity="0.4">
-<animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+<g>
+<path d="M 130 95 Q 85 72 68 98 Q 52 124 88 146 Q 114 158 130 132" fill={"url(#mvw_"+stageKey+")"} fillOpacity="0.45" stroke={c} strokeWidth="1.2" strokeOpacity="0.6">
+<animate attributeName="opacity" values="0.7;1;0.7" dur="1.8s" repeatCount="indefinite"/>
 </path>
+<path d="M 130 95 Q 175 72 192 98 Q 208 124 172 146 Q 146 158 130 132" fill={"url(#mvw_"+stageKey+")"} fillOpacity="0.4" stroke={c} strokeWidth="1" strokeOpacity="0.5">
+<animate attributeName="opacity" values="0.65;0.95;0.65" dur="1.8s" repeatCount="indefinite" begin="0.2s"/>
+</path>
+</g>
 )}
 {(stageKey === "emerging" || stageKey === "too_soon") && (
-<path d="M 130 88 L 95 60 M 130 88 L 165 60" stroke={c} strokeWidth="2" strokeOpacity="0.5" fill="none" strokeLinecap="round">
-<animate attributeName="stroke-opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite"/>
+<path d="M 130 86 L 92 55 M 130 86 L 168 55" stroke={c} strokeWidth="2.5" strokeOpacity="0.65" fill="none" strokeLinecap="round">
+<animate attributeName="stroke-opacity" values="0.4;0.85;0.4" dur="1.4s" repeatCount="indefinite"/>
 </path>
 )}
 </g>
 )}
 {isButterfly && (
 <g style={{ animation: "riseUp 0.8s ease" }}>
-<path d="M 130 110 Q 75 60 55 95 Q 35 130 75 160 Q 110 180 130 145" fill={"url(#mvw_"+stageKey+")"} opacity="0.9"><animateTransform attributeName="transform" type="rotate" values="-4 130 120;4 130 120;-4 130 120" dur="2.2s" repeatCount="indefinite"/></path>
-<path d="M 130 110 Q 185 60 205 95 Q 225 130 185 160 Q 150 180 130 145" fill={"url(#mvw_"+stageKey+")"} opacity="0.9"><animateTransform attributeName="transform" type="rotate" values="4 130 120;-4 130 120;4 130 120" dur="2.2s" repeatCount="indefinite"/></path>
-<ellipse cx="130" cy="128" rx="4" ry="14" fill="#1A0A2A"/>
-<circle cx="105" cy="95" r="2.5" fill="#FFE060"/><circle cx="155" cy="95" r="2.5" fill="#FFE060"/>
+<path d="M 130 110 Q 73 58 52 94 Q 30 128 72 162 Q 108 182 130 142" fill={"url(#mvw_"+stageKey+")"} opacity="0.95"><animateTransform attributeName="transform" type="rotate" values="-5 130 118;5 130 118;-5 130 118" dur="2s" repeatCount="indefinite"/></path>
+<path d="M 130 110 Q 187 58 208 94 Q 230 128 188 162 Q 152 182 130 142" fill={"url(#mvw_"+stageKey+")"} opacity="0.95"><animateTransform attributeName="transform" type="rotate" values="5 130 118;-5 130 118;5 130 118" dur="2s" repeatCount="indefinite"/></path>
+<path d="M 130 110 Q 73 58 52 94" stroke="rgba(255,255,255,0.15)" strokeWidth="0.6" fill="none"/><path d="M 130 110 Q 187 58 208 94" stroke="rgba(255,255,255,0.15)" strokeWidth="0.6" fill="none"/>
+<ellipse cx="130" cy="128" rx="4.5" ry="15" fill="#1A0A2A"/>
+<circle cx="102" cy="92" r="2.8" fill="#FFE870"/><circle cx="158" cy="92" r="2.8" fill="#FFE870"/>
 </g>
 )}
 </svg>
@@ -6175,8 +6205,8 @@ window.addEventListener("keydown", h, true);
 return function() { window.removeEventListener("keydown", h, true); };
 }, [idx, evoSessions.length]);
 return (
-<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("input")) goNext && goNext(); }}
-style={{ position:"absolute", inset:0, overflowY:"auto", overflowX:"hidden", cursor:"pointer",
+<div data-noadvance="true"
+style={{ position:"absolute", inset:0, overflowY:"auto", overflowX:"hidden",
 background:"linear-gradient(180deg, #0A0618 0%, #0D0818 30%, #080510 70%, #050308 100%)",
 display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", WebkitOverflowScrolling:"touch" }}>
 <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 30%, "+(st.color||"#6BFFB8")+"12 0%, transparent 60%)", pointerEvents:"none" }}/>
@@ -8111,6 +8141,7 @@ if (current < CARDS.length - 1) { setCurrent(function(c) { return c + 1; }); set
 };
 var goBack = function() { if (current > 0) { setCurrent(function(c) { return c - 1; }); setClicked(false); } };
 var handleClick = function(e) {
+if (card && card.type === "inner_wrapped") return;
 if (e.target.closest && (e.target.closest("button") || e.target.closest("[data-noadvance]") || e.target.tagName === "circle" || e.target.tagName === "svg")) return;
 var rect = containerRef.current ? containerRef.current.getBoundingClientRect() : null;
 if (!rect) return;
@@ -8118,10 +8149,13 @@ var x = (e.clientX || (e.changedTouches && e.changedTouches[0] ? e.changedTouche
 x < rect.width * 0.25 ? goBack() : advance();
 };
 useEffect(function() {
-var handler = function(e) { if (e.key === "ArrowRight" || e.key === " ") advance(); else if (e.key === "ArrowLeft") goBack(); };
+var handler = function(e) {
+if (card && card.type === "inner_wrapped") return;
+if (e.key === "ArrowRight" || e.key === " ") advance(); else if (e.key === "ArrowLeft") goBack();
+};
 window.addEventListener("keydown", handler);
 return function() { window.removeEventListener("keydown", handler); };
-}, [current, clicked, CARDS.length]);
+}, [current, clicked, CARDS.length, card]);
 
 var renderCard = function() {
 switch (card.type) {
@@ -8143,7 +8177,7 @@ return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} por
 }
 
 case "the_mirror": {
-return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} portrait={portrait} portraitReady={portraitReady} goNext={advance} setSlider={setSlider} sliderValues={sliderValues}/>;
 }
 case "the_realm": {
 return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -8489,7 +8523,7 @@ textShadow: bwAlive ? "0 0 50px rgba(126,202,186,0.5)" : "none", transition:"all
 
 case "connection": {
 var cSv = sliderValues.connection !== undefined ? sliderValues.connection : 50;
-var cAlive = cSv >= 68; var cAway = cSv <= 32;
+var cAlive = cSv >= 55; var cAway = cSv <= 40;
 var fromColor = (themes.find(function(t){return t.label===strongConn?.from;}))||{color:"#FFB86B"};
 var toColor = (themes.find(function(t){return t.label===strongConn?.to;}))||{color:"#6BB8FF"};
 return (
@@ -8511,7 +8545,7 @@ textShadow: cAlive ? "0 0 30px rgba(107,184,255,0.3)" : "none", transition:"all 
 {cAlive && <div style={{ marginTop:12, fontSize:14, color:"rgba(107,184,255,0.7)", fontFamily:FB, animation:"riseUp 0.5s ease both" }}>What does this connection ask of you?</div>}
 {cAway && <div style={{ marginTop:12, fontSize:14, color:"rgba(255,255,255,0.5)", fontFamily:FB, animation:"riseUp 0.5s ease both" }}>Not quite — explore the map to find the link that does fit.</div>}
 </>}
-<AccuracySlider value={cSv} onSlide={function(v){setSlider("connection",v);}} color="#6BB8FF" leftLabel="forced" rightLabel="I see it" />
+<AccuracySlider value={cSv} onSlide={function(v){setSlider("connection",v);}} color="#6BB8FF" leftLabel="forced" rightLabel="I see it" landedAt={55} pushedAt={40} />
 </FC>
 );
 }
@@ -9088,16 +9122,16 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 </div>
 </div>
 {isMobile && <div style={{ padding:"6px 0 0", fontSize:10, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.1em" }}>{current + 1} of {CARDS.length}</div>}
-<div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+<div style={{ display:"flex", alignItems:"center", gap:8, marginTop:16 }}>
 <div style={{ pointerEvents:"auto" }}>
 {current > 0 ? (
-<button onClick={function(e){e.stopPropagation();goBack();}} style={{ padding:"8px 14px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.8)", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>← Back</button>
+<button onClick={function(e){e.stopPropagation();goBack();}} style={{ padding:"8px 16px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.85)", background:"rgba(255,255,255,0.06)", border:"none", borderRadius:4, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", boxShadow:"0 0 14px rgba(255,255,255,0.04)", animation:"navGlimmer 3s ease-in-out infinite" }}>← Back</button>
 ) : <div style={{ width: isMobile ? 44 : 52 }}/>}
 </div>
 <div style={{ flex:1 }}/>
 <div style={{ pointerEvents:"auto" }}>
 {current < CARDS.length - 1 ? (
-<button onClick={function(e){e.stopPropagation();advance();}} style={{ padding:"8px 14px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.9)", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:10, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>Next →</button>
+<button onClick={function(e){e.stopPropagation();advance();}} style={{ padding:"8px 16px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.95)", background:"rgba(255,255,255,0.1)", border:"none", borderRadius:4, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent", boxShadow:"0 0 16px rgba(255,255,255,0.06)", animation:"navGlimmer 3s ease-in-out infinite" }}>Next →</button>
 ) : <div style={{ width: isMobile ? 44 : 52 }}/>}
 </div>
 </div>
@@ -9830,6 +9864,7 @@ return (
 @keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.7}50%{transform:translate(-50%,-50%) scale(1.15);opacity:1}}
 @keyframes drawerIn{from{opacity:0;transform:translate(-50%,24px) scale(0.95)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+@keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow:hidden}
