@@ -32,7 +32,7 @@ const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "f
 const GRADIENTS = {
 landing: "#000",
 pour: "linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",
-synthesize: "linear-gradient(160deg, #1A0A2E 0%, #3D1D6B 40%, #E84393 100%)",
+synthesize: "linear-gradient(180deg, #050810 0%, #080c18 35%, #0a0e20 70%, #060a14 100%)",
 cosynth: "linear-gradient(160deg, #080818 0%, #1A0A3E 50%, #2D1060 100%)",
 map: "linear-gradient(160deg, #060810 0%, #0B1020 40%, #111830 100%)",
 session: "linear-gradient(160deg, #0A0A1E 0%, #1A1A3B 40%, #2D1B5B 100%)",
@@ -51,78 +51,6 @@ function Particles({ color, count = 20 }) {
 return <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
 {Array.from({length:count}).map((_,i) => { const s=(i*37+13)%100; return <div key={i} style={{ position: "absolute", left: `${s}%`, top: `${(s*53)%100}%`, width: 2+(s%4), height: 2+(s%4), borderRadius: "50%", background: color, opacity: 0.12+(s%20)*0.015, animation: `floatParticle ${5+s%6}s ease-in-out infinite`, animationDelay: `${-(s%5)}s` }}/>; })}
 </div>;
-}
-
-function MapFormingPreview({ synthesisData, step }) {
-var palette = ["#E84393","#6BFFB8","#B86BFF","#6BB8FF","#FFB86B","#FF6B9D"];
-var nodes = [], conns = [];
-if (synthesisData && synthesisData.themes && synthesisData.themes.length > 0) {
-var themes = synthesisData.themes.slice(0, 7);
-var labelToIdx = {};
-themes.forEach(function(t, i) { labelToIdx[(t.label || "").toLowerCase().trim()] = i; });
-nodes = themes.map(function(t, i) {
-return { label: (t.label || "").slice(0, 12), color: t.color || palette[i % palette.length] };
-});
-var connList = synthesisData.connections || [];
-connList.forEach(function(c) {
-var ai = labelToIdx[(c.from || "").toLowerCase().trim()];
-var bi = labelToIdx[(c.to || "").toLowerCase().trim()];
-if (ai >= 0 && bi >= 0 && ai !== bi) conns.push({ a: ai, b: bi, color: c.color || nodes[ai].color });
-});
-} else {
-nodes = [{ label: "", color: palette[0] }, { label: "", color: palette[1] }, { label: "", color: palette[2] }, { label: "", color: palette[3] }, { label: "", color: palette[4] }];
-conns = [{ a: 0, b: 1, color: palette[0] }, { a: 1, b: 2, color: palette[1] }, { a: 2, b: 3, color: palette[2] }, { a: 3, b: 4, color: palette[3] }, { a: 0, b: 3, color: palette[4] }];
-}
-var n = nodes.length;
-var cx = 130; var cy = 110; var r = 55;
-var nodeData = nodes.map(function(nd, i) {
-var angle = (i / n) * Math.PI * 2 - Math.PI / 2 + 0.2;
-return { cx: cx + Math.cos(angle) * r, cy: cy + Math.sin(angle) * r * 0.85, col: nd.color, label: nd.label, delay: 0.4 + i * 0.25 };
-});
-var lineData = conns.map(function(c, i) {
-var na = nodeData[c.a]; var nb = nodeData[c.b];
-if (!na || !nb) return null;
-return { x1: na.cx, y1: na.cy, x2: nb.cx, y2: nb.cy, col: c.color, delay: 1.2 + i * 0.15 };
-}).filter(Boolean);
-var show = step >= 1;
-if (!show) return null;
-return (
-<div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 0, opacity: synthesisData ? 0.35 : 0.2 }}>
-<svg viewBox="0 0 260 220" style={{ width: "min(90vw, 320px)", height: "auto", maxHeight: "55vh" }}>
-<defs>
-<filter id="mf_glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-</defs>
-{lineData.map(function(l, i) {
-return (
-<line key={"l"+i} x1={l.x1} y1={l.y1} x2={l.x1} y2={l.y1} stroke={l.col} strokeWidth="1.2" strokeOpacity="0" strokeLinecap="round">
-<animate attributeName="stroke-opacity" values="0;0.5" dur="0.6s" begin={l.delay+"s"} fill="freeze"/>
-<animate attributeName="x2" values={String(l.x1)+";"+String(l.x2)} dur="0.5s" begin={l.delay+"s"} fill="freeze"/>
-<animate attributeName="y2" values={String(l.y1)+";"+String(l.y2)} dur="0.5s" begin={l.delay+"s"} fill="freeze"/>
-</line>
-);
-})}
-{nodeData.map(function(nd, i) {
-return (
-<g key={"n"+i}>
-<circle cx={nd.cx} cy={nd.cy} r="12" fill={nd.col} fillOpacity="0.35" filter="url(#mf_glow)">
-<animate attributeName="opacity" values="0;1" dur="0.5s" begin={nd.delay+"s"} fill="freeze"/>
-<animate attributeName="r" values="4;12" dur="0.6s" begin={nd.delay+"s"} fill="freeze"/>
-</circle>
-<circle cx={nd.cx} cy={nd.cy} r="6" fill={nd.col} fillOpacity="0.7">
-<animate attributeName="opacity" values="0;1" dur="0.4s" begin={(nd.delay+0.2)+"s"} fill="freeze"/>
-</circle>
-{nd.label && (
-<text x={nd.cx} y={nd.cy + 22} textAnchor="middle" fontSize="8" fill={nd.col} fillOpacity="0.9" fontFamily="'DM Sans', sans-serif" letterSpacing="0.08em">
-<animate attributeName="opacity" values="0;1" dur="0.4s" begin={(nd.delay+0.3)+"s"} fill="freeze"/>
-{nd.label}
-</text>
-)}
-</g>
-);
-})}
-</svg>
-</div>
-);
 }
 
 function ImaginalCells({ stage, velocity, color }) {
@@ -548,7 +476,6 @@ return (
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
 const [err, setErr] = useState(null);
-const [previewData, setPreviewData] = useState(null);
 const ran = useRef(false);
 useEffect(() => {
 if (ran.current) return; ran.current = true;
@@ -855,7 +782,6 @@ if (data.connections) data.connections = data.connections.map(function(c) {
 var ft = (data.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
-setPreviewData(data);
 onSynthesis(data);
 setTimeout(onComplete, 1200);
 } else { throw new Error("No themes parsed from AI response"); }
@@ -876,7 +802,6 @@ retryData.connections = (retryData.connections || []).map(function(c) {
 var ft = (retryData.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
-setPreviewData(retryData);
 onSynthesis(retryData);
 onComplete();
 return;
@@ -890,21 +815,17 @@ setStep(2);
 return function() { clearTimeout(t1); };
 }, []);
 return (
-<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", overflow: "hidden" }}>
-<Particles color="#E84393" count={25}/>
-<MapFormingPreview synthesisData={step === 2 && !err ? previewData : null} step={step} />
-<div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
-<div style={{ textAlign: "center" }}>
-<BreathingOrb color="#E84393" size={100}/>
-<div style={{ marginTop: 28, fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "white", animation: "pulse 2s ease infinite" }}>
+<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+<div style={{ textAlign: "center", padding: "0 32px" }}>
+<div style={{ width: 6, height: 6, borderRadius: "50%", background: err ? "rgba(255,107,107,0.8)" : "rgba(107,184,255,0.5)", margin: "0 auto 28px", animation: err ? "none" : "pulse 2s ease infinite" }}/>
+<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: err ? "rgba(255,107,107,0.9)" : "rgba(255,255,255,0.88)", lineHeight: 1.4 }}>
 {step===0&&"Reading your words..."}
 {step===1&&"Finding what's underneath..."}
-{step===2&&(err?"Error: " + (err.length > 90 ? err.slice(0,90)+"…" : err):"Building your map...")}
-{err && <button onClick={function(){ window.location.reload(); }} style={{ marginTop:16, padding:"8px 22px", borderRadius:999, border:"1px solid rgba(255,107,107,0.3)", background:"transparent", color:"rgba(255,107,107,0.6)", fontFamily:FB, fontSize:12, cursor:"pointer", display:"block", margin:"16px auto 0" }}>go back and retry</button>}
+{step===2&&(err?"Error: " + (err.length > 90 ? err.slice(0,90)+"…" : err):"Building your map..." )}
 </div>
-<div style={{ marginTop: 16, fontSize: 13, color: err?"rgba(255,107,107,0.5)":"rgba(255,255,255,0.25)", fontFamily: FB }}>
+{err && <button onClick={function(){ window.location.reload(); }} style={{ marginTop:20, padding:"10px 24px", borderRadius:999, border:"1px solid rgba(255,107,107,0.4)", background:"transparent", color:"rgba(255,107,107,0.7)", fontFamily:FB, fontSize:13, cursor:"pointer" }}>go back and retry</button>}
+<div style={{ marginTop: 14, fontSize: 12, color: err ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.2)", fontFamily: FB }}>
 {err ? err.slice(0,60) : step < 2 ? "analyzing patterns…" : "themes found"}
-</div>
 </div>
 </div>
 </div>
@@ -6161,66 +6082,121 @@ return (
 );
 }
 
+var METAMORPHOSIS_STAGES = [
+{ key: "eating", label: "The hunger is the work", desc: "Still building mass. Consuming what you need.", alch: "nigredo", color: "#6BFFB8" },
+{ key: "spinning", label: "Spinning the cocoon", desc: "The old form can't hold. You're making a space for what comes next.", alch: "nigredo", color: "#7DB7AE" },
+{ key: "digesting", label: "Dissolving", desc: "The caterpillar is becoming soup. Imaginal cells are waiting.", alch: "albedo", color: "#AAAACC" },
+{ key: "fighting", label: "Imaginal cells vs the old", desc: "Something new is fighting to form. The old structure resists.", alch: "albedo", color: "#B86BFF" },
+{ key: "forming", label: "Something coherent forming", desc: "The imaginal cells found each other. Wings are taking shape.", alch: "citrinitas", color: "#D6B26D" },
+{ key: "emerging", label: "Breaking out", desc: "The caterpillar wouldn't recognize what's coming. Almost there.", alch: "citrinitas", color: "#E8B84E" },
+{ key: "too_soon", label: "Came out too soon", desc: "The timing wasn't right. The wings need more time.", alch: "citrinitas", color: "#FFB86B" },
+{ key: "flying", label: "Airborne", desc: "Same matter, utterly reconfigured. You're flying.", alch: "rubedo", color: "#E84393" }
+];
+
+function MetamorphosisViz({ stageKey }) {
+var st = METAMORPHOSIS_STAGES.find(function(s){ return s.key === stageKey; }) || METAMORPHOSIS_STAGES[0];
+var c = st.color;
+var isCaterpillar = stageKey === "eating" || stageKey === "spinning";
+var isChrysalis = ["digesting","fighting","forming","emerging","too_soon"].indexOf(stageKey) >= 0;
+var isButterfly = stageKey === "flying";
+var isEmerging = stageKey === "emerging" || stageKey === "too_soon";
+return (
+<svg viewBox="0 0 260 200" style={{ width: "100%", maxWidth: 280, display: "block" }}>
+<defs>
+<radialGradient id={"mvg_"+stageKey}><stop offset="0%" stopColor={c} stopOpacity="0.2"/><stop offset="100%" stopColor={c} stopOpacity="0"/></radialGradient>
+<linearGradient id="mvl_cat" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#6BFFB8"/><stop offset="100%" stopColor="#4ae88a"/></linearGradient>
+<linearGradient id={"mvw_"+stageKey} x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#E8A0D4"/><stop offset="50%" stopColor="#C470E8"/><stop offset="100%" stopColor="#7744CC"/></linearGradient>
+</defs>
+<ellipse cx="130" cy="100" rx="90" ry="70" fill={"url(#mvg_"+stageKey+")"}/>
+{isCaterpillar && (
+<g>
+<ellipse cx="100" cy="140" rx="45" ry="12" fill="url(#mvl_cat)" opacity="0.9"><animate attributeName="opacity" values="0.85;0.95;0.85" dur="3s" repeatCount="indefinite"/></ellipse>
+{[0,1,2,3,4,5].map(function(i){ return <circle key={i} cx={70+i*18} cy={138} r={3} fill="#5BAA7A" opacity={0.8}/>; })}
+<path d="M 55 135 Q 50 125 55 118" stroke="#6BFFB8" strokeWidth="2" fill="none" opacity="0.7"/>
+<ellipse cx="180" cy="125" rx="25" ry="18" fill="#2d5a3d" opacity="0.6"/>
+<ellipse cx="195" cy="120" rx="15" ry="12" fill="#1a3d28" opacity="0.5"/>
+{stageKey === "eating" && <circle cx="165" cy="128" r="4" fill="#4ae88a" opacity="0.6"><animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/></circle>}
+{stageKey === "spinning" && (
+<path d="M 130 90 Q 110 70 90 85 Q 100 100 130 95" stroke="rgba(200,220,200,0.5)" strokeWidth="1" fill="none" strokeDasharray="4 6"><animate attributeName="stroke-dashoffset" values="0;20" dur="2s" repeatCount="indefinite"/></path>
+)}
+</g>
+)}
+{isChrysalis && (
+<g>
+<ellipse cx="130" cy="105" rx={stageKey==="fighting"?28:24} ry={stageKey==="fighting"?55:50} fill="rgba(90,70,120,0.4)" stroke={c} strokeWidth="1" strokeOpacity="0.4">
+<animate attributeName="ry" values={50+";"+54+";"+50} dur="4s" repeatCount="indefinite"/>
+</ellipse>
+{stageKey === "digesting" && <ellipse cx="130" cy="108" rx="12" ry="18" fill="rgba(180,160,200,0.15)"><animate attributeName="opacity" values="0.2;0.5;0.2" dur="2.5s" repeatCount="indefinite"/></ellipse>}
+{stageKey === "fighting" && [[-15,0],[12,-20],[-8,25],[18,10]].map(function(xy,i){
+return <g key={i}><circle cx={130+xy[0]} cy={105+xy[1]} r="3" fill={c} opacity="0.6"><animate attributeName="opacity" values="0.3;0.8;0.3" dur={(1.2+i*0.2)+"s"} repeatCount="indefinite"/></circle><circle cx={130-xy[0]*0.7} cy={105-xy[1]*0.7} r="2" fill="rgba(180,170,160,0.4)"><animate attributeName="opacity" values="0.5;0.2;0.5" dur={(1.5+i*0.3)+"s"} repeatCount="indefinite"/></circle></g>;
+})}
+{(stageKey === "forming" || stageKey === "emerging") && (
+<path d="M 130 95 Q 85 75 70 100 Q 55 125 90 145 Q 115 155 130 135" fill={"url(#mvw_"+stageKey+")"} fillOpacity="0.25" stroke={c} strokeWidth="0.8" strokeOpacity="0.4">
+<animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+</path>
+)}
+{(stageKey === "emerging" || stageKey === "too_soon") && (
+<path d="M 130 88 L 95 60 M 130 88 L 165 60" stroke={c} strokeWidth="2" strokeOpacity="0.5" fill="none" strokeLinecap="round">
+<animate attributeName="stroke-opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite"/>
+</path>
+)}
+</g>
+)}
+{isButterfly && (
+<g style={{ animation: "riseUp 0.8s ease" }}>
+<path d="M 130 110 Q 75 60 55 95 Q 35 130 75 160 Q 110 180 130 145" fill={"url(#mvw_"+stageKey+")"} opacity="0.9"><animateTransform attributeName="transform" type="rotate" values="-4 130 120;4 130 120;-4 130 120" dur="2.2s" repeatCount="indefinite"/></path>
+<path d="M 130 110 Q 185 60 205 95 Q 225 130 185 160 Q 150 180 130 145" fill={"url(#mvw_"+stageKey+")"} opacity="0.9"><animateTransform attributeName="transform" type="rotate" values="4 130 120;-4 130 120;4 130 120" dur="2.2s" repeatCount="indefinite"/></path>
+<ellipse cx="130" cy="128" rx="4" ry="14" fill="#1A0A2A"/>
+<circle cx="105" cy="95" r="2.5" fill="#FFE060"/><circle cx="155" cy="95" r="2.5" fill="#FFE060"/>
+</g>
+)}
+</svg>
+);
+}
+
 function InnerWrappedCard({ themes, sd, sessionCount, goNext }) {
 themes = themes || []; sd = sd || {};
 var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
-var _lastIdx = Math.max(0, _all.length - 1);
-var [slide, setSlide] = useState(0);
-var currentThemes = themes.length > 0 ? themes : (_all[_lastIdx] && _all[_lastIdx].themes) || [];
-var currentConns = (sd && sd.connections) || (_all[_lastIdx] && _all[_lastIdx].connections) || [];
-var maxSlides = 2;
-
-var advanceSlide = function() {
-if (slide + 1 >= maxSlides) { goNext && goNext(); return; }
-setSlide(slide + 1);
-};
+var evoSessions = _all.length > 0 ? _all : [{ alchemy: sd.alchemy || null, isCurrent: true }];
+var [idx, setIdx] = useState(Math.max(0, evoSessions.length - 1));
+var sel = evoSessions[Math.min(idx, evoSessions.length - 1)] || {};
+var alchStage = (sel.alchemy && sel.alchemy.stage) ? sel.alchemy.stage : null;
+var stageFromAlch = alchStage ? (alchStage === "nigredo" ? (idx < evoSessions.length * 0.5 ? "eating" : "spinning") : alchStage === "albedo" ? (idx % 2 === 0 ? "digesting" : "fighting") : alchStage === "citrinitas" ? (idx === evoSessions.length - 1 && evoSessions.length >= 3 ? "emerging" : "forming") : "flying") : null;
+var frac = evoSessions.length <= 1 ? 0.5 : idx / (evoSessions.length - 1);
+var stageFromPos = !stageFromAlch ? (frac < 0.2 ? "eating" : frac < 0.4 ? "spinning" : frac < 0.6 ? "digesting" : frac < 0.8 ? "forming" : "flying") : null;
+var stageKey = stageFromAlch || stageFromPos || "forming";
+var st = METAMORPHOSIS_STAGES.find(function(s){ return s.key === stageKey; }) || METAMORPHOSIS_STAGES[4];
 useEffect(function() {
 var h = function(e) {
-if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); e.stopPropagation(); advanceSlide(); }
-if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); if (slide > 0) setSlide(slide - 1); }
+if (e.key === "ArrowRight") { e.preventDefault(); if (idx < evoSessions.length - 1) setIdx(idx + 1); else goNext && goNext(); }
+if (e.key === "ArrowLeft") { e.preventDefault(); if (idx > 0) setIdx(idx - 1); }
 };
 window.addEventListener("keydown", h, true);
 return function() { window.removeEventListener("keydown", h, true); };
-}, [slide]);
+}, [idx, evoSessions.length]);
 return (
-<div data-noadvance="true" onClick={function(e){ e.stopPropagation(); if (!e.target.closest("button") && !e.target.closest("[data-nolink]")) advanceSlide(); }}
+<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("input")) goNext && goNext(); }}
 style={{ position:"absolute", inset:0, overflowY:"auto", overflowX:"hidden", cursor:"pointer",
 background:"linear-gradient(180deg, #0A0618 0%, #0D0818 30%, #080510 70%, #050308 100%)",
 display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", WebkitOverflowScrolling:"touch" }}>
-<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 20%, rgba(120,80,180,0.08) 0%, transparent 60%)", pointerEvents:"none" }}/>
-<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 60% 50% at 80% 80%, rgba(180,100,255,0.05) 0%, transparent 70%)", pointerEvents:"none" }}/>
-<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 24px 60px" }}>
-
-{slide === 0 && (
-<div style={{ textAlign:"center", animation:"riseUp 0.8s ease both" }}>
-<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:32, textTransform:"uppercase" }}>YOUR</div>
-<div style={{ fontSize:42, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", lineHeight:1, marginBottom:8 }}>
-INNER
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 30%, "+(st.color||"#6BFFB8")+"12 0%, transparent 60%)", pointerEvents:"none" }}/>
+<div style={{ position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"32px 24px 48px", width:"100%", maxWidth:360 }}>
+<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:20, textTransform:"uppercase" }}>INNER WEATHER</div>
+<div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:24 }}>metamorphosis · where you are in the continuum</div>
+<MetamorphosisViz stageKey={stageKey}/>
+<div style={{ marginTop:24, fontSize:18, fontWeight:700, color:st.color, fontFamily:FB, letterSpacing:"0.08em", textAlign:"center" }}>{st.label}</div>
+<div style={{ marginTop:10, fontSize:14, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.6, textAlign:"center", maxWidth:300 }}>{st.desc}</div>
+{evoSessions.length > 1 && (
+<div style={{ width:"100%", maxWidth:280, marginTop:28 }} onClick={function(e){ e.stopPropagation(); }}>
+<input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
+onChange={function(e){ setIdx(parseInt(e.target.value, 10)); }}
+style={{ width:"100%", accentColor:st.color, cursor:"pointer" }}/>
+<div style={{ display:"flex", justifyContent:"space-between", marginTop:8, fontSize:10, letterSpacing:"0.15em", color:"rgba(255,255,255,0.35)", fontFamily:FB }}>
+<span>Session 1</span>
+<span>Session {evoSessions.length}</span>
 </div>
-<div style={{ fontSize:42, fontWeight:200, color:"rgba(255,255,255,0.5)", fontFamily:FB, letterSpacing:"0.12em", lineHeight:1 }}>
-WEATHER
-</div>
-<div style={{ fontSize:15, color:"rgba(255,255,255,0.6)", fontFamily:FD, fontStyle:"italic", marginTop:28, lineHeight:1.5 }}>what's showing up</div>
 </div>
 )}
-
-{slide === 1 && (
-<div style={{ position:"relative", width:"100%", display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.7s ease both", perspective:"1000px" }}>
-<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 100% 80% at 50% 50%, rgba(107,184,255,0.12) 0%, transparent 60%)", pointerEvents:"none", animation:"pulse 4s ease-in-out infinite" }}/>
-<div style={{ width:"100%", display:"flex", justifyContent:"center", transform:"rotateX(8deg)", transformStyle:"preserve-3d", transition:"transform 0.6s ease" }}>
-<div style={{ position:"relative", filter:"drop-shadow(0 0 40px rgba(107,184,255,0.25)) drop-shadow(0 0 80px rgba(180,100,255,0.05))" }}>
-<ConstellationMap thList={currentThemes.map(function(t,i){ return Object.assign({}, t, { color: getThemeColor(t, i) }); })} connList={currentConns}/>
-</div>
-</div>
-<div style={{ marginTop:20, fontSize:13, letterSpacing:"0.3em", color:"rgba(255,255,255,0.7)", fontFamily:FB, textTransform:"uppercase" }}>themes as constellations</div>
-</div>
-)}
-
-<div style={{ position:"absolute", bottom:28, left:0, right:0, display:"flex", justifyContent:"center", gap:6 }}>
-{Array.from({length: maxSlides}).map(function(_, i) {
-return <div key={i} style={{ width:6, height:6, borderRadius:"50%", background: slide === i ? "rgba(214,178,109,0.8)" : "rgba(255,255,255,0.15)", transition:"all 0.3s ease" }}/>;
-})}
-</div>
 </div>
 </div>
 );
@@ -6294,75 +6270,6 @@ return (
 </div>
 </div>
 )}
-</div>
-);
-}
-
-function MapEvolutionCard({ themes, sd, sessionCount, allSessions, currentSessionData, goNext }) {
-themes = themes || []; sd = sd || {}; allSessions = allSessions || []; currentSessionData = currentSessionData || {};
-var currThemes = (currentSessionData.themes || sd.themes || themes || []).map(function(t){ var o = typeof t === "object" ? t : { label: t }; return { label: o.label || o, weight: o.weight || 1 }; });
-var currentEntry = Object.assign({}, currentSessionData, { themes: currThemes, date: currentSessionData.date || new Date().toISOString(), isCurrent: true });
-var evoSessions = allSessions.concat([currentEntry]);
-var [idx, setIdx] = useState(evoSessions.length - 1);
-var sel = evoSessions[Math.min(idx, evoSessions.length - 1)] || {};
-var selThemes = (sel.themes || []).map(function(t,i){ var o = typeof t === "object" ? t : { label: t }; return Object.assign({}, o, { color: getThemeColor(o, i) }); });
-var selConns = sel.connections || [];
-var selArch = (sel.archetypes && sel.archetypes[0]) ? sel.archetypes[0] : null;
-var prevArch = idx > 0 ? (evoSessions[idx - 1].archetypes && evoSessions[idx - 1].archetypes[0]) : null;
-var selDesc = (sel.synthesis||"").trim()||(sel.sessionSummary||"").trim();
-if(!selDesc&&sel.themes&&sel.themes.length){ var t=sel.themes.slice(0,3).map(function(x){return (x.label||x);}).join(", "); var tens=sel.tension&&sel.tension.a?" — "+sel.tension.a+" vs "+sel.tension.b:""; selDesc=t+tens; }
-if(!selDesc&&(sel.rawText||"").trim()) selDesc=(sel.rawText||"").slice(0,120).trim()+(sel.rawText.length>120?"…":"");
-selDesc=(selDesc||"In this session.").slice(0,200)+(selDesc&&selDesc.length>200?"…":"");
-return (
-<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("input")) goNext && goNext(); }}
-style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
-background:"linear-gradient(180deg, #040810 0%, #080614 50%, #040208 100%)",
-display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% 30%, rgba(100,180,255,0.06) 0%, transparent 60%)", pointerEvents:"none" }}/>
-<div style={{ position:"absolute", top:48, left:28, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.35)", fontFamily:FB, textTransform:"uppercase" }}>YOUR NOTEBOOK</div>
-<div style={{ position:"absolute", top:48, right:28, fontSize:9, letterSpacing:"0.2em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>SESSION {idx + 1} of {evoSessions.length}</div>
-<div style={{ textAlign:"center", marginBottom:16, animation:"riseUp 0.6s ease both" }}>
-<div style={{ fontSize:28, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", lineHeight:1.1 }}>MAP EVOLUTION</div>
-<div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", fontFamily:FD, fontStyle:"italic", marginTop:8 }}>how your inner sky has shifted</div>
-</div>
-<div style={{ width:"min(320px, 90%)", marginBottom:16 }}>
-<input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
-onChange={function(e){ setIdx(parseInt(e.target.value, 10)); }}
-onClick={function(e){ e.stopPropagation(); }}
-style={{ width:"100%", accentColor:"#6BB8FF", cursor:"pointer" }}/>
-<div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:9, letterSpacing:"0.15em", color:"rgba(255,255,255,0.3)", fontFamily:FB }}>
-<span>Session 1</span>
-<span>Session {evoSessions.length}</span>
-</div>
-</div>
-<div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:12, minHeight:140 }}>
-{(prevArch && selArch && prevArch.name !== selArch.name) ? (
-<>
-<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease both" }}>
-<ArchGlyph name={prevArch.name||""} color={prevArch.color||getThemeColor(prevArch,0)} size={44}/>
-<div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.15em", marginTop:6 }}>was</div>
-<div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", fontFamily:FB, fontWeight:600 }}>{prevArch.name}</div>
-</div>
-<div style={{ fontSize:18, color:"rgba(107,184,255,0.5)", animation:"pulse 1.5s ease infinite" }}>→</div>
-<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease 0.1s both" }}>
-<ArchGlyph name={selArch.name||""} color={selArch.color||getThemeColor(selArch,1)} size={52}/>
-<div style={{ fontSize:9, color:"rgba(107,184,255,0.7)", fontFamily:FB, letterSpacing:"0.15em", marginTop:6 }}>now</div>
-<div style={{ fontSize:12, color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:600 }}>{selArch.name}</div>
-</div>
-</>
-) : selArch ? (
-<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease both" }}>
-<ArchGlyph name={selArch.name||""} color={selArch.color||getThemeColor(selArch,0)} size={70}/>
-<div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", fontFamily:FB, fontWeight:600, marginTop:8 }}>{selArch.name}</div>
-</div>
-) : null}
-</div>
-<div style={{ width:"100%", display:"flex", justifyContent:"center", marginBottom:16, animation:"riseUp 0.6s ease 0.15s both" }}>
-<ConstellationMap thList={selThemes} connList={selConns}/>
-</div>
-{selArch && selArch.line ? <div style={{ fontSize:14, color:"rgba(255,255,255,0.6)", fontFamily:FD, fontStyle:"italic", lineHeight:1.5, marginBottom:10, textAlign:"center", maxWidth:300 }}>{selArch.line}</div> : null}
-{sel.date ? <div style={{ marginBottom:8, fontSize:10, color:"rgba(255,255,255,0.3)", fontFamily:FB, letterSpacing:"0.12em" }}>{new Date(sel.date).toLocaleDateString("en-US", { month:"short", day:"numeric", year: sel.isCurrent ? "numeric" : undefined })}</div> : null}
-{selDesc ? <div style={{ fontSize:14, color:"rgba(255,255,255,0.72)", fontFamily:FD, lineHeight:1.6, textAlign:"center", maxWidth:320 }}>{selDesc}</div> : null}
 </div>
 );
 }
@@ -8190,7 +8097,6 @@ c.push({ type: "whats_growing", bg: "#010A04" });
 c.push({ type: "the_mirror", bg: "#08080C" });
 c.push({ type: "the_realm", bg: "#04020A" });
 c.push({ type: "inner_wrapped", bg: "#0A0618" });
-c.push({ type: "map_evolution", bg: "#040810" });
 }
 c.push({ type: "year_review", bg: "#060606" });
 c.push({ type: "field_report", bg: "#FAFAF8" });
@@ -8244,9 +8150,6 @@ return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={
 }
 case "inner_wrapped": {
 return <InnerWrappedCard themes={themes} sd={sd} sessionCount={sessionCount} goNext={advance}/>;
-}
-case "map_evolution": {
-return <MapEvolutionCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} goNext={advance}/>;
 }
 case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -9183,10 +9086,6 @@ cursor: visited ? "pointer" : "default",
 transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 })}
 </div>
-{sessionCount >= 85 && !isMobile && (
-<span style={{ flexShrink:0, fontSize:8, color:"rgba(214,178,109,0.7)", fontFamily:FB, letterSpacing:"0.08em", maxWidth:90, lineHeight:1.2 }}>Export to backup before archival</span>
-)}
-<button onClick={function(e){ e.stopPropagation(); exportUserData(); }} style={{ flexShrink:0, padding:"4px 10px", minHeight: isMobile ? 44 : undefined, fontSize:9, letterSpacing:"0.12em", color:"rgba(255,255,255,0.25)", fontFamily:FB, background:"transparent", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, cursor:"pointer", textTransform:"uppercase", touchAction:"manipulation" }}>Export</button>
 </div>
 {isMobile && <div style={{ padding:"6px 0 0", fontSize:10, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.1em" }}>{current + 1} of {CARDS.length}</div>}
 <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
