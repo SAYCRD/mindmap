@@ -415,19 +415,19 @@ const [text, setText] = useState("");
 const [words, setWords] = useState([]);
 useEffect(() => { setWords(text.split(/\s+/).filter(x => x.length > 3)); }, [text]);
 const wc = text.split(/\s+/).filter(Boolean).length;
+const canContinue = wc >= 20;
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 <FloatingWords words={words} color="#6BB8FF"/><Particles color="#6BB8FF" count={15}/>
-<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "40px 24px 24px", paddingBottom: "calc(100px + env(safe-area-inset-bottom, 0px))" }}>
-<div style={{ fontSize: 11, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>
-<h1 style={{ fontSize: "clamp(28px, 8vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
-<p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic", margin: "0 0 32px", textAlign: "center", zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
-<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 180, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(19px, 5vw, 23px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
-<div style={{ marginTop: 20, fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.4)"}}> · keep going</span>}</div>
+<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: "24px 20px 24px", paddingBottom: "calc(88px + env(safe-area-inset-bottom, 0px))" }}>
+<div style={{ fontSize: 12, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 12, fontFamily: FB, zIndex: 1 }}>POUR</div>
+<h1 style={{ fontSize: "clamp(26px, 7vw, 36px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.15 }}>What's alive<br/>in you right now?</h1>
+<p style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", fontFamily: FD, fontStyle: "italic", margin: "0 0 24px", textAlign: "center", zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
+<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 160, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
+<div style={{ marginTop: 16, fontSize: 13, color: "rgba(255,255,255,0.5)", fontFamily: FB }}>{wc} words{wc>0&&wc<20&&<span style={{color:"rgba(107,184,255,0.6)"}}> · keep going</span>}</div>
 </div>
-<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "16px 24px", paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.97) 70%, transparent)", borderTop: "1px solid rgba(107,184,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", boxSizing: "border-box", zIndex: 20 }}>
-<div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>{wc} words</div>
-{wc>=20&&<button onClick={function(){ onComplete(text); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", borderRadius: 24, padding: "14px 32px", minHeight: 52, minWidth: 160, color: "white", fontSize: 16, fontFamily: FB, fontWeight: 600, cursor: "pointer", animation: "riseUp 0.4s ease", touchAction: "manipulation", boxShadow: "0 4px 20px rgba(107,184,255,0.35)", WebkitTapHighlightColor: "transparent" }}>Synthesize →</button>}
+<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 85%, transparent)", borderTop: "1px solid rgba(107,184,255,0.12)", display: "flex", justifyContent: "center", alignItems: "center", boxSizing: "border-box", zIndex: 20 }}>
+<button onClick={function(){ if(canContinue) onComplete(text); }} disabled={!canContinue} style={{ flex: 1, maxWidth: 280, background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.12)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.25)", borderRadius: 24, padding: "14px 24px", minHeight: 48, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none", WebkitTapHighlightColor: "transparent", opacity: canContinue ? 1 : 0.9 }}>{canContinue ? "Synthesize →" : "20 words to continue"}</button>
 </div>
 </div>
 );
@@ -1355,7 +1355,7 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
 <Particles color="rgba(107,184,255,0.25)" count={14}/>
 <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
-<div style={{ fontSize: 9, letterSpacing: "0.35em", color: "rgba(255,255,255,0.25)", fontFamily: FB, textTransform: "uppercase", marginBottom: 4 }}>Your constellation</div>
+<div style={{ fontSize: 12, letterSpacing: "0.35em", color: "rgba(255,255,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: 4 }}>Your constellation</div>
 <div style={{ fontSize: 16, fontWeight: 500, color: "#F7F5F0", fontFamily: FD, letterSpacing: "0.03em" }}>
 What’s pulling you right now
 </div>
@@ -1364,7 +1364,7 @@ What’s pulling you right now
 {sd.tension.a} &nbsp;↔&nbsp; {sd.tension.b}
 </div>
 )}
-<p style={{ fontSize: 11, color: snapTarget?"#7DB7AE":selectedNode?"#6BFFB8":explored===0?"rgba(178,216,255,0.95)":"rgba(255,255,255,0.4)", fontFamily: FB, margin: "6px 0 0", fontWeight: 500, transition: "color 0.3s" }}>
+<p style={{ fontSize: 13, color: snapTarget?"#7DB7AE":selectedNode?"#6BFFB8":explored===0?"rgba(178,216,255,0.95)":"rgba(255,255,255,0.55)", fontFamily: FB, margin: "6px 0 0", fontWeight: 500, transition: "color 0.3s" }}>
 {snapTarget
   ? `Release to connect → ${snapTarget}`
   : selectedNode
@@ -1375,9 +1375,9 @@ What’s pulling you right now
 </p>
 {(()=>{ var growthCount = allConns.filter(function(c){ var r=responses[K(c)]; return r&&(r.value==="partly"||r.value==="no"); }).length; return growthCount>0 ? (
 <div style={{ marginTop:8, display:"flex", alignItems:"center", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
-<span style={{ fontSize:9, letterSpacing:"0.2em", color:"rgba(165,235,220,0.7)", fontFamily:FB }}>● partly</span>
-<span style={{ fontSize:9, letterSpacing:"0.2em", color:"rgba(214,178,100,0.7)", fontFamily:FB }}>● resisted</span>
-<span style={{ fontSize:8, letterSpacing:"0.15em", color:"rgba(255,255,255,0.25)", fontFamily:FB }}>— growth edges</span>
+<span style={{ fontSize:12, letterSpacing:"0.2em", color:"rgba(165,235,220,0.8)", fontFamily:FB }}>● partly</span>
+<span style={{ fontSize:12, letterSpacing:"0.2em", color:"rgba(214,178,100,0.8)", fontFamily:FB }}>● resisted</span>
+<span style={{ fontSize:11, letterSpacing:"0.15em", color:"rgba(255,255,255,0.45)", fontFamily:FB }}>— growth edges</span>
 </div>
 ) : null; })()}
 </div>
@@ -1623,10 +1623,13 @@ onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();makeC
 </div>
 </div>
 ) : (
-<button onClick={function(){setMapInputOpen(true);}} style={{ position:"absolute", bottom: 16, right: 16, zIndex: 20, width: 40, height: 40, borderRadius: 999, background: "rgba(107,184,255,0.15)", border: "1px solid rgba(107,184,255,0.35)", color: "rgba(107,184,255,0.9)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", fontFamily: "system-ui" }} title="Type to add connection">+</button>
+<button onClick={function(){setMapInputOpen(true);}} style={{ position:"absolute", bottom: explored>=1 ? "calc(72px + env(safe-area-inset-bottom, 0px))" : 16, right: 16, zIndex: 20, width: 44, height: 44, borderRadius: 999, background: "rgba(107,184,255,0.15)", border: "1px solid rgba(107,184,255,0.35)", color: "rgba(107,184,255,0.9)", fontSize: 20, cursor: "pointer", display: "grid", placeItems: "center", fontFamily: "system-ui", touchAction: "manipulation" }} title="Type to add connection">+</button>
 )}
-{explored>=1&&<button 
-onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ position:"absolute",bottom:mapInputOpen?"calc(130px + env(safe-area-inset-bottom, 0px))":"calc(16px + env(safe-area-inset-bottom, 0px))",left:"50%",transform:"translateX(-50%)",width:"calc(100% - 32px)",maxWidth:340,background:"linear-gradient(135deg, rgba(30,40,60,0.92), rgba(20,30,55,0.95))",border:"1px solid rgba(107,184,255,0.35)",borderRadius:24,padding:"13px 28px",minHeight:48,color:"rgba(107,184,255,0.9)",fontSize:13,fontFamily:FB,fontWeight:500,cursor:"pointer",zIndex:25,animation:"riseUp 0.5s ease",backdropFilter:"blur(12px)",letterSpacing:"0.06em",boxShadow:"0 4px 24px rgba(0,0,0,0.5)",touchAction:"manipulation" }}>continue →</button>}
+{explored>=1&&(
+<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
+<button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "rgba(255,255,255,0.95)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>continue →</button>
+</div>
+)}
 </div>
 );
 }
@@ -8074,7 +8077,6 @@ c.push({ type: "field_report", bg: "#FAFAF8" });
 return c;
 }, [archResponse, tension, underneath.length, primaryArch, blindSpot, strongConn, topWordCount, themes.length, sessionCount]);
 
-console.log("[FIELD] CARDS[0]:", CARDS[0]&&CARDS[0].type, "CARDS[1]:", CARDS[1]&&CARDS[1].type, "current:", current, "total:", CARDS.length);
 var card = CARDS[current];
 
 var advance = function() {
@@ -9067,6 +9069,11 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 )}
 <button onClick={function(e){ e.stopPropagation(); exportUserData(); }} style={{ flexShrink:0, padding:"4px 10px", fontSize:9, letterSpacing:"0.12em", color:"rgba(255,255,255,0.25)", fontFamily:FB, background:"transparent", border:"1px solid rgba(255,255,255,0.1)", borderRadius:8, cursor:"pointer", textTransform:"uppercase" }}>Export</button>
 </div>
+{current < CARDS.length - 1 && (
+<div style={{ position:"absolute", bottom:"max(16px, env(safe-area-inset-bottom))", left:"50%", transform:"translateX(-50%)", zIndex:8, pointerEvents:"none", display:"flex", alignItems:"center", gap:6 }}>
+<span style={{ fontSize:11, color:"rgba(255,255,255,0.4)", fontFamily:FB, letterSpacing:"0.2em", textTransform:"uppercase" }}>Tap right →</span>
+</div>
+)}
 <div key={current + "-" + clicked} style={{ width: "100%", height: "100%", animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out", position:"relative" }}>
 {(function() { try { return renderCard(); } catch(e) { console.error("[FIELD] renderCard crashed on card", current, "type:", card && card.type, "error:", e.message||e); return <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:"sans-serif",padding:40,textAlign:"center"}}>card error: {e.message}</div>; } })()}
 </div>
@@ -9172,7 +9179,7 @@ see the concept
 </div>
 )}
 
-<div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginTop:48 }}>
+<div className="saycrd-landing-grid" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginTop:48 }}>
 
 <div style={{ borderRadius:20, overflow:"hidden", position:"relative", height:160,
 background:"linear-gradient(160deg, #1A0A2E, #0E0618)",
@@ -9804,6 +9811,15 @@ button:active{transform:scale(0.97)}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+@media (prefers-reduced-motion: reduce){
+*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+}
+@media (max-width:640px){
+.saycrd-landing-grid{grid-template-columns:repeat(2,1fr)!important}
+}
+@media (max-width:420px){
+.saycrd-landing-grid{grid-template-columns:1fr!important}
+}
 `}</style>
 <div style={{ position: "fixed", bottom: 4, right: 8, fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: FB, zIndex: 9999, pointerEvents: "none" }}>v5.2 | {cp}:{phase}</div>
 </div>
