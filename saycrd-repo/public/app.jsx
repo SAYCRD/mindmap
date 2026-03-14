@@ -5633,7 +5633,7 @@ The mirror needs two sessions to show you what moved. Come back.
 </div>
 </div>
 ) : (
-<>
+<div>
 <div style={{ marginBottom:32, animation:"riseUp 0.7s ease 0.1s both" }}>
 <div style={{ fontSize:11, letterSpacing:"0.2em",
 color:"rgba(200,220,255,0.6)", fontFamily:FB, marginBottom:12 }}>
@@ -5779,7 +5779,7 @@ color:"rgba(220,235,255,0.8)", fontFamily:FD, lineHeight:1.5 }}>
 Same archetype, deeper work — you're staying with it.
 </div>
 )}
-</>
+</div>
 )}
 </div>
 
