@@ -5615,20 +5615,19 @@ return function(){ cancelled = true; };
 
 return (
 <div style={{ position:"absolute", inset:0, overflow:"hidden",
-background:"linear-gradient(160deg, #06080F 0%, #080610 60%, #08060C 100%)",
+background:"linear-gradient(165deg, #0E1220 0%, #141830 35%, #1A1E38 70%, #12162A 100%)",
 display:"flex", flexDirection:"column" }}>
 
-<div style={{ position:"absolute", inset:0, opacity:0.025, pointerEvents:"none",
-backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E\")",
-backgroundSize:"200px 200px" }}/>
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 20%, rgba(140,170,255,0.12) 0%, transparent 55%)", pointerEvents:"none" }}/>
+<div style={{ position:"absolute", bottom:0, left:0, right:0, height:"50%", background:"radial-gradient(ellipse 100% 80% at 50% 100%, rgba(180,140,255,0.08) 0%, transparent 60%)", pointerEvents:"none" }}/>
 
 <div style={{ padding:"52px 28px 0", flexShrink:0 }}>
 <div style={{ fontSize:8, letterSpacing:"0.55em",
-color:"rgba(200,210,240,0.2)", fontFamily:FB, marginBottom:6 }}>
+color:"rgba(200,220,255,0.4)", fontFamily:FB, marginBottom:6 }}>
 SAYCRD
 </div>
-<div style={{ fontSize:10, letterSpacing:"0.4em",
-color:"rgba(200,210,240,0.35)", fontFamily:FB }}>
+<div style={{ fontSize:11, letterSpacing:"0.4em",
+color:"rgba(220,235,255,0.7)", fontFamily:FB, fontWeight:600 }}>
 THE MIRROR
 </div>
 </div>
@@ -5639,12 +5638,12 @@ overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
 
 {_isFirst ? (
 <div style={{ animation:"riseUp 0.8s ease 0.2s both" }}>
-<div style={{ fontSize:22, fontWeight:700, color:"rgba(255,255,255,0.75)",
+<div style={{ fontSize:22, fontWeight:700, color:"rgba(255,255,255,0.9)",
 fontFamily:FB, lineHeight:1.3, marginBottom:14,
 wordBreak:"break-word" }}>
 This is your first session.
 </div>
-<div style={{ fontSize:15, color:"rgba(200,210,240,0.4)",
+<div style={{ fontSize:16, color:"rgba(220,235,255,0.65)",
 fontFamily:FD, lineHeight:1.7 }}>
 The mirror needs two sessions to show you what moved. Come back.
 </div>
@@ -5653,14 +5652,14 @@ The mirror needs two sessions to show you what moved. Come back.
 <div>
 
 <div style={{ marginBottom:44, animation:"riseUp 0.7s ease 0.1s both" }}>
-<div style={{ fontSize:9, letterSpacing:"0.45em",
-color:"rgba(200,210,240,0.25)", fontFamily:FB, marginBottom:20 }}>
+<div style={{ fontSize:10, letterSpacing:"0.45em",
+color:"rgba(200,220,255,0.5)", fontFamily:FB, marginBottom:20 }}>
 WHAT MOVED
 </div>
 
 {_ready && _shift ? (
-<div style={{ fontSize:22, fontWeight:600,
-color:"rgba(255,255,255,0.88)", fontFamily:FD,
+<div style={{ fontSize:23, fontWeight:600,
+color:"rgba(255,255,255,0.95)", fontFamily:FD,
 lineHeight:1.55, wordBreak:"break-word",
 overflowWrap:"break-word" }}>
 {_shift}
@@ -5687,33 +5686,34 @@ return (
 <div style={{ display:"flex", flexDirection: stackCols ? "column" : "row", alignItems:"stretch", gap:16 }}>
 
 <div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:8, letterSpacing:"0.4em",
-color:"rgba(120,150,200,0.4)", fontFamily:FB, marginBottom:10 }}>
+<div style={{ fontSize:9, letterSpacing:"0.4em",
+color:"rgba(140,170,230,0.65)", fontFamily:FB, marginBottom:10 }}>
 {_thenLabel}
 </div>
 <div style={{
-padding:"14px 14px",
-borderRadius:16,
-background:"linear-gradient(180deg, rgba(120,150,200,0.10), rgba(120,150,200,0.04))",
-border:"1px solid rgba(120,150,200,0.18)"
+padding:"18px 18px",
+borderRadius:18,
+background:"linear-gradient(180deg, rgba(140,170,230,0.18), rgba(140,170,230,0.08))",
+border:"1px solid rgba(140,170,230,0.35)",
+boxShadow:"0 4px 20px rgba(0,0,0,0.15)"
 }}>
-<div style={{ fontSize:16, fontWeight:800,
-color: _archShifted ? "rgba(120,150,200,0.45)" : "rgba(120,150,200,0.8)",
+<div style={{ fontSize:17, fontWeight:800,
+color: _archShifted ? "rgba(140,170,230,0.6)" : "rgba(200,220,255,0.95)",
 fontFamily:FB, lineHeight:1.25,
 textDecoration: _archShifted ? "line-through" : "none",
-textDecorationColor:"rgba(120,150,200,0.25)",
+textDecorationColor:"rgba(140,170,230,0.4)",
 wordBreak:"break-word", overflowWrap:"anywhere" }}>
 {_sameContent ? (_openingFull || _prevArch || "—") : (_prevArch || "—")}
 </div>
 {_thenWords && _thenWords.length > 0 && (
-<div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
+<div style={{ marginTop:12, display:"flex", flexWrap:"wrap", gap:8 }}>
 {_thenWords.slice(0,4).map(function(w, wi) {
 return <div key={wi} style={{
-fontSize:10, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
-padding:"5px 10px", borderRadius:999,
-border:"1px solid rgba(120,150,200,0.18)",
-background:"rgba(0,0,0,0.10)",
-color:"rgba(200,210,240,0.55)",
+fontSize:11, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
+padding:"6px 12px", borderRadius:999,
+border:"1px solid rgba(140,170,230,0.3)",
+background:"rgba(255,255,255,0.06)",
+color:"rgba(220,235,255,0.8)",
 maxWidth:"100%",
 whiteSpace:"normal",
 wordBreak:"break-word",
@@ -5729,39 +5729,40 @@ lineHeight:1.25
 <div style={{
 paddingTop: stackCols ? 2 : 22,
 textAlign:"center",
-color:"rgba(200,210,240,0.15)",
-fontSize:18,
+color:"rgba(200,220,255,0.4)",
+fontSize:20,
 flexShrink:0
 }}>
 {stackCols ? "↓" : "→"}
 </div>
 
 <div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:8, letterSpacing:"0.4em",
-color:_currColor+"88", fontFamily:FB, marginBottom:10 }}>
+<div style={{ fontSize:9, letterSpacing:"0.4em",
+color:_currColor+"cc", fontFamily:FB, marginBottom:10 }}>
 {_nowLabel}
 </div>
 <div style={{
-padding:"14px 14px",
-borderRadius:16,
-background:"linear-gradient(180deg, "+_currColor+"14, "+_currColor+"06)",
-border:"1px solid "+_currColor+"22"
+padding:"18px 18px",
+borderRadius:18,
+background:"linear-gradient(180deg, "+_currColor+"28, "+_currColor+"12)",
+border:"1px solid "+_currColor+"55",
+boxShadow:"0 4px 20px rgba(0,0,0,0.15)"
 }}>
-<div style={{ fontSize:16, fontWeight:900,
+<div style={{ fontSize:17, fontWeight:900,
 color:_currColor, fontFamily:FB, lineHeight:1.25,
-textShadow:"0 0 20px "+_currColor+"33",
+textShadow:"0 0 24px "+_currColor+"44",
 wordBreak:"break-word", overflowWrap:"anywhere" }}>
 {_sameContent ? (_blindFull || _currArch || "—") : (_currArch || "—")}
 </div>
 {_nowWords && _nowWords.length > 0 && (
-<div style={{ marginTop:10, display:"flex", flexWrap:"wrap", gap:8 }}>
+<div style={{ marginTop:12, display:"flex", flexWrap:"wrap", gap:8 }}>
 {_nowWords.slice(0,4).map(function(w, wi) {
 return <div key={wi} style={{
-fontSize:10, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
-padding:"5px 10px", borderRadius:999,
-border:"1px solid "+_currColor+"22",
-background:"rgba(0,0,0,0.10)",
-color:_currColor+"bb",
+fontSize:11, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
+padding:"6px 12px", borderRadius:999,
+border:"1px solid "+_currColor+"44",
+background:"rgba(255,255,255,0.06)",
+color:_currColor+"ee",
 maxWidth:"100%",
 whiteSpace:"normal",
 wordBreak:"break-word",
@@ -5779,8 +5780,8 @@ lineHeight:1.25
 })()}
 
 {!_archShifted && _prevArch && (
-<div style={{ marginTop:12, fontSize:11,
-color:"rgba(200,210,240,0.22)", fontFamily:FB, letterSpacing:"0.1em" }}>
+<div style={{ marginTop:12, fontSize:12,
+color:"rgba(200,220,255,0.5)", fontFamily:FB, letterSpacing:"0.1em" }}>
 SAME GROUND · DEEPER WORK
 </div>
 )}
@@ -5792,8 +5793,8 @@ SAME GROUND · DEEPER WORK
 
 <div style={{ padding:"0 28px 36px", flexShrink:0,
 display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-<div style={{ fontSize:8, letterSpacing:"0.35em",
-color:"rgba(200,210,240,0.12)", fontFamily:FB }}>
+<div style={{ fontSize:9, letterSpacing:"0.35em",
+color:"rgba(200,220,255,0.4)", fontFamily:FB }}>
 SESSION {sessionCount}
 </div>
 </div>
@@ -6249,67 +6250,87 @@ themes = themes || []; sd = sd || {}; allSessions = allSessions || []; currentSe
 var currThemes = (currentSessionData.themes || sd.themes || themes || []).map(function(t){ var o = typeof t === "object" ? t : { label: t }; return { label: o.label || o, weight: o.weight || 1 }; });
 var currentEntry = Object.assign({}, currentSessionData, { themes: currThemes, date: currentSessionData.date || new Date().toISOString(), isCurrent: true });
 var evoSessions = allSessions.concat([currentEntry]);
-return (
-<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button")) goNext && goNext(); }}
-style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
-background:"linear-gradient(180deg, #040810 0%, #080614 50%, #040208 100%)",
-display:"flex", flexDirection:"column" }}>
-<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% 0%, rgba(100,180,255,0.05) 0%, transparent 50%)", pointerEvents:"none" }}/>
-<div style={{ flexShrink:0, padding:"40px 24px 20px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.3)", fontFamily:FB, textTransform:"uppercase", marginBottom:4 }}>YOUR NOTEBOOK</div>
-<div style={{ fontSize:22, fontWeight:700, color:"white", fontFamily:FB, letterSpacing:"-0.02em" }}>Map Evolution</div>
-<div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", fontFamily:FD, fontStyle:"italic", marginTop:4 }}>scroll through your sessions</div>
-</div>
-<div style={{ flex:1, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", padding:"24px 20px 80px" }}>
-{evoSessions.slice().reverse().map(function(s, ri){
-var si = evoSessions.length - 1 - ri;
-var arch = (s.archetypes && s.archetypes[0]) ? s.archetypes[0] : null;
-var alchStage = (s.alchemy && s.alchemy.stage) ? s.alchemy.stage : "nigredo";
+var [idx, setIdx] = useState(evoSessions.length - 1);
+var sel = evoSessions[Math.min(idx, evoSessions.length - 1)] || {};
+var selThemes = (sel.themes || []).map(function(t,i){ var o = typeof t === "object" ? t : { label: t }; return Object.assign({}, o, { color: getThemeColor(o, i) }); });
+var selConns = sel.connections || [];
+var selArch = (sel.archetypes && sel.archetypes[0]) ? sel.archetypes[0] : null;
+var prevArch = idx > 0 ? (evoSessions[idx - 1].archetypes && evoSessions[idx - 1].archetypes[0]) : null;
+var alchStage = (sel.alchemy && sel.alchemy.stage) ? sel.alchemy.stage : "nigredo";
 var alchInfo = FIELD_ALCHEMY[alchStage] || FIELD_ALCHEMY.nigredo;
-var archColor = (arch && arch.color) || (s.themes && s.themes[0] && s.themes[0].color) || getThemeColor(arch, si);
+var archColor = (selArch && selArch.color) || (sel.themes && sel.themes[0] && sel.themes[0].color) || getThemeColor(selArch, idx);
+var desc = (sel.synthesis || "").trim() || (sel.sessionSummary || "").trim();
+if (!desc && sel.themes && sel.themes.length) {
+var th = sel.themes.slice(0,3).map(function(t){ return (t.label||t); }).join(", ");
+var tens = sel.tension && sel.tension.a ? " — " + sel.tension.a + " vs " + sel.tension.b : "";
+desc = th + tens;
+}
+if (!desc && (sel.rawText || "").trim()) desc = (sel.rawText || "").slice(0, 120).trim() + (sel.rawText.length > 120 ? "…" : "");
+desc = (desc || "In this session.").slice(0, 220) + (desc && desc.length > 220 ? "…" : "");
 var dateStr = "", timeStr = "";
-if (s.date) {
-var d = new Date(s.date);
+if (sel.date) {
+var d = new Date(sel.date);
 if (!isNaN(d)) {
-dateStr = d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:s.isCurrent?"numeric":"2-digit" });
+dateStr = d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:sel.isCurrent?"numeric":"2-digit" });
 var hr = d.getHours(), mn = d.getMinutes(), ampm = hr>=12 ? "pm" : "am";
 hr = hr % 12 || 12;
 timeStr = hr + ":" + (mn<10 ? "0"+mn : mn) + ampm;
 }
-}
-var desc = (s.synthesis || "").trim() || (s.sessionSummary || "").trim();
-if (!desc && s.themes && s.themes.length) {
-var th = s.themes.slice(0,3).map(function(t){ return (t.label||t); }).join(", ");
-var tens = s.tension && s.tension.a ? " — " + s.tension.a + " vs " + s.tension.b : "";
-desc = th + tens;
-}
-if (!desc && (s.rawText || "").trim()) desc = (s.rawText || "").slice(0, 120).trim() + (s.rawText.length > 120 ? "…" : "");
-desc = (desc || "In this session.").slice(0, 200) + (desc && desc.length > 200 ? "…" : "");
 return (
-<div key={si} style={{ marginBottom:28, paddingBottom:24, borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, marginBottom:12 }}>
-<div>
-<div style={{ fontSize:11, letterSpacing:"0.2em", color:alchInfo.color||"#888", fontFamily:FB, fontWeight:600 }}>{alchInfo.label}</div>
-<div style={{ fontSize:9, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>{alchInfo.sub}</div>
+<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button") && !e.target.closest("input")) goNext && goNext(); }}
+style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
+background:"linear-gradient(180deg, #040810 0%, #080614 50%, #040208 100%)",
+display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start" }}>
+<div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 70% 50% at 50% 30%, rgba(100,180,255,0.06) 0%, transparent 60%)", pointerEvents:"none" }}/>
+<div style={{ position:"absolute", top:48, left:28, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.35)", fontFamily:FB, textTransform:"uppercase" }}>YOUR NOTEBOOK</div>
+<div style={{ position:"absolute", top:48, right:28, fontSize:9, letterSpacing:"0.2em", color:"rgba(255,255,255,0.25)", fontFamily:FB }}>SESSION {idx + 1} of {evoSessions.length}</div>
+<div style={{ textAlign:"center", marginTop:72, marginBottom:20, animation:"riseUp 0.6s ease both" }}>
+<div style={{ fontSize:26, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", lineHeight:1.15 }}>Map Evolution</div>
+<div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", fontFamily:FD, fontStyle:"italic", marginTop:8 }}>how your inner sky has shifted</div>
 </div>
-<div style={{ width:88, height:72, flexShrink:0, opacity:0.9 }}>
-<ImaginalCells stage={alchStage} velocity="stable" color={alchInfo.color||"#888"}/>
+<div style={{ width:"min(320px, 90%)", marginBottom:24 }}>
+<input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
+onChange={function(e){ setIdx(parseInt(e.target.value, 10)); }}
+onClick={function(e){ e.stopPropagation(); }}
+style={{ width:"100%", accentColor:"#6BB8FF", cursor:"pointer" }}/>
+<div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:10, letterSpacing:"0.15em", color:"rgba(255,255,255,0.4)", fontFamily:FB }}>
+<span>Session 1</span>
+<span>Session {evoSessions.length}</span>
 </div>
 </div>
-<div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-<ArchGlyph name={arch ? arch.name : ""} color={archColor} size={32}/>
-<div style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.95)", fontFamily:FB }}>{arch ? arch.name : "—"}</div>
+<div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:16, minHeight:120 }}>
+{(prevArch && selArch && prevArch.name !== selArch.name) ? (
+<>
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease both" }}>
+<ArchGlyph name={prevArch.name||""} color={prevArch.color||getThemeColor(prevArch,0)} size={48}/>
+<div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", fontFamily:FB, letterSpacing:"0.15em", marginTop:8 }}>was</div>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", fontFamily:FB, fontWeight:600 }}>{prevArch.name}</div>
 </div>
-{arch && arch.line && <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:10, lineHeight:1.5 }}>{arch.line}</div>}
-<div style={{ fontSize:10, color:"rgba(255,255,255,0.25)", fontFamily:FB, letterSpacing:"0.1em", marginBottom:8 }}>{dateStr}{timeStr ? " · " + timeStr : ""}</div>
-<div style={{ fontSize:13, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.6 }}>{desc}</div>
+<div style={{ fontSize:20, color:"rgba(107,184,255,0.5)", animation:"pulse 1.5s ease infinite" }}>→</div>
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease 0.1s both" }}>
+<ArchGlyph name={selArch.name||""} color={selArch.color||getThemeColor(selArch,1)} size={56}/>
+<div style={{ fontSize:10, color:"rgba(107,184,255,0.8)", fontFamily:FB, letterSpacing:"0.15em", marginTop:8 }}>now</div>
+<div style={{ fontSize:14, color:"rgba(255,255,255,0.95)", fontFamily:FB, fontWeight:600 }}>{selArch.name}</div>
 </div>
-);
-})}
+</>
+) : selArch ? (
+<div style={{ display:"flex", flexDirection:"column", alignItems:"center", animation:"riseUp 0.5s ease both" }}>
+<ArchGlyph name={selArch.name||""} color={selArch.color||getThemeColor(selArch,0)} size={72}/>
+<div style={{ fontSize:14, color:"rgba(255,255,255,0.9)", fontFamily:FB, fontWeight:600, marginTop:10 }}>{selArch.name}</div>
 </div>
-<div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px 24px", background:"linear-gradient(0deg, #040208 40%, transparent)", pointerEvents:"none" }}>
-<div style={{ fontSize:9, letterSpacing:"0.3em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>TAP TO CONTINUE</div>
+) : null}
 </div>
+<div style={{ width:"100%", maxWidth: 300, display:"flex", justifyContent:"center", marginBottom:20, animation:"riseUp 0.6s ease 0.15s both" }}>
+<ConstellationMap thList={selThemes} connList={selConns}/>
+</div>
+<div style={{ width:"min(340px, 92%)", padding:"0 20px", maxHeight:140, overflowY:"auto", animation:"riseUp 0.6s ease 0.2s both" }}>
+{selArch && selArch.line && <div style={{ fontSize:15, color:"rgba(255,255,255,0.65)", fontFamily:FD, fontStyle:"italic", lineHeight:1.55, marginBottom:12 }}>
+"{selArch.line}"
+</div>}
+<div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.12em", marginBottom:8 }}>{dateStr}{timeStr ? " · " + timeStr : ""}</div>
+<div style={{ fontSize:15, color:"rgba(255,255,255,0.78)", fontFamily:FD, lineHeight:1.65, fontWeight:400 }}>{desc}</div>
+</div>
+<div style={{ position:"absolute", bottom:28, fontSize:9, letterSpacing:"0.3em", color:"rgba(255,255,255,0.18)", fontFamily:FB }}>TAP TO CONTINUE</div>
 </div>
 );
 }
