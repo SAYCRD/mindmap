@@ -53,6 +53,78 @@ return <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointer
 </div>;
 }
 
+function MapFormingPreview({ synthesisData, step }) {
+var palette = ["#E84393","#6BFFB8","#B86BFF","#6BB8FF","#FFB86B","#FF6B9D"];
+var nodes = [], conns = [];
+if (synthesisData && synthesisData.themes && synthesisData.themes.length > 0) {
+var themes = synthesisData.themes.slice(0, 7);
+var labelToIdx = {};
+themes.forEach(function(t, i) { labelToIdx[(t.label || "").toLowerCase().trim()] = i; });
+nodes = themes.map(function(t, i) {
+return { label: (t.label || "").slice(0, 12), color: t.color || palette[i % palette.length] };
+});
+var connList = synthesisData.connections || [];
+connList.forEach(function(c) {
+var ai = labelToIdx[(c.from || "").toLowerCase().trim()];
+var bi = labelToIdx[(c.to || "").toLowerCase().trim()];
+if (ai >= 0 && bi >= 0 && ai !== bi) conns.push({ a: ai, b: bi, color: c.color || nodes[ai].color });
+});
+} else {
+nodes = [{ label: "", color: palette[0] }, { label: "", color: palette[1] }, { label: "", color: palette[2] }, { label: "", color: palette[3] }, { label: "", color: palette[4] }];
+conns = [{ a: 0, b: 1, color: palette[0] }, { a: 1, b: 2, color: palette[1] }, { a: 2, b: 3, color: palette[2] }, { a: 3, b: 4, color: palette[3] }, { a: 0, b: 3, color: palette[4] }];
+}
+var n = nodes.length;
+var cx = 130; var cy = 110; var r = 55;
+var nodeData = nodes.map(function(nd, i) {
+var angle = (i / n) * Math.PI * 2 - Math.PI / 2 + 0.2;
+return { cx: cx + Math.cos(angle) * r, cy: cy + Math.sin(angle) * r * 0.85, col: nd.color, label: nd.label, delay: 0.4 + i * 0.25 };
+});
+var lineData = conns.map(function(c, i) {
+var na = nodeData[c.a]; var nb = nodeData[c.b];
+if (!na || !nb) return null;
+return { x1: na.cx, y1: na.cy, x2: nb.cx, y2: nb.cy, col: c.color, delay: 1.2 + i * 0.15 };
+}).filter(Boolean);
+var show = step >= 1;
+if (!show) return null;
+return (
+<div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 0, opacity: synthesisData ? 0.35 : 0.2 }}>
+<svg viewBox="0 0 260 220" style={{ width: "min(90vw, 320px)", height: "auto", maxHeight: "55vh" }}>
+<defs>
+<filter id="mf_glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+{lineData.map(function(l, i) {
+return (
+<line key={"l"+i} x1={l.x1} y1={l.y1} x2={l.x1} y2={l.y1} stroke={l.col} strokeWidth="1.2" strokeOpacity="0" strokeLinecap="round">
+<animate attributeName="stroke-opacity" values="0;0.5" dur="0.6s" begin={l.delay+"s"} fill="freeze"/>
+<animate attributeName="x2" values={String(l.x1)+";"+String(l.x2)} dur="0.5s" begin={l.delay+"s"} fill="freeze"/>
+<animate attributeName="y2" values={String(l.y1)+";"+String(l.y2)} dur="0.5s" begin={l.delay+"s"} fill="freeze"/>
+</line>
+);
+})}
+{nodeData.map(function(nd, i) {
+return (
+<g key={"n"+i}>
+<circle cx={nd.cx} cy={nd.cy} r="12" fill={nd.col} fillOpacity="0.35" filter="url(#mf_glow)">
+<animate attributeName="opacity" values="0;1" dur="0.5s" begin={nd.delay+"s"} fill="freeze"/>
+<animate attributeName="r" values="4;12" dur="0.6s" begin={nd.delay+"s"} fill="freeze"/>
+</circle>
+<circle cx={nd.cx} cy={nd.cy} r="6" fill={nd.col} fillOpacity="0.7">
+<animate attributeName="opacity" values="0;1" dur="0.4s" begin={(nd.delay+0.2)+"s"} fill="freeze"/>
+</circle>
+{nd.label && (
+<text x={nd.cx} y={nd.cy + 22} textAnchor="middle" fontSize="8" fill={nd.col} fillOpacity="0.9" fontFamily="'DM Sans', sans-serif" letterSpacing="0.08em">
+<animate attributeName="opacity" values="0;1" dur="0.4s" begin={(nd.delay+0.3)+"s"} fill="freeze"/>
+{nd.label}
+</text>
+)}
+</g>
+);
+})}
+</svg>
+</div>
+);
+}
+
 function ImaginalCells({ stage, velocity, color }) {
 var ratios = { nigredo: 0.18, albedo: 0.42, citrinitas: 0.70, rubedo: 0.92 };
 var imaginalRatio = ratios[stage] || 0.3;
@@ -476,6 +548,7 @@ return (
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
 const [err, setErr] = useState(null);
+const [previewData, setPreviewData] = useState(null);
 const ran = useRef(false);
 useEffect(() => {
 if (ran.current) return; ran.current = true;
@@ -782,6 +855,7 @@ if (data.connections) data.connections = data.connections.map(function(c) {
 var ft = (data.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
+setPreviewData(data);
 onSynthesis(data);
 setTimeout(onComplete, 1200);
 } else { throw new Error("No themes parsed from AI response"); }
@@ -802,6 +876,7 @@ retryData.connections = (retryData.connections || []).map(function(c) {
 var ft = (retryData.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
+setPreviewData(retryData);
 onSynthesis(retryData);
 onComplete();
 return;
@@ -817,6 +892,7 @@ return function() { clearTimeout(t1); };
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", overflow: "hidden" }}>
 <Particles color="#E84393" count={25}/>
+<MapFormingPreview synthesisData={step === 2 && !err ? previewData : null} step={step} />
 <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
 <div style={{ textAlign: "center" }}>
 <BreathingOrb color="#E84393" size={100}/>
@@ -948,9 +1024,6 @@ const [dragging, setDragging] = useState(null);
 const [selectedNode, setSelectedNode] = useState(null);
 const [discoveredConns, setDiscoveredConns] = useState([]);
 const [snapTarget, setSnapTarget] = useState(null);
-const [mapInputOpen, setMapInputOpen] = useState(false);
-const [mapInputText, setMapInputText] = useState("");
-const [mapInputBusy, setMapInputBusy] = useState(false);
 const SNAP_DIST = 130;
 
 const sd = synthesisData;
@@ -1280,37 +1353,6 @@ setDiscoveredConns(function(prev) { return prev.map(function(c) { return (c.from
 setTimeout(function() { setActiveConn(fb); }, 900);
 };
 
-const makeConnFromText = async (text) => {
-var t = String(text || "").trim();
-if (!t || !nodes.length) return;
-setMapInputBusy(true);
-var themeList = nodes.map(function(n){ return n.key; }).join(", ");
-var ctx = rawText ? "\nContext from their share: " + rawText.slice(0, 300) : "";
-var p = "The user typed on their map: \"" + t + "\"\nTheir themes are: " + themeList + ctx + "\nSummarize what they're really saying. If it suggests 1-2 connections between existing themes, return them. JSON: {\"edges\":[{\"from\":\"exact theme label\",\"to\":\"exact theme label\",\"label\":\"2-6 word label\",\"insight\":\"1-2 sentence insight\"}]}\nIf no clear connection to existing themes, return {\"edges\":[]}. Use only theme labels that exist in the list."
-try {
-var raw = await callClaudeClient(p, "Map typing: " + t.slice(0, 80), 400);
-var d = parseJSON(raw);
-if (d && d.edges && Array.isArray(d.edges)) {
-  var added = [];
-  var themeKeys = nodes.map(function(n){ return n.key; });
-  d.edges.forEach(function(e) {
-    if (e.from && e.to && e.from !== e.to) {
-      var fa = themeKeys.find(function(k){ return k.toLowerCase()===String(e.from).trim().toLowerCase(); }) || (themeKeys.includes(e.from) ? e.from : null);
-      var ta = themeKeys.find(function(k){ return k.toLowerCase()===String(e.to).trim().toLowerCase(); }) || (themeKeys.includes(e.to) ? e.to : null);
-      if (fa && ta && !anyConn(fa, ta)) {
-        var col = nodes.find(function(n){ return n.key === ta; })?.color || "#7DB7AE";
-        var conn = { from: fa, to: ta, label: (e.label || "LINKED").toUpperCase(), insight: e.insight || "", color: col, discovered: true };
-        setDiscoveredConns(function(prev) { return prev.concat([conn]); });
-        added.push(conn);
-      }
-    }
-  });
-  if (added.length > 0) { setMapInputText(""); setMapInputOpen(false); setTimeout(function(){ setActiveConn(added[0]); }, 400); }
-}
-} catch (e) {}
-setMapInputBusy(false);
-};
-
 var handleNodeTap = function(key) {
 if (dragging) return;
 if (!selectedNode) { setSelectedNode(key); return; }
@@ -1335,7 +1377,6 @@ const explored = Object.keys(responses).length + discoveredConns.length;
 const didDrag = useRef(false);
 const snapRef = useRef(null);
 const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
-const [showHint, setShowHint] = useState(function(){ try { return !localStorage.getItem("saycrd-map-hint-seen"); } catch(e){ return true; } });
 const [pointerDownKey, setPointerDownKey] = useState(null);
 const pointerDownPos = useRef(null);
 useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
@@ -1432,7 +1473,7 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
 <div style={{ fontSize: 18, letterSpacing: "0.2em", color: "#fff", fontFamily: FB, fontWeight: 600 }}>Your Current Constellation</div>
 </div>
-<div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("textarea") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); if (explored >= 1 && !mapInputOpen) setMapInputOpen(true); } }} onMouseEnter={function(){ if (explored >= 1 && discoveredConns.length === 0 && !mapInputOpen) setShowHint(true); }} onMouseLeave={function(){ setShowHint(false); }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
+<div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); } }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 70% at 50% 50%, rgba(40,50,90,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 55% at 50% 50%, transparent 50%, rgba(0,0,0,0.35) 100%)", pointerEvents: "none", zIndex: 1 }}/>
@@ -1665,22 +1706,6 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 />}
 </>}
 </div>
-{mapInputOpen ? (
-<div style={{ position:"absolute", bottom: 0, left: 0, right: 0, zIndex: 20, padding: "12px 16px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 100%)", borderTop: "1px solid rgba(107,184,255,0.25)", display: "flex", gap: 10, alignItems: "center" }}>
-<textarea className="map-add-input" value={mapInputText} onChange={function(e){setMapInputText(e.target.value);}} placeholder="What's coming up…" 
-style={{ flex: 1, minHeight: 44, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(107,184,255,0.4)", borderRadius: 12, color: "#fff", fontFamily: FD, fontSize: 15, padding: "10px 14px", resize: "none", outline: "none", lineHeight: 1.5, boxSizing: "border-box" }}
-onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();makeConnFromText(mapInputText);}}}
-/>
-<div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
-<button onClick={function(){setMapInputOpen(false);setMapInputText("");}} style={{ fontSize: 12, color: "#fff", fontFamily: FB, background: "transparent", border: "none", cursor: "pointer" }}>cancel</button>
-<button onClick={function(){makeConnFromText(mapInputText);}} disabled={!mapInputText.trim()||mapInputBusy} style={{ fontSize: 13, fontFamily: FB, fontWeight: 600, background: mapInputText.trim()&&!mapInputBusy ? "rgba(107,184,255,0.35)" : "rgba(255,255,255,0.12)", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 8, padding: "6px 16px", color: mapInputText.trim()&&!mapInputBusy ? "#fff" : "rgba(255,255,255,0.7)", cursor: mapInputText.trim()&&!mapInputBusy ? "pointer" : "not-allowed" }}>{mapInputBusy ? "…" : "add"}</button>
-</div>
-</div>
-) : (
-showHint && explored >= 1 && discoveredConns.length === 0 && !isMobile ? (
-<div style={{ position:"absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 5, fontSize: 12, color: "rgba(107,184,255,0.95)", fontFamily: FD, fontStyle: "italic", pointerEvents: "none" }}>add something coming up</div>
-) : null
-)}
 {explored>=1&&(
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
 <button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "#fff", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>continue →</button>
@@ -2490,14 +2515,10 @@ background: uReaction === "landed" ? "#6BFFB8" : uReaction === "resisted" ? "rgb
 
 {tension && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.3s both" }}>
 <div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#FFB86B", marginBottom: 14, fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>the tension</div>
-<div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: tension.text ? 12 : 0 }}>
-<div style={{ flex: "1 1 0", minWidth: 0, minHeight: 56, padding: "14px 18px", borderRadius: 12, background: "rgba(255,184,107,0.07)", border: "1px solid rgba(255,184,107,0.18)", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-<div style={{ fontSize: 19, color: "#FFB86B", fontFamily: FB, fontWeight: 900, overflowWrap: "break-word", wordBreak: "break-word", lineHeight: 1.3 }}>{tension.a}</div>
-</div>
-<div style={{ fontSize: 15, color: "rgba(255,255,255,0.12)", fontFamily: FB, flexShrink: 0 }}>↔</div>
-<div style={{ flex: "1 1 0", minWidth: 0, minHeight: 56, padding: "14px 18px", borderRadius: 12, background: "rgba(107,184,255,0.07)", border: "1px solid rgba(107,184,255,0.18)", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center" }}>
-<div style={{ fontSize: 19, color: "#6BB8FF", fontFamily: FB, fontWeight: 900, overflowWrap: "break-word", wordBreak: "break-word", lineHeight: 1.3 }}>{tension.b}</div>
-</div>
+<div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center", marginBottom: tension.text ? 12 : 0 }}>
+<div style={{ fontSize: 18, color: "#FFB86B", fontFamily: FB, fontWeight: 900, lineHeight: 1.35, wordBreak: "break-word", overflowWrap: "break-word", textAlign: "center" }}>{tension.a}</div>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>↔</div>
+<div style={{ fontSize: 18, color: "#6BB8FF", fontFamily: FB, fontWeight: 900, lineHeight: 1.35, wordBreak: "break-word", overflowWrap: "break-word", textAlign: "center" }}>{tension.b}</div>
 </div>
 {(revisedSynthesis && revisedSynthesis.tension_text
 ? <p style={{ fontSize: 15, color: "rgba(255,255,255,0.72)", fontFamily: FD, lineHeight: 1.6, margin: "0 0 4px" }}>
@@ -7369,13 +7390,13 @@ var ans = currDescent.answers[i];
 if (ans === undefined || ans === null) return;
 var display = "";
 if (card.type === "energy") { var v = typeof ans==="number" ? ans : parseInt(ans,10); display = (v>=0&&v<=5) ? (v+"/5 intensity") : String(ans); }
-else if (card.type === "spectrum") { var pct = typeof ans==="number" ? Math.round(ans) : parseInt(ans,10); display = (pct>=0&&pct<=100) ? (pct+"% toward \""+(card.pole_b||"right")+"\"") : String(ans); }
+else if (card.type === "spectrum") { var pct = typeof ans==="number" ? Math.round(ans) : parseInt(ans,10); var toward = (pct>=0&&pct<=100) ? (pct>=50 ? { p: pct, pole: card.pole_b||"right" } : { p: 100-pct, pole: card.pole_a||"left" }) : null; display = toward ? (toward.p+"% toward \""+toward.pole+"\"") : String(ans); }
 else if (card.type === "binary") { display = ans === "a" || ans === "b" ? "chose \"" + (ans==="a" ? (card.option_a||"a") : (card.option_b||"b")) + "\"" : String(ans); }
 else display = String(ans);
 var prompt = card.phrase || card.prompt || "";
 if (prompt) lines.push("\""+prompt.slice(0,80)+"\" → "+display);
 });
-if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\n";
+if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\nDESCENT CITATION: When you cite descent data in the report (e.g. a percentage, a choice, an intensity), ALWAYS include the question so the subject can trace it. Write: \"When asked '[the question]', you said...\" or \"In the descent, [question] — you answered...\" Never mention \"50% toward X\" or similar without naming the question. The subject must be able to recognize when and where they said it.\n\n";
 }
 
 var clarityBlurb = "";
@@ -9914,7 +9935,6 @@ return (
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow:hidden}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
-.map-add-input::placeholder{color:rgba(255,255,255,0.7);font-style:italic}
 .pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
 textarea{caret-color:#6BB8FF}
 button:active{transform:scale(0.97)}
