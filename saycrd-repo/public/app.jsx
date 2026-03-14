@@ -1430,8 +1430,8 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
 <Particles color="rgba(107,184,255,0.25)" count={isMobile ? 6 : 14}/>
 <div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
-<div style={{ fontSize: 12, letterSpacing: "0.35em", color: "rgba(255,255,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: 4 }}>Your constellation</div>
-<div style={{ fontSize: 16, fontWeight: 500, color: "#F7F5F0", fontFamily: FD, letterSpacing: "0.03em" }}>
+<div style={{ fontSize: 14, letterSpacing: "0.4em", color: "rgba(255,255,255,0.7)", fontFamily: FB, textTransform: "uppercase", marginBottom: 6, fontWeight: 600 }}>YOUR CONSTELLATION</div>
+<div style={{ fontSize: 20, fontWeight: 600, color: "#F7F5F0", fontFamily: FD, letterSpacing: "0.02em", lineHeight: 1.2 }}>
 What’s pulling you right now
 </div>
 {sd && sd.tension && sd.tension.a && sd.tension.b && (
@@ -1439,29 +1439,15 @@ What’s pulling you right now
 {sd.tension.a} &nbsp;↔&nbsp; {sd.tension.b}
 </div>
 )}
-<p style={{ fontSize: 13, color: snapTarget?"#7DB7AE":selectedNode?"#6BFFB8":explored===0?"rgba(178,216,255,0.95)":"rgba(255,255,255,0.55)", fontFamily: FB, margin: "6px 0 0", fontWeight: 500, transition: "color 0.3s" }}>
-{snapTarget
-  ? `Release to connect → ${snapTarget}`
-  : selectedNode
-    ? `${selectedNode} · tap another to link`
-    : explored===0
-      ? "Tap a circle, then tap another to connect"
-      : `${explored} connections explored`}
-</p>
-{showHint && explored === 0 && (
-<div onClick={function(){ try { localStorage.setItem("saycrd-map-hint-seen", "1"); } catch(e){} setShowHint(false); }} style={{ marginTop: 10, padding: "10px 14px", background: "rgba(107,184,255,0.12)", border: "1px solid rgba(107,184,255,0.3)", borderRadius: 12, fontSize: 12, color: "rgba(178,216,255,0.9)", fontFamily: FB, lineHeight: 1.4, cursor: "pointer" }}>
-Tap a circle, then tap another to connect. Or drag one toward another. <span style={{ opacity: 0.7 }}>Tap to dismiss</span>
-</div>
-)}
 {(()=>{ var growthCount = allConns.filter(function(c){ var r=responses[K(c)]; return r&&(r.value==="partly"||r.value==="no"); }).length; return growthCount>0 ? (
 <div style={{ marginTop:8, display:"flex", alignItems:"center", justifyContent:"center", gap:12, flexWrap:"wrap" }}>
-<span style={{ fontSize:12, letterSpacing:"0.2em", color:"rgba(165,235,220,0.8)", fontFamily:FB }}>● partly</span>
-<span style={{ fontSize:12, letterSpacing:"0.2em", color:"rgba(214,178,100,0.8)", fontFamily:FB }}>● resisted</span>
-<span style={{ fontSize:11, letterSpacing:"0.15em", color:"rgba(255,255,255,0.45)", fontFamily:FB }}>— growth edges</span>
+<span style={{ fontSize:14, letterSpacing:"0.2em", color:"rgba(165,235,220,0.95)", fontFamily:FB, fontWeight:600 }}>● partly</span>
+<span style={{ fontSize:14, letterSpacing:"0.2em", color:"rgba(214,178,100,0.95)", fontFamily:FB, fontWeight:600 }}>● resisted</span>
+<span style={{ fontSize:13, letterSpacing:"0.15em", color:"rgba(255,255,255,0.6)", fontFamily:FB }}>— growth edges</span>
 </div>
 ) : null; })()}
 </div>
-<div ref={fieldRef} onClick={function(){setActiveConn(null);setSelectedNode(null);}} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
+<div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("textarea") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); if (explored >= 1 && !mapInputOpen) setMapInputOpen(true); } }} onMouseEnter={function(){ if (explored >= 1 && discoveredConns.length === 0 && !mapInputOpen) setShowHint(true); }} onMouseLeave={function(){ setShowHint(false); }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 70% at 50% 50%, rgba(40,50,90,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 55% at 50% 50%, transparent 50%, rgba(0,0,0,0.35) 100%)", pointerEvents: "none", zIndex: 1 }}/>
@@ -1540,9 +1526,10 @@ const isSnap = snapTarget === n.key;
 const canLink = selectedNode && selectedNode !== n.key && !hasConn(selectedNode, n.key) && !hasDiscovered(selectedNode, n.key);
 var domainColors = { work: "#6BB8FF", relationship: "#E84393", self: "#6BFFB8", creativity: "#FFB86B", money: "#B86BFF", life: "rgba(255,255,255,0.2)" };
 return (
-<div key={n.key}
+<div key={n.key} data-node="true"
 title={n.shortDesc ? String(n.shortDesc).trim() : ""}
 onPointerDown={function(e){startDrag(n.key,e);}}
+onClick={function(e){e.stopPropagation();}}
 style={{
 position: "absolute", left: p.x, top: p.y,
 borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center",
@@ -1694,19 +1681,20 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 </>}
 </div>
 {mapInputOpen ? (
-<div style={{ position:"absolute", bottom: 16, left: 16, right: 16, zIndex: 20, background: "rgba(10,15,25,0.96)", border: "1px solid rgba(107,184,255,0.35)", borderRadius: 16, padding: 14, backdropFilter: "blur(20px)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.12em", color: "rgba(107,184,255,0.9)", fontFamily: FB, textTransform: "uppercase", marginBottom: 8 }}>Type to add a connection</div>
-<textarea value={mapInputText} onChange={function(e){setMapInputText(e.target.value);}} placeholder="e.g. rest and proof feel like the same thing when I'm tired" 
-style={{ width: "100%", minHeight: 56, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(107,184,255,0.25)", borderRadius: 10, color: "rgba(255,255,255,0.9)", fontFamily: FD, fontSize: 14, padding: "10px 12px", resize: "none", outline: "none", lineHeight: 1.5, boxSizing: "border-box" }}
+<div style={{ position:"absolute", bottom: 0, left: 0, right: 0, zIndex: 20, padding: "12px 16px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 100%)", borderTop: "1px solid rgba(107,184,255,0.25)", display: "flex", gap: 10, alignItems: "center" }}>
+<textarea value={mapInputText} onChange={function(e){setMapInputText(e.target.value);}} placeholder="What's coming up…" 
+style={{ flex: 1, minHeight: 44, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(107,184,255,0.3)", borderRadius: 12, color: "rgba(255,255,255,0.95)", fontFamily: FD, fontSize: 15, padding: "10px 14px", resize: "none", outline: "none", lineHeight: 1.5, boxSizing: "border-box" }}
 onKeyDown={function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();makeConnFromText(mapInputText);}}}
 />
-<div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, alignItems: "center" }}>
+<div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
 <button onClick={function(){setMapInputOpen(false);setMapInputText("");}} style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, background: "transparent", border: "none", cursor: "pointer" }}>cancel</button>
-<button onClick={function(){makeConnFromText(mapInputText);}} disabled={!mapInputText.trim()||mapInputBusy} style={{ fontSize: 12, fontFamily: FB, background: mapInputText.trim()&&!mapInputBusy ? "rgba(107,184,255,0.25)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(107,184,255,0.4)", borderRadius: 8, padding: "6px 16px", color: "rgba(107,184,255,0.95)", cursor: mapInputText.trim()&&!mapInputBusy ? "pointer" : "not-allowed" }}>{mapInputBusy ? "reading…" : "add"}</button>
+<button onClick={function(){makeConnFromText(mapInputText);}} disabled={!mapInputText.trim()||mapInputBusy} style={{ fontSize: 12, fontFamily: FB, background: mapInputText.trim()&&!mapInputBusy ? "rgba(107,184,255,0.25)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(107,184,255,0.4)", borderRadius: 8, padding: "6px 16px", color: "rgba(107,184,255,0.95)", cursor: mapInputText.trim()&&!mapInputBusy ? "pointer" : "not-allowed" }}>{mapInputBusy ? "…" : "add"}</button>
 </div>
 </div>
 ) : (
-<button onClick={function(){setMapInputOpen(true);}} style={{ position:"absolute", bottom: explored>=1 ? "calc(72px + env(safe-area-inset-bottom, 0px))" : 16, right: 16, zIndex: 20, width: 44, height: 44, borderRadius: 999, background: "rgba(107,184,255,0.15)", border: "1px solid rgba(107,184,255,0.35)", color: "rgba(107,184,255,0.9)", fontSize: 20, cursor: "pointer", display: "grid", placeItems: "center", fontFamily: "system-ui", touchAction: "manipulation" }} title="Type to add connection">+</button>
+showHint && explored >= 1 && discoveredConns.length === 0 && !isMobile ? (
+<div style={{ position:"absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", zIndex: 5, fontSize: 12, color: "rgba(107,184,255,0.6)", fontFamily: FD, fontStyle: "italic", pointerEvents: "none" }}>add something coming up</div>
+) : null
 )}
 {explored>=1&&(
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
@@ -1852,7 +1840,6 @@ animation: `riseUp 0.5s ease ${0.1 + index * 0.15}s both`,
 <span style={{ fontSize: 14, color: gt.color }}>{gt.icon}</span>
 <span style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: gt.color, fontFamily: FB }}>{item.type}</span>
 {saved && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: FB, marginLeft: "auto" }}>responded</span>}
-{!expanded && !saved && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.1)", fontFamily: FB, marginLeft: "auto" }}>tap to respond</span>}
 </div>
 <p style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>{item.text}</p>
 {expanded && !saved && (
@@ -2039,11 +2026,7 @@ cursor: ans ? "default" : "pointer",
 transition:"all 0.2s", touchAction: "manipulation" }} />;
 })}
 </div>
-{!ans && <div style={{ fontSize:11, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.08em", marginBottom:8 }}>tap a dot or hold to fill</div>}
 <div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 20 }}>{c.phrase}</div>
-{!ans && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.15)", fontFamily: FB, letterSpacing: "0.12em" }}>
-{energyHolding ? "hold longer = stronger..." : "hold to mark how much this matters"}
-</div>}
 {ans && <div style={{ fontSize: 11, color: c.color + "88", fontFamily: FB, letterSpacing: "0.12em", animation: "riseUp 0.3s ease" }}>
 {"●".repeat(answers[ci])}{"○".repeat(5 - answers[ci])} marked
 </div>}
@@ -2061,11 +2044,7 @@ style={{ borderRadius: 22, padding: "36px 24px", background: "linear-gradient(16
 >
 <div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 24 }}>{c.prompt}</div>
 
-{!ans && <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-<div style={{ fontSize: 14, fontFamily: FB, fontWeight: 600, color: swipeDir === "a" ? c.color : "rgba(255,255,255,0.25)", opacity: swipeDir === "a" ? 0.3 + swipeRatio * 0.7 : 0.4, transition: swiping ? "none" : "all 0.3s", transform: "scale(" + (swipeDir === "a" ? 1 + swipeRatio * 0.15 : 1) + ")", maxWidth:"48%", lineHeight:1.25, textAlign:"left", wordBreak:"break-word", overflowWrap:"anywhere" }}>← {c.option_a}</div>
-<div style={{ fontSize: 14, fontFamily: FB, fontWeight: 600, color: swipeDir === "b" ? c.color : "rgba(255,255,255,0.25)", opacity: swipeDir === "b" ? 0.3 + swipeRatio * 0.7 : 0.4, transition: swiping ? "none" : "all 0.3s", transform: "scale(" + (swipeDir === "b" ? 1 + swipeRatio * 0.15 : 1) + ")", maxWidth:"48%", lineHeight:1.25, textAlign:"right", wordBreak:"break-word", overflowWrap:"anywhere" }}>{c.option_b} →</div>
-</div>}
-{!ans && <div style={{ marginTop: 18, display: "flex", gap: 10 }}>
+{!ans && <div style={{ display: "flex", gap: 12 }}>
 <button onClick={function(e){ e.stopPropagation(); record("a"); }}
 style={{ flex:1, padding:"12px 8px", borderRadius:14, minHeight: isMobile ? 44 : undefined,
 background: swipeDir==="a" ? c.color+"22" : "rgba(255,255,255,0.04)",
@@ -2083,7 +2062,6 @@ fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
 whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
 transition:"all 0.2s", touchAction:"manipulation" }}>{c.option_b}</button>
 </div>}
-{!ans && <div style={{ fontSize:10, color:"rgba(255,255,255,0.12)", fontFamily:FB, letterSpacing:"0.1em", marginTop:10, textAlign:"center" }}>tap or swipe</div>}
 
 {ans && <div style={{ animation: "riseUp 0.4s ease" }}>
 <div style={{ fontSize: 16, fontFamily: FB, fontWeight: 600, color: c.color }}>{answers[ci] === "a" ? c.option_a : c.option_b}</div>
@@ -2452,15 +2430,15 @@ return (
 <div style={{ maxWidth: 380, margin: "0 auto", padding: (isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1 }}>
 
 <div style={{ marginBottom: archData ? 18 : 28, animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 14, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(255,255,255,0.38)", fontFamily: FB }}>
+<div style={{ fontSize: 16, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", fontFamily: FB, fontWeight: 700 }}>
 SESSION {sessionNum} · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" }).toUpperCase()}
 </div>
 </div>
 
 {archData && <div style={{ marginBottom: isMobile ? 24 : 36, animation: "riseUp 0.7s ease 0.05s both" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", color: "rgba(232,67,147,0.75)", fontFamily: FB, marginBottom: isMobile ? 6 : 10, textTransform: "uppercase" }}>your pattern</div>
-<div style={{ fontSize: isMobile ? 26 : 34, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: isMobile ? 6 : 8 }}>{archData.name}</div>
-{archData.line && <div style={{ fontSize: isMobile ? 15 : 17, color: "rgba(255,255,255,0.72)", fontFamily: FD, lineHeight: 1.55 }}>{archData.line}</div>}
+<div style={{ fontSize: 11, letterSpacing: "0.5em", color: "#E84393", fontFamily: FB, marginBottom: isMobile ? 8 : 12, textTransform: "uppercase", fontWeight: 700 }}>YOUR PATTERN</div>
+<div style={{ fontSize: isMobile ? 30 : 40, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: isMobile ? 8 : 10 }}>{archData.name}</div>
+{archData.line && <div style={{ fontSize: isMobile ? 17 : 19, color: "rgba(255,255,255,0.85)", fontFamily: FD, lineHeight: 1.6 }}>{archData.line}</div>}
 </div>}
 
 {THEMES.length > 0 && <div style={{ marginBottom: 32, animation: "riseUp 0.5s ease 0.08s both" }}>
@@ -2506,13 +2484,7 @@ background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", 
 {underneath.length > 0 && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.2s both" }}>
 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
 <div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#B86BFF", fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>what{"'"}s underneath</div>
-<div style={{ fontSize: 14, color: "rgba(183,107,255,0.38)", fontFamily: FB, letterSpacing: "0.05em" }}>swipe right to mark · swipe left to push back</div>
 </div>
-{showSwipeHint && (
-<div onClick={function(){ try { localStorage.setItem("saycrd-session-swipe-hint-seen", "1"); } catch(e){} setShowSwipeHint(false); }} style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(183,107,255,0.1)", border: "1px solid rgba(183,107,255,0.25)", borderRadius: 12, fontSize: 12, color: "rgba(200,180,255,0.9)", fontFamily: FB, lineHeight: 1.4, cursor: "pointer" }}>
-Swipe right on a sentence to mark it. Swipe left to push back. <span style={{ opacity: 0.7 }}>Tap to dismiss</span>
-</div>
-)}
 {underneath.map(function(t, i) {
 var uKey = "underneath_" + i;
 var uReaction = reactions[uKey];
@@ -2572,14 +2544,15 @@ background: uReaction === "landed" ? "#6BFFB8" : uReaction === "resisted" ? "rgb
 <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
 {!descentOpen && !descentDone && (
 <div onClick={function(){ setDescentOpen(true); }} style={{
-display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-fontFamily: FB, fontSize: 15, color: "rgba(214,178,109,0.7)", textAlign: "center",
-cursor: "pointer", padding: "18px 20px", borderRadius: 14,
-border: "1px solid rgba(214,178,109,0.08)", background: "rgba(214,178,109,0.015)",
-transition: "all 0.3s", fontWeight: 600, letterSpacing: "0.03em",
+display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+fontFamily: FB, fontSize: 18, color: "#D6B26D", textAlign: "center",
+cursor: "pointer", padding: "22px 28px", borderRadius: 16,
+border: "2px solid rgba(214,178,109,0.5)", background: "rgba(214,178,109,0.12)",
+transition: "all 0.3s", fontWeight: 700, letterSpacing: "0.04em",
 animation: "riseUp 0.5s ease 0.6s both",
+boxShadow: "0 0 24px rgba(214,178,109,0.2)",
 }}>
-<span style={{ fontSize: 16 }}>◆</span> See what's underneath
+<span style={{ fontSize: 20 }}>◆</span> See what's underneath
 </div>
 )}
 {descentOpen && !descentDone && (
@@ -2591,56 +2564,21 @@ animation: "riseUp 0.5s ease 0.6s both",
 <DescentGame cards={descentCards} onDone={function(data) { setDescentResult(data); setDescentDone(true); }} onSkip={isMobile ? function(){ setDescentOpen(false); } : undefined} isMobile={isMobile} />
 </div>
 )}
-{descentDone && <div style={{ textAlign: "center", padding: "20px 0", animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 15, color: "rgba(214,178,109,0.5)", fontFamily: FB, letterSpacing: "0.2em" }}>◆ DESCENT COMPLETE ◆</div>
-{descentResult && descentResult.cards && <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-{descentResult.cards.map(function(card, i) {
-var ans = descentResult.answers ? descentResult.answers[i] : null;
-if (ans === null || ans === undefined) return null;
-var display;
-if (card.type === "energy" && typeof ans === "number") {
-var lvl2 = Math.max(0, Math.min(5, Math.round(ans)));
-display = "●".repeat(lvl2) + "○".repeat(5 - lvl2);
-} else if (card.type === "spectrum" && typeof ans === "number") {
-display = Math.round(ans) + "%";
-} else if (card.type === "binary") { display = String(ans); }
-else { display = String(ans); }
-return <div key={i} style={{ padding: "6px 12px", borderRadius: 16, background: (card.color || "#D6B26D") + "15", border: "1px solid " + (card.color || "#D6B26D") + "30", fontSize: 14, color: (card.color || "#D6B26D") + "88", fontFamily: FB, letterSpacing: "0.08em" }}>{display}</div>;
-})}
-</div>}
+{descentDone && <div style={{ textAlign: "center", padding: "16px 0", animation: "riseUp 0.5s ease" }}>
+<div style={{ fontSize: 14, color: "rgba(214,178,109,0.7)", fontFamily: FB, letterSpacing: "0.15em" }}>Descent complete</div>
 </div>}
 </div>
-
-<div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-<div style={{ fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "rgba(214,178,109,0.35)", marginBottom: 14, fontFamily: FB }}>WHAT ARE YOU TAKING WITH YOU?</div>
-{!claritySaved ? (
-<ClarityHoldInput value={clarity} onChange={setClarity} onSave={saveClarity} isMobile={isMobile} />
-) : (
-<div style={{ animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 16, color: "#D6B26D", fontFamily: FB, lineHeight: 1.55, letterSpacing: "0.02em" }}>{clarity}</div>
-<div style={{ fontSize: 9, letterSpacing: "0.25em", textTransform: "uppercase", color: "#7DB7AE", marginTop: 8, opacity: 0.4 }}>SAVED</div>
-</div>
-)}
-</div>
-
-{showNoticing && noticing && (
-<div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 1s ease" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.35em", color: "rgba(214,178,109,0.35)", fontFamily: FB, marginBottom: 8, textTransform: "uppercase" }}>the system notices</div>
-<div style={{ fontSize: 14, color: "rgba(255,255,255,0.38)", fontFamily: FD, lineHeight: 1.7 }}>
-✦ {noticing}
-</div>
-</div>
-)}
 
 <button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis }); }} style={{
-width: "100%", background: claritySaved ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
-border: claritySaved ? "none" : "1px solid rgba(107,255,184,0.15)",
-borderRadius: 24, padding: "14px 28px", minHeight: 48,
-color: claritySaved ? "#0A2E1A" : "rgba(107,255,184,0.3)",
-fontSize: 15, fontFamily: FB, fontWeight: claritySaved ? 600 : 400,
+width: "100%", background: descentDone ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
+border: descentDone ? "none" : "1px solid rgba(107,255,184,0.15)",
+borderRadius: 24, padding: "16px 28px", minHeight: 52,
+color: descentDone ? "#0A2E1A" : "rgba(107,255,184,0.3)",
+fontSize: 17, fontFamily: FB, fontWeight: descentDone ? 700 : 400,
 cursor: "pointer", transition: "all 0.4s", touchAction: "manipulation",
+boxShadow: descentDone ? "0 4px 24px rgba(107,255,184,0.35)" : "none", cursor: "pointer",
 }}>
-{claritySaved ? "See Your Field →" : "Continue to What's Growing →"}
+What's Growing →
 </button>
 </div>
 </div>
@@ -3582,8 +3520,6 @@ fontFamily: FB, cursor: "pointer", letterSpacing: "0.18em" }}>
 </div>
 )}
 
-<div style={{ marginTop: 40, fontSize: 10, color: "rgba(255,255,255,0.14)", fontFamily: FB,
-textAlign: "center", letterSpacing: "0.15em" }}>tap to continue</div>
 </div>
 </div>
 );
@@ -3658,7 +3594,6 @@ animation:"riseUp 0.3s ease both", cursor:"pointer" }}>
 </div>
 <div style={{ display:"flex", justifyContent:"space-between" }}>
 <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", fontFamily:FB }}>weight {activeRing.weight.toFixed(1)}</div>
-<div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", fontFamily:FB }}>tap to close</div>
 </div>
 </div>
 : <div style={{ textAlign:"center", marginTop:8, fontSize:11, color:"rgba(255,255,255,0.2)", fontFamily:FB, letterSpacing:"0.1em" }}>
@@ -6243,9 +6178,9 @@ return function() { window.removeEventListener("keydown", h, true); };
 }, [slide]);
 return (
 <div data-noadvance="true" onClick={function(e){ e.stopPropagation(); if (!e.target.closest("button") && !e.target.closest("[data-nolink]")) advanceSlide(); }}
-style={{ position:"absolute", inset:0, overflow:"hidden", cursor:"pointer",
+style={{ position:"absolute", inset:0, overflowY:"auto", overflowX:"hidden", cursor:"pointer",
 background:"linear-gradient(180deg, #0A0618 0%, #0D0818 30%, #080510 70%, #050308 100%)",
-display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", WebkitOverflowScrolling:"touch" }}>
 <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 20%, rgba(120,80,180,0.08) 0%, transparent 60%)", pointerEvents:"none" }}/>
 <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 60% 50% at 80% 80%, rgba(180,100,255,0.05) 0%, transparent 70%)", pointerEvents:"none" }}/>
 <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 24px 60px" }}>
@@ -6259,8 +6194,7 @@ INNER
 <div style={{ fontSize:42, fontWeight:200, color:"rgba(255,255,255,0.5)", fontFamily:FB, letterSpacing:"0.12em", lineHeight:1 }}>
 WEATHER
 </div>
-<div style={{ fontSize:13, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic", marginTop:28 }}>what's showing up</div>
-<div style={{ fontSize:10, letterSpacing:"0.25em", color:"rgba(255,255,255,0.15)", fontFamily:FB, marginTop:40 }}>TAP TO CONTINUE</div>
+<div style={{ fontSize:15, color:"rgba(255,255,255,0.6)", fontFamily:FD, fontStyle:"italic", marginTop:28, lineHeight:1.5 }}>what's showing up</div>
 </div>
 )}
 
@@ -6272,8 +6206,7 @@ WEATHER
 <ConstellationMap thList={currentThemes.map(function(t,i){ return Object.assign({}, t, { color: getThemeColor(t, i) }); })} connList={currentConns}/>
 </div>
 </div>
-<div style={{ marginTop:20, fontSize:11, letterSpacing:"0.35em", color:"rgba(255,255,255,0.5)", fontFamily:FB, textTransform:"uppercase" }}>themes as constellations</div>
-<div style={{ marginTop:8, fontSize:13, color:"rgba(255,255,255,0.35)", fontFamily:FD, fontStyle:"italic" }}>tap to explore</div>
+<div style={{ marginTop:20, fontSize:13, letterSpacing:"0.3em", color:"rgba(255,255,255,0.7)", fontFamily:FB, textTransform:"uppercase" }}>themes as constellations</div>
 </div>
 )}
 
@@ -6301,7 +6234,6 @@ return (
 <div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:24, textTransform:"uppercase" }}>SESSION {milestone || sessionCount}</div>
 <div style={{ fontSize:32, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", textAlign:"center", lineHeight:1.2, marginBottom:16 }}>{m.title}</div>
 <div style={{ fontSize:15, color:"rgba(255,255,255,0.55)", fontFamily:FD, fontStyle:"italic", textAlign:"center", lineHeight:1.65, maxWidth:300 }}>{m.sub}</div>
-<div style={{ marginTop:36, fontSize:10, letterSpacing:"0.25em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>TAP TO CONTINUE</div>
 </div>
 );
 }
@@ -6356,7 +6288,6 @@ return (
 </div>
 </div>
 )}
-<div style={{ fontSize:10, letterSpacing:"0.2em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>TAP TO CONTINUE</div>
 </div>
 );
 }
@@ -6426,7 +6357,6 @@ style={{ width:"100%", accentColor:"#6BB8FF", cursor:"pointer" }}/>
 {selArch && selArch.line ? <div style={{ fontSize:14, color:"rgba(255,255,255,0.6)", fontFamily:FD, fontStyle:"italic", lineHeight:1.5, marginBottom:10, textAlign:"center", maxWidth:300 }}>{selArch.line}</div> : null}
 {sel.date ? <div style={{ marginBottom:8, fontSize:10, color:"rgba(255,255,255,0.3)", fontFamily:FB, letterSpacing:"0.12em" }}>{new Date(sel.date).toLocaleDateString("en-US", { month:"short", day:"numeric", year: sel.isCurrent ? "numeric" : undefined })}</div> : null}
 {selDesc ? <div style={{ fontSize:14, color:"rgba(255,255,255,0.72)", fontFamily:FD, lineHeight:1.6, textAlign:"center", maxWidth:320 }}>{selDesc}</div> : null}
-<div style={{ position:"absolute", bottom:28, fontSize:9, letterSpacing:"0.3em", color:"rgba(255,255,255,0.18)", fontFamily:FB }}>TAP TO CONTINUE</div>
 </div>
 );
 }
@@ -7092,7 +7022,6 @@ fontFamily:FD,fontStyle:"italic",lineHeight:1.75}}>
 <div style={{fontSize:9,letterSpacing:"0.3em",color:"rgba(255,255,255,0.18)",
 fontFamily:FB,textTransform:"uppercase"}}
 onClick={function(e){e.stopPropagation();_setPanelOpen(false);}}>
-TAP TO CLOSE
 </div>
 </div>
 </div>
@@ -8362,7 +8291,6 @@ return <div key={si} style={{ fontSize:10, color:apColor+"aa", fontFamily:FB, le
 })}
 </div>
 )}
-<div style={{ position:"absolute", bottom:32, fontSize:11, color:"rgba(255,255,255,0.12)", fontFamily:FB, letterSpacing:"0.2em" }}>tap to continue →</div>
 </div>
 );
 }
@@ -8523,7 +8451,6 @@ case "arrival": return (
 {archetypes.length > 0 && archReg && <div style={{ display: "flex", gap: 10, marginTop: 36, flexWrap: "wrap", justifyContent: "center", animation: "riseUp 0.8s ease 0.8s both" }}>
 <div style={{ padding: "6px 16px", borderRadius: 20, background: archReg.color + "14", border: "1px solid " + archReg.color + "30", fontSize: 12, color: archReg.color + "cc", fontFamily: FB }}>{archReg.icon} {archReg.name}</div>
 </div>}
-<div style={{ marginTop: 48, fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FB }}>tap to begin →</div>
 </FC>
 );
 
@@ -8700,7 +8627,7 @@ return <div style={{ position:"absolute", inset:0, minHeight:0, display:"flex", 
 </div>
 <TensionPull clicked={clicked} />
 {!clicked
-? <div onClick={function(e){e.stopPropagation();setClicked(true);}} style={{ marginTop:8, fontSize:14, color:"rgba(107,184,255,0.8)", fontFamily:FB, letterSpacing:"0.08em", cursor:"pointer", padding:"10px 20px", border:"1px solid rgba(107,184,255,0.2)", borderRadius:20 }}>tap to see what lives here</div>
+? <div onClick={function(e){e.stopPropagation();setClicked(true);}} style={{ marginTop:8, fontSize:14, color:"rgba(107,184,255,0.8)", fontFamily:FB, letterSpacing:"0.08em", cursor:"pointer", padding:"10px 20px", border:"1px solid rgba(107,184,255,0.2)", borderRadius:20 }}>→</div>
 : <div style={{ animation:"riseUp 0.6s ease", textAlign:"center", width:"100%" }}>
 <div style={{ fontSize:19, color: tAlive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.78)", fontFamily:FD, maxWidth:290, lineHeight:1.65,
 transition:"color 0.3s", textShadow: tAlive ? "0 0 30px rgba(107,184,255,0.25)" : "none" }}>{tText}</div>
@@ -8718,7 +8645,6 @@ return (
 <FC><FieldParticles color={uAlive ? "#D08BFF" : "#B86BFF"} count={uAlive ? 20 : 10} />
 <FLabel color="#B86BFF">WHAT'S UNDERNEATH</FLabel>
 <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.06em", marginBottom:8, maxWidth:280 }}>Patterns that are hard to see yourself — repetition, structure, what's in hiding.</div>
-<div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", fontFamily:FB, letterSpacing:"0.1em", marginBottom:16 }}>hold to save · swipe to react</div>
 <div style={{ display:"flex", flexDirection:"column", gap:12, maxWidth:320, width:"100%" }}>
 {underneath.slice(0,3).map(function(t, idx) {
 var text = typeof t === "string" ? t : t.observation || "";
@@ -8782,7 +8708,6 @@ if (!clicked) return (
 <FLabel color={c}>{archReg.name.toUpperCase()}</FLabel>
 <FHero size={26} color="rgba(255,255,255,0.6)">{primaryArch.title || archReg.name}</FHero>
 <div style={{ margin: "16px 0" }}>{vizEl}</div>
-<FTap color={c}>tap to see what's emerging →</FTap>
 </FC>
 );
 return (
@@ -9257,19 +9182,21 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 </div>
 {isMobile && <div style={{ padding:"6px 0 0", fontSize:10, color:"rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.1em" }}>{current + 1} of {CARDS.length}</div>}
 </div>
-<div style={{ position:"absolute", bottom:"max(16px, env(safe-area-inset-bottom))", left:0, right:0, zIndex:8, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"0 20px", pointerEvents:"none" }}>
+<div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
 <div style={{ pointerEvents:"auto" }}>
 {current > 0 ? (
-<button onClick={function(e){e.stopPropagation();goBack();}} style={{ padding:"10px 18px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.7)", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>← Back</button>
-) : <div style={{ width: isMobile ? 44 : 60 }}/>}
+<button onClick={function(e){e.stopPropagation();goBack();}} style={{ padding:"8px 14px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.8)", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:10, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>← Back</button>
+) : <div style={{ width: isMobile ? 44 : 52 }}/>}
 </div>
+<div style={{ flex:1 }}/>
 <div style={{ pointerEvents:"auto" }}>
 {current < CARDS.length - 1 ? (
-<button onClick={function(e){e.stopPropagation();advance();}} style={{ padding:"10px 18px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.9)", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:12, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>Next →</button>
-) : <div style={{ width: isMobile ? 44 : 60 }}/>}
+<button onClick={function(e){e.stopPropagation();advance();}} style={{ padding:"8px 14px", minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, fontSize:12, fontFamily:FB, letterSpacing:"0.12em", color:"rgba(255,255,255,0.9)", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", borderRadius:10, cursor:"pointer", touchAction:"manipulation", WebkitTapHighlightColor:"transparent" }}>Next →</button>
+) : <div style={{ width: isMobile ? 44 : 52 }}/>}
 </div>
 </div>
-<div key={current + "-" + clicked} style={{ width: "100%", height: "100%", animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out", position:"relative" }}>
+</div>
+<div key={current + "-" + clicked} style={{ position: "absolute", top: 90, left: 0, right: 0, bottom: 0, animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out" }}>
 {(function() { try { return renderCard(); } catch(e) { console.error("[FIELD] renderCard crashed on card", current, "type:", card && card.type, "error:", e.message||e); return <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:"sans-serif",padding:40,textAlign:"center"}}>card error: {e.message}</div>; } })()}
 </div>
 </div>
