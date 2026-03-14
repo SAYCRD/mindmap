@@ -9877,5 +9877,4 @@ button:active{transform:scale(0.97)}
 );
 }
 
-var root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(SAYCRDFlow));
+(function(){var root=ReactDOM.createRoot(document.getElementById('root'));root.render(React.createElement(SAYCRDFlow));})();
