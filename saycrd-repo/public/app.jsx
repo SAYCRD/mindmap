@@ -1661,17 +1661,21 @@ var [p, setP] = useState(value != null ? value : 50);
 var [d, setD] = useState(false);
 var [confirmed, setConfirmed] = useState(value != null);
 var tr = useRef(null);
+var pRef = useRef(value != null ? value : 50);
+pRef.current = p;
 function upd(e) {
 var r = tr.current ? tr.current.getBoundingClientRect() : null;
 if (!r) return;
 var cx = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-setP(Math.max(0, Math.min(100, (cx - r.left) / r.width * 100)));
+var v = Math.max(0, Math.min(100, (cx - r.left) / r.width * 100));
+pRef.current = v;
+setP(v);
 }
 function hd(e) { e.preventDefault(); setD(true); upd(e); if (tr.current && e.pointerId != null) tr.current.setPointerCapture(e.pointerId); }
 useEffect(function() {
 if (!d) return;
 function m(e) { upd(e); }
-function u() { setD(false); onSet(Math.round(p)); setConfirmed(true); }
+function u() { setD(false); onSet(Math.round(pRef.current)); setConfirmed(true); }
 window.addEventListener("pointermove", m);
 window.addEventListener("pointerup", u);
 return function() { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
@@ -7116,9 +7120,10 @@ background: di===Math.min(sessionCount,20)-1
 
 function _reportSectionSubtitle(title) {
 var t = (title || "").toUpperCase();
-if (/OCCURRED|THIS SESSION/.test(t)) return "What dominated this session";
-if (/MOVED|SHIFTED|CHANGED/.test(t)) return "What changed between sessions";
+if (/SHOWED UP|THIS SESSION|OCCURRED/.test(t)) return "What dominated this session";
+if (/CHANGED|SHIFTED|MOVED/.test(t)) return "The journey — arc from previous sessions";
 if (/REMAINS|RETURNING|STILL HERE/.test(t)) return "What's still unresolved";
+if (/CONCLUSION/.test(t)) return "The thread that ties it together";
 return "";
 }
 
@@ -7345,6 +7350,7 @@ cardFeedbackBlurb = "CARD SLIDERS (subject's rating on each; 0=left pole, 100=ri
 
 var mapValuesBlurb = "";
 var currMap = (currentSessionData && currentSessionData.mapResponses) ? currentSessionData.mapResponses : (lastSession && lastSession.mapResponses ? lastSession.mapResponses : {});
+var allConns = (sd && sd.connections) ? sd.connections : [];
 if (Object.keys(currMap).length > 0) {
 var connLines = [];
 Object.keys(currMap).forEach(function(k) {
@@ -7352,11 +7358,16 @@ var mr = currMap[k];
 if (!mr) return;
 var parts = k.split("::");
 var from = (parts[0]||"").trim(), to = (parts[1]||"").trim();
+var conn = allConns.find(function(c){ return (c.from||"").trim()===from && (c.to||"").trim()===to; });
+var insight = conn && conn.insight ? String(conn.insight).trim().slice(0, 120) : "";
 var val = mr.value === "yes" ? "confirmed" : mr.value === "partly" ? "partly" : mr.value === "no" ? "rejected" : mr.value || "";
-var cmt = mr.comment && String(mr.comment).trim() ? " — \""+String(mr.comment).trim().slice(0,100)+"\"" : "";
-connLines.push(from+" ↔ "+to+": "+val+cmt);
+var cmt = mr.comment && String(mr.comment).trim() ? " — user said: \""+String(mr.comment).trim().slice(0,100)+"\"" : "";
+var line = from+" ↔ "+to;
+if (insight) line += " | insight: \""+insight+(insight.length>=120?"…":"")+"\"";
+line += " | "+val+cmt;
+connLines.push(line);
 });
-if (connLines.length) mapValuesBlurb = "MAP CONNECTION FEEDBACK (what landed for the subject — yes/partly/no; use as evidence):\n" + connLines.slice(0, 15).join("\n") + "\n\n";
+if (connLines.length) mapValuesBlurb = "MAP CONNECTORS (the magic is in the INSIGHT — what the AI said; the user's response is how that landed):\n" + connLines.slice(0, 15).join("\n") + "\n\nMAP RULE: Lead with the connector's insight (what was offered), then how the user responded. Do NOT frame as 'testing the connection between nodes.' Everything is related — the question is what's underlying. The map surfaces that.\n\n";
 }
 
 var patternEngineBlurb = "";
@@ -7442,21 +7453,23 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + underBlurb
 + "STRUCTURE: The current session is the CORE and BACKBONE — anchor the report there. The VALUE is the Y-axis: what has accumulated over time. The report's power is how the longitudinal arc (themes, patterns, blind spots across many sessions) gets BROUGHT UP and surfaced in this session. Use descent answers and map feedback as the backbone of what landed now. Weave the past into the current — the value over time is what this session brings into focus. When 20+ sessions, the meta-pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
 + "NO DRIFT: The conclusion must tie to the heart of what this report established. Use prior-session material to bring the Y-axis (value over time) into the current moment — not to drift into unrelated history. Stay on topic.\n\n"
-+ "Write 3 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
-+ "SECTION TITLES: Prefer clear, plain titles. Section 1: WHAT OCCURRED or THIS SESSION. Section 2: WHAT SHIFTED or WHAT CHANGED (not WHAT MOVED — too vague). Section 3: WHAT KEEPS RETURNING or WHAT'S STILL HERE (not WHAT REMAINS — too vague).\n"
++ "Write 4 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
++ "SECTION TITLES: Section 1: WHAT SHOWED UP or THIS SESSION. Section 2: WHAT CHANGED (the Y-axis — the journey). Section 3: WHAT KEEPS RETURNING or WHAT'S STILL HERE. Section 4: CONCLUSION.\n"
 + "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use \"You said: \\\"...\\\"\" with their exact phrasing. Do not paraphrase into something they didn't say. In the third section, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
-+ "SECTION 1 (WHAT OCCURRED / THIS SESSION): What dominated in THIS session. When the subject has shifted to new territory, open with that — first time speaking about X, why now. Name specific themes and archetypes. Lead with the simplest version. Do not lead with a summary of past sessions when the current session is the story. 3 short paragraphs.\n"
-+ "SECTION 2 (WHAT SHIFTED / WHAT CHANGED): Concrete change. When there's a subject shift, explore the shift — what's happening, why now, how the past connects to this moment. When no shift, what moved between sessions or within the session. 3 short paragraphs.\n"
-+ "SECTION 3 (WHAT KEEPS RETURNING / WHAT'S STILL HERE): Still unresolved. Still returning. Refer to the 'what's underneath' phrases above — repetition, structure, blind spots the subject may not see. Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction. Conclude with what the report has already established. 2 short paragraphs.\n\n"
++ "SECTION 1 (WHAT SHOWED UP / THIS SESSION): What dominated in THIS session. Use the MAP CONNECTORS' magic — the insight (what the AI offered), then how the user responded. Lead with what the connector said; the user's yes/partly/no and their words show how it landed. Do NOT frame as 'testing the connection between two nodes.' Everything is related; the question is what's underlying. The map is excellent at surfacing that. 3 short paragraphs.\n"
++ "SECTION 2 (WHAT CHANGED): The Y-axis — the user's JOURNEY. The arc from previous sessions all the way to the beginning, if relevant to this session. What changed over time. This is the longitudinal arc and is super valuable. Not 'what changed in this session' narrowly — the journey across sessions. How themes, archetypes, blind spots, tensions have evolved. 3 short paragraphs.\n"
++ "SECTION 3 (WHAT KEEPS RETURNING / WHAT'S STILL HERE): Still unresolved. Still returning. Refer to the 'what's underneath' phrases above — repetition, structure, blind spots the subject may not see. Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction. 2 short paragraphs.\n\n"
++ "SECTION 4 (CONCLUSION): A powerful closing. The one thread that runs through everything. The single most honest thing to take away. Written for the subject — use \"you\" when it fits. 2-3 sentences max. No summary of what came before — a landing, an invitation, a truth that ties the report together. Make it memorable. Make it land.\n\n"
 + "Also: oneLineVerdict — one plain sentence (12-16 words). The single most honest thing about this person right now, tied to the heart of this report. You may use \"you\" here. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
 + (total >= 10 ? "whatMightWantToHappen — one sentence. Not advice — an observation about the next edge, based on what remains. What might want to happen? Optional but valuable.\n" : "")
 + (firstDate && lastDate ? "dateRange: "+firstDate+" to "+lastDate+".\n" : "")
-+ (total >= 10 ? 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"...","whatMightWantToHappen":"..."}' : 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}');
++ (total >= 10 ? 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"CONCLUSION","body":"..."}],"oneLineVerdict":"...","dateRange":"...","whatMightWantToHappen":"..."}' : 'JSON only: {"sections":[{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"...","body":"..."},{"title":"CONCLUSION","body":"..."}],"oneLineVerdict":"...","dateRange":"..."}');
 
 var rr = await callClaudeClient(prompt, "field_report", 950);
 if (cancelled) return;
 var dd = parseJSON(rr);
 if (dd && dd.sections && dd.sections.length >= 3) {
+if (dd.sections.length === 3) dd.sections.push({ title: "CONCLUSION", body: "The thread that runs through this report is yours to carry forward.\n\nWhat you do with it is the work." });
 for (var i = 0; i < dd.sections.length; i++) {
 var b = dd.sections[i].body || "";
 for (var j = 0; j < underList.length; j++) {
@@ -7483,7 +7496,8 @@ _setReport({
 sections:[
 {title:"WHAT OCCURRED", body:"The sessions are on record.\n\nThe patterns are clear."},
 {title:"WHAT SHIFTED", body:"Something changed between the early and recent sessions.\n\nThe evidence is in the arc."},
-{title:"WHAT KEEPS RETURNING", body:"Some things have not moved.\n\nThey are still present."}
+{title:"WHAT KEEPS RETURNING", body:"Some things have not moved.\n\nThey are still present."},
+{title:"CONCLUSION", body:"The work continues.\n\nWhat you take from this is yours."}
 ],
 dateRange: firstDate && lastDate ? firstDate+" to "+lastDate : "",
 oneLineVerdict:"The subject has done sustained inner work that has not yet fully resolved."
@@ -7662,21 +7676,22 @@ return (
 
 {(_report.sections||[]).map(function(sec, si) {
 var sub = _reportSectionSubtitle(sec.title);
+var isConclusion = /CONCLUSION/i.test(sec.title || "");
 return (
-<div key={si} id={"report-sec-"+si} style={{ marginBottom:30, padding:"24px 20px", paddingBottom:30,
-background:"rgba(0,0,0,0.02)", borderRadius:12, border:"1px solid rgba(0,0,0,0.06)",
-borderBottom: si<2 ? "1px solid rgba(0,0,0,0.09)" : "none",
+<div key={si} id={"report-sec-"+si} style={{ marginBottom: isConclusion ? 0 : 30, padding: isConclusion ? "32px 24px 40px" : "24px 20px 30px",
+background: isConclusion ? "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.04) 100%)" : "rgba(0,0,0,0.02)", borderRadius:12, border: isConclusion ? "2px solid "+_accent : "1px solid rgba(0,0,0,0.06)",
+borderBottom: si<2 && !isConclusion ? "1px solid rgba(0,0,0,0.09)" : "none",
 animation:"riseUp 0.5s ease "+(si*0.12)+"s both" }}>
 
-<div style={{ fontSize:13, letterSpacing:"0.5em",
-color:_accent, marginBottom: sub ? 6 : 16, fontWeight:700, opacity:0.75 }}>
+<div style={{ fontSize: isConclusion ? 11 : 13, letterSpacing: isConclusion ? "0.6em" : "0.5em",
+color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConclusion ? 800 : 700, opacity: isConclusion ? 0.9 : 0.75 }}>
 {sec.title}
 </div>
 {sub && <div style={{ fontSize:12, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:16 }}>{sub}</div>}
 
-<div style={{ fontSize:17, color:"rgba(0,0,0,0.76)",
-fontFamily:FD, lineHeight:1.9, fontWeight:400, fontStyle:"normal" }}>
-{renderBody(sec.body, true)}
+<div style={{ fontSize: isConclusion ? 20 : 17, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
+fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal" }}>
+{renderBody(sec.body, isConclusion)}
 </div>
 
 </div>
@@ -7775,10 +7790,11 @@ var esc = function(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").
 var verdict = _report && _report.oneLineVerdict ? String(_report.oneLineVerdict).trim() : "";
 var dateRange = _report && _report.dateRange ? String(_report.dateRange).trim() : "";
 var nextEdge = _report && _report.whatMightWantToHappen ? String(_report.whatMightWantToHappen).trim() : "";
-var sections = (_report && _report.sections || []).slice(0,3);
-var proseBlocks = sections.map(function(sec){
+var sections = (_report && _report.sections || []).slice(0,4);
+var proseBlocks = sections.map(function(sec, idx){
 var full = (sec.body||"").trim();
-return { body: full };
+var isConclusion = /CONCLUSION/i.test(sec.title||"");
+return { body: full, isConclusion: isConclusion || idx === sections.length - 1 };
 });
 var accent = (_accent||"#111").replace(/"/g,"");
 function paraToHtml(txt) {
@@ -7786,7 +7802,7 @@ var paras = (txt||"").split(/\n\n+/).filter(function(p){ return p.trim(); });
 if (paras.length === 0) return "";
 return paras.map(function(p){ return '<p class="prose-body">'+esc(p)+'</p>'; }).join("");
 }
-var proseHtml = proseBlocks.map(function(b){ return '<div class="prose-block">'+paraToHtml(b.body)+'</div>'; }).join("");
+var proseHtml = proseBlocks.map(function(b){ return '<div class="prose-block'+(b.isConclusion ? ' prose-conclusion' : '')+'">'+paraToHtml(b.body)+'</div>'; }).join("");
 var nextHtml = nextEdge ? '<div class="prose-block prose-close"><p class="prose-body">'+esc(nextEdge)+'</p></div>' : "";
 var notesHtml = _notesSummary ? '<div class="prose-block prose-notes"><p class="prose-body">'+esc(_notesSummary)+'</p></div>' : "";
 var metaLine = [sessionCount + " session" + (sessionCount !== 1 ? "s" : ""), dateRange].filter(Boolean).join(" · ");
@@ -7800,6 +7816,7 @@ var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Field Report
 +'.prose-body:last-child{margin-bottom:0}'
 +'.prose-close .prose-body{font-style:italic;color:#333}'
 +'.prose-notes .prose-body{color:#444;font-style:italic}'
++'.prose-conclusion{margin-top:48px;padding-top:32px;border-top:2px solid rgba(0,0,0,0.12)} .prose-conclusion .prose-body{font-size:22px;font-weight:500;color:#1a1a1a;line-height:1.6}'
 +'.map-wrap{text-align:center;margin:40px 0 48px} .map-wrap svg{opacity:0.85} .map-wrap .map-label{font-size:11px;letter-spacing:0.25em;color:rgba(0,0,0,0.35);margin-top:16px}'
 +'.disclaimer{font-size:11px;color:rgba(0,0,0,0.35);line-height:1.6;margin-top:56px;padding-top:28px;border-top:1px solid rgba(0,0,0,0.08)}'
 +'@media print{.page{padding:40px 28px 56px} .hero{font-size:34px} .prose-body{font-size:17px} body{background:#fff}}'
