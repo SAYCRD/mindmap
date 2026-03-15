@@ -1,5 +1,63 @@
 const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = React;
 
+var SENTENCE_FEEDBACK_OPTIONS = [
+{ id: "lands_hard", label: "Lands Hard", color: "#6BFFB8" },
+{ id: "truth_revealed", label: "Truth Revealed", color: "#6BB8FF" },
+{ id: "something_to_consider", label: "Something to Consider", color: "#FFB86B" },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#B86BFF" },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#D6B264" },
+{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.4)" },
+];
+
+function HighlightableText({ text, feedback, onFeedback, dark }) {
+var [open, setOpen] = useState(false);
+var key = (text || "").slice(0, 100);
+var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
+return (
+<>
+<span
+onClick={function(){ setOpen(true); }}
+style={{
+cursor: "pointer",
+borderRadius: 4,
+padding: "2px 4px",
+margin: "0 1px",
+background: opt ? (opt.color + "22") : "transparent",
+borderBottom: opt ? "1.5px solid " + opt.color : "1px solid transparent",
+transition: "all 0.2s",
+color: "inherit",
+}}
+onMouseEnter={function(e){ if(!feedback) e.currentTarget.style.background = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"; }}
+onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "transparent"; }}
+>
+{text}
+</span>
+{open && (
+<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)", animation: "riseUp 0.2s ease both" }}
+onClick={function(){ setOpen(false); }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ background: dark ? "#1a1a2e" : "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.35)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.4em", color: dark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.45)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
+<div style={{ fontSize: 13, color: dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
+<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+{SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
+return (
+<button key={o.id} onClick={function(){
+onFeedback && onFeedback(text, o.id);
+setOpen(false);
+}} style={{ padding: "8px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "1px solid " + (o.color.indexOf("rgba")>=0 ? "rgba(255,255,255,0.2)" : o.color + "66"), background: o.color.indexOf("rgba")>=0 ? "rgba(255,255,255,0.06)" : o.color + "15", color: o.color.indexOf("rgba")>=0 ? "rgba(255,255,255,0.7)" : o.color, cursor: "pointer", transition: "all 0.2s" }}>
+{o.label}
+</button>
+);
+})}
+</div>
+<button onClick={function(){ setOpen(false); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+</div>
+</div>
+)}
+</>
+);
+}
+
 async function callClaudeClient(sys, usr, max) {
   if (window.callClaude) return window.callClaude(sys, usr, max);
   throw new Error("API unavailable. Please sign in and try again.");
@@ -17,13 +75,28 @@ var THEME_COLORS = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#FFD700",
 function getThemeColor(theme, index) { return (theme && theme.color) ? theme.color : THEME_COLORS[(index || 0) % THEME_COLORS.length]; }
 var NC = THEME_COLORS;
 
-var LIFE_DOMAINS = { work: ["work","job","career","tasks","project","boss","colleague","email","meeting","deadline","productivity"], relationship: ["partner","relationship","love","family","friend","parent","child","connection","intimacy","marriage"], self: ["self","identity","worth","body","health","energy","rest","boundary","voice","permission"], creativity: ["create","creative","art","write","build","make","idea","vision","dream"], money: ["money","financial","income","abundance","scarcity","worth","value"] };
+var LIFE_DOMAINS = { work: ["work","job","career","tasks","project","boss","colleague","email","meeting","deadline","productivity","business"], relationship: ["partner","relationship","love","family","friend","parent","child","connection","intimacy","marriage"], self: ["self","identity","worth","body","health","energy","rest","boundary","voice","permission"], creativity: ["create","creative","art","write","build","make","idea","vision","dream"], money: ["money","financial","income","abundance","scarcity","worth","value"] };
+var LIFE_DOMAIN_LABELS = { work: "Work / Business", relationship: "Relationships", self: "Self / Health", creativity: "Creativity", money: "Money", life: "Life" };
 function inferLifeDomain(shortDesc, label) {
 var text = ((shortDesc || "") + " " + (label || "")).toLowerCase();
 for (var domain in LIFE_DOMAINS) {
 if (LIFE_DOMAINS[domain].some(function(w) { return text.indexOf(w) >= 0; })) return domain;
 }
 return "life";
+}
+function computeFocusAreas(themes) {
+var byDomain = {};
+var total = 0;
+(themes || []).forEach(function(t) {
+var d = inferLifeDomain(t.short_desc, t.label);
+var w = t.weight || 1;
+byDomain[d] = (byDomain[d] || 0) + w;
+total += w;
+});
+if (total <= 0) return {};
+var out = {};
+for (var d in byDomain) out[d] = Math.round((byDomain[d] / total) * 100) / 100;
+return out;
 }
 
 const FD = "'DM Serif Display', Georgia, serif";
@@ -621,6 +694,7 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- NEVER EVER say: 'you are not ready', 'you resist', 'you avoid', 'you cannot', 'you're not open', 'you're closed', 'you refuse', 'you struggle with', 'you haven't', 'not yet ready'. These are projections from a position of superiority. You do not know what the user is ready for. \n" +
 "- BANNED: defensiveness, defensive. Be curious, not diagnostic. Never pathologize.\n" +
 "- If you see a pattern that LOOKS like resistance — ASK about it in descent_cards. Never declare it in synthesis, blind_spot, or field_cards.\n" +
+"- Do NOT use feedback or resistance unless the user EXPLICITLY indicated it (e.g. pushed back, corrected, chose 'not feeling that'). Never infer from silence or absence of interaction. If the user disagrees, that IS their truth at that moment — honor it.\n" +
 "- Example wrong: 'You're not ready to partner.' Example right: 'Something about partnership keeps showing up — what does that word actually mean to you?'\n" +
 "- Do NOT assume what is 'the main thing' in someone's life based on time or frequency. Unless they say it, don't conclude it. Their life has many parts — work, relationships, projects, inner life. Don't collapse it into one focus.\n" +
 "- If they talk about revenue, a project, or X — don't assume they're 'focused on' only that. Don't assume motivations (e.g. 'putting revenue first to avoid launch'). If you have a question like that, put it in descent_cards as a prompt they can answer — not in synthesis or cards as an assertion.\n\n" +
@@ -637,8 +711,8 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "7. ALCHEMY: Stage nigredo|albedo|citrinitas|rubedo + 1 sentence evidence.\n" +
 "8. SYNTHESIS: 1-2 sentences rooted in THEIR exact words. If user signals exist, your synthesis MUST reflect them — not your original AI read. Mirror what they said, not what you inferred. Make them feel HEARD first. If you offer a new angle, frame it as a question, not a declaration.\n" +
 "9. UNDERNEATH: Array of EXACTLY 3 short strings (max 10 words each). These are PATTERN INTELLIGENCE — what is difficult for the person to notice themselves: subtle or strong patterns that psychology or careful reading can see but are 'in hiding' to them. Look for: repetition (same move, word, or structure), what they keep circling without naming, contradictions between stated intent and pattern, blind spots implied by the structure of their words. Root each in their actual words/behavior but name what they have not said. NOT what the subject thinks is underneath; what the pattern reveals.\n" +
-"10. TENSION: Object {a, b, text}. a/b = opposing poles (1-3 words each). text = 1 punchy sentence about the cost of this specific tension for this specific person. Max 18 words.\n" +
-"11. BLIND_SPOT: 1 sentence. A pattern they may not have named yet — offered as a question if possible. If user signals suggest they DO see this, skip it and offer something genuinely unseen. Max 14 words.\n" +
+"10. TENSION: Object {a, b, text}. a/b = opposing poles (1-3 words each). text = 1 punchy sentence about the cost of this specific tension — offered so the subject can see how it lands. Do NOT assert if the subject has indicated it doesn't fit. Max 18 words.\n" +
+"11. BLIND_SPOT: 1 sentence. A pattern they may not have named yet — offered as a question so they can see how it lands. Do NOT assert. If user signals suggest they DO see this, skip it and offer something genuinely unseen. If user has said something doesn't fit, honor that — their truth overrides. Max 14 words.\n" +
 "12. OPENING: 1 question. Specific, uncomfortable, cracks it open. Under 12 words. Don\'t soften.\n" +
 "13. NOTICING: 1 observation about HOW they write — rhythm, avoidance, repetition, what\'s missing. Max 18 words.\n\n" +
 "14. FIELD_CARDS — THIS IS THE MOST IMPORTANT PART.\n" +
@@ -2191,14 +2265,18 @@ borderRadius:12, padding:"4px 14px", cursor:"pointer" }}>save note</button>
 );
 }
 
-function TappableReading({ text, synthesisData, onReact }) {
+function HighlightableReading({ text, feedbackMap, onFeedback, dark }) {
 if (!text || text.trim().length === 0) return <span>{text}</span>;
 var sentences = text.match(/[^.!?]+[.!?]+[\u201D\u201C\u2019\u2018"']?\s*/g);
 if (!sentences || sentences.length === 0) {
-return <TappableSentence text={text.trim()} synthesisData={synthesisData} onReact={onReact} />;
+var t = text.trim();
+var key = t.slice(0, 100);
+return <HighlightableText text={t} feedback={feedbackMap ? feedbackMap[key] : null} onFeedback={onFeedback} dark={dark} />;
 }
 return <span>{sentences.map(function(s, i) {
-return <TappableSentence key={i} text={s.trim()} synthesisData={synthesisData} onReact={onReact} />;
+var t = s.trim();
+var key = t.slice(0, 100);
+return <HighlightableText key={i} text={t} feedback={feedbackMap ? feedbackMap[key] : null} onFeedback={onFeedback} dark={dark} />;
 })}</span>;
 }
 
@@ -2274,7 +2352,8 @@ const [isRevising, setIsRevising] = useState(false);
 const [signalStatus, setSignalStatus] = useState(null);
 const [sessionPours, setSessionPours] = useState([]);
 const [pourOpen, setPourOpen] = useState(false);
-const [pourText, setPourText] = useState(""); 
+const [pourText, setPourText] = useState("");
+const [sentenceFeedback, setSentenceFeedback] = useState({}); 
 
 function extractTopics(note) {
 if (!note) return [];
@@ -2283,6 +2362,17 @@ return note.toLowerCase().replace(/[^a-z\s]/g,"").split(/\s+/).filter(function(w
 }
 
 
+
+function handleSentenceFeedback(text, optionId) {
+var key = (text || "").slice(0, 100);
+setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
+if (optionId === "not_feeling" || optionId === "doesnt_fit") {
+setTimeout(function(){ if (window.confirm && window.confirm("Add a note about what's different?")) {
+var note = window.prompt("What would you say instead?");
+if (note && note.trim()) fireRevision(note.trim(), text);
+}}, 100);
+}
+}
 
 function handleReact(sentenceOrId, reaction, note) {
 setReactions(function(prev) { return Object.assign({}, prev, { [sentenceOrId]: reaction }); });
@@ -2409,7 +2499,7 @@ return <div key={t.name} style={{ padding: pad, borderRadius: 24, background: t.
 {revisedSynthesis
 ? <div style={{ animation: "riseUp 0.6s ease" }}>
 <p style={{ fontSize: 20, color: "rgba(255,255,255,0.9)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
-<TappableReading text={revisedSynthesis.synthesis} synthesisData={sd} onReact={handleReact} />
+<HighlightableReading text={revisedSynthesis.synthesis} feedbackMap={sentenceFeedback} onFeedback={handleSentenceFeedback} dark />
 </p>
 {revisedSynthesis.new_connection && <div style={{ marginTop:16, padding:"12px 16px", borderRadius:10,
 background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", animation:"riseUp 0.5s ease both" }}>
@@ -2418,7 +2508,7 @@ background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", 
 </div>}
 </div>
 : <p style={{ fontSize: 20, color: "rgba(255,255,255,0.88)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
-<TappableReading text={synthesis} synthesisData={sd} onReact={handleReact} />
+<HighlightableReading text={synthesis} feedbackMap={sentenceFeedback} onFeedback={handleSentenceFeedback} dark />
 </p>
 }
 </div>}
@@ -2428,19 +2518,20 @@ background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", 
 <div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#B86BFF", fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>what{"'"}s underneath</div>
 </div>
 {underneath.map(function(t, i) {
-var uKey = "underneath_" + i;
-var uReaction = reactions[uKey];
+var uKey = (t || "").slice(0, 100);
+var uFb = sentenceFeedback[uKey];
+var opt = uFb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === uFb; }) : null;
+var bg = opt ? (opt.color + "22") : "rgba(183,107,255,0.04)";
+var bord = opt ? "1px solid " + opt.color + "44" : "1px solid rgba(183,107,255,0.08)";
 return <div key={i} style={{ padding: "12px 14px 12px 20px", borderRadius: 12,
-background: uReaction === "resisted" ? "rgba(255,96,144,0.03)" : "rgba(183,107,255,0.04)",
-border: "1px solid " + (uReaction === "landed" ? "rgba(107,255,184,0.15)" : uReaction === "resisted" ? "rgba(255,96,144,0.12)" : "rgba(183,107,255,0.08)"),
+background: bg,
+border: bord,
 marginBottom: 8, position: "relative", animation: "riseUp 0.5s ease " + (0.3 + i * 0.1) + "s both", transition: "all 0.3s" }}>
 <div style={{ position: "absolute", left: 10, top: 16, width: 3, height: 3, borderRadius: "50%",
-background: uReaction === "landed" ? "#6BFFB8" : uReaction === "resisted" ? "rgba(255,96,144,0.6)" : "#B86BFF", opacity: 0.5 }} />
-<p style={{ fontSize: 15, color: uReaction === "resisted" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.55)", fontFamily: FD, lineHeight: 1.65, margin: "0 0 6px" }}>
-<TappableSentence text={t} onReact={function(_, r) { handleReact(uKey, r); }} />
+background: opt ? opt.color : "#B86BFF", opacity: 0.5 }} />
+<p style={{ fontSize: 15, color: opt ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.55)", fontFamily: FD, lineHeight: 1.65, margin: "0 0 6px" }}>
+<HighlightableText text={t} feedback={uFb} onFeedback={handleSentenceFeedback} dark />
 </p>
-{uReaction === "landed" && <div style={{ fontSize: 14, color: "rgba(107,255,184,0.4)", fontFamily: FB, letterSpacing: "0.12em" }}>← yes</div>}
-
 </div>;
 })}
 </div>}
@@ -2454,10 +2545,12 @@ background: uReaction === "landed" ? "#6BFFB8" : uReaction === "resisted" ? "rgb
 </div>
 {(revisedSynthesis && revisedSynthesis.tension_text
 ? <p style={{ fontSize: 15, color: "rgba(255,255,255,0.72)", fontFamily: FD, lineHeight: 1.6, margin: "0 0 4px" }}>
-{revisedSynthesis.tension_text}
+<HighlightableText text={revisedSynthesis.tension_text} feedback={sentenceFeedback[(revisedSynthesis.tension_text||"").slice(0,100)]} onFeedback={handleSentenceFeedback} dark />
 <span style={{ fontSize: 9, color: "rgba(255,96,144,0.4)", fontFamily: FB, letterSpacing: "0.2em", marginLeft: 8 }}>revised</span>
 </p>
-: tension.text && <p style={{ fontSize: 15, color: reactions["tension"] === "resisted" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.62)", fontFamily: FD, lineHeight: 1.6, margin: "0 0 12px" }}>{tension.text}</p>
+: tension.text && <p style={{ fontSize: 15, color: "rgba(255,255,255,0.62)", fontFamily: FD, lineHeight: 1.6, margin: "0 0 12px" }}>
+<HighlightableText text={tension.text} feedback={sentenceFeedback[(tension.text||"").slice(0,100)]} onFeedback={handleSentenceFeedback} dark />
+</p>
 )}
 {!reactions["tension"] && <div style={{ display: "flex", gap: 8 }}>
 <button onClick={function() { handleReact("tension", "landed"); }} style={{ flex: 1, fontSize: 15, color: "rgba(107,255,184,0.45)", fontFamily: FB, background: "rgba(107,255,184,0.04)", border: "1px solid rgba(107,255,184,0.1)", borderRadius: 16, padding: "8px 0", minHeight: 44, cursor: "pointer", letterSpacing: "0.06em", touchAction: "manipulation" }}>this lands ←</button>
@@ -2521,7 +2614,7 @@ What's coming up for you now?
 </div>
 </div>
 )}
-<button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sessionPours: sessionPours }); }} style={{
+<button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sessionPours: sessionPours, sentenceFeedback: sentenceFeedback }); }} style={{
 width: "100%", background: descentDone ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
 border: descentDone ? "none" : "1px solid rgba(107,255,184,0.15)",
 borderRadius: 24, padding: "16px 28px", minHeight: 52,
@@ -3602,6 +3695,7 @@ corrections: data.corrections || {},
 revisedSynthesis: data.revisedSynthesis || null,
 sessionPours: data.sessionPours || [],
 sentenceFeedback: data.sentenceFeedback || {},
+focusAreas: computeFocusAreas(data.themes || []),
 });
 if (sessions.length > 100) sessions = sessions.slice(-100);
 localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
@@ -4495,57 +4589,36 @@ transition:"color 0.25s", pointerEvents:"none", textTransform:"uppercase" }}>
 );
 }
 
-function UnderneathItem({ text, index }) {
+function UnderneathItem({ text, index, feedback, onFeedback }) {
 var holdTimer = React.useRef(null);
 var [holding, setHolding] = React.useState(false);
 var [saved, setSaved] = React.useState(false);
-var [swipeX, setSwipeX] = React.useState(0);
-var [swiping, setSwiping] = React.useState(false);
-var swipeStart = React.useRef(0);
-var [reaction, setReaction] = React.useState(null);
-var [noteOpen, setNoteOpen] = React.useState(false);
-var [noteDraft, setNoteDraft] = React.useState("");
-var [noteSaved, setNoteSaved] = React.useState(false);
-var HOLD_MS = 1100; var SWIPE_T = 60;
+var HOLD_MS = 1100;
 
 function startInteract(clientX, e) {
-if (reaction) return;
 e.stopPropagation();
-swipeStart.current = clientX;
-setSwiping(true); setSwipeX(0); setHolding(true);
+setHolding(true);
 holdTimer.current = setTimeout(function() {
 try {
 var bm = JSON.parse(localStorage.getItem("saycrd-bookmarks") || "[]");
 bm.push({ text: text, label:"Underneath", date:new Date().toISOString() });
 localStorage.setItem("saycrd-bookmarks", JSON.stringify(bm));
 } catch(e2) {}
-setSaved(true); setHolding(false); setSwiping(false);
+setSaved(true); setHolding(false);
 }, HOLD_MS);
 }
-function moveInteract(clientX) {
-if (!swiping || reaction) return;
-var dx = clientX - swipeStart.current;
-setSwipeX(dx);
-if (Math.abs(dx) > 8) { clearTimeout(holdTimer.current); setHolding(false); }
-}
 function endInteract() {
-clearTimeout(holdTimer.current); setHolding(false);
-if (!swiping) return;
-setSwiping(false);
-var dx = swipeX; setSwipeX(0);
-if (dx < -SWIPE_T) { setReaction("landed"); }
-else if (dx > SWIPE_T) { setReaction("pushed"); setNoteOpen(true); }
+if (holdTimer.current) clearTimeout(holdTimer.current);
+setHolding(false);
 }
 
-var dir = swipeX < -8 ? "land" : swipeX > 8 ? "push" : null;
+var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var bg = saved ? "rgba(107,255,184,0.1)"
-: reaction === "landed" ? "rgba(107,255,184,0.07)"
-: reaction === "pushed" ? "rgba(255,96,144,0.07)"
+: opt ? (opt.color + "22")
 : holding ? "rgba(184,107,255,0.18)"
 : "rgba(184,107,255,0.07)";
 var bord = saved ? "1px solid rgba(107,255,184,0.3)"
-: reaction === "landed" ? "1px solid rgba(107,255,184,0.2)"
-: reaction === "pushed" ? "1px solid rgba(255,96,144,0.2)"
+: opt ? "1px solid " + opt.color + "44"
 : holding ? "1px solid rgba(184,107,255,0.45)"
 : "1px solid rgba(184,107,255,0.14)";
 
@@ -4553,67 +4626,25 @@ return (
 <div style={{ animation:"riseUp 0.5s ease "+(index*0.15)+"s both" }}>
 <div
 onMouseDown={function(e){ startInteract(e.clientX,e); }}
-onMouseMove={function(e){ moveInteract(e.clientX); }}
 onMouseUp={endInteract} onMouseLeave={endInteract}
 onTouchStart={function(e){ startInteract(e.touches[0].clientX,e); }}
-onTouchMove={function(e){ moveInteract(e.touches[0].clientX); }}
 onTouchEnd={endInteract}
 onClick={function(e){ e.stopPropagation(); }}
 style={{ padding:"14px 18px", borderRadius:14, background:bg, border:bord,
-cursor:reaction?"default":"grab", transition:"background 0.2s, border 0.2s",
-transform:swiping?"translateX("+(swipeX*0.35)+"px)":"none",
+cursor:"default", transition:"background 0.2s, border 0.2s",
 userSelect:"none", WebkitUserSelect:"none" }}>
 <p style={{ fontSize:17, fontFamily:FD, lineHeight:1.6, margin:"0 0 6px",
-color: reaction==="landed" ? "#6BFFB8"
-: reaction==="pushed" ? "rgba(255,255,255,0.3)"
-: "rgba(255,255,255,0.88)" }}>{text}</p>
+color: opt ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.88)" }}>
+<HighlightableText text={text} feedback={feedback} onFeedback={onFeedback} dark />
+</p>
 <div style={{ fontSize:10, fontFamily:FB, letterSpacing:"0.08em",
 color: saved ? "rgba(107,255,184,0.7)"
 : holding ? "rgba(184,107,255,0.7)"
-: reaction==="landed" ? "rgba(107,255,184,0.5)"
-: reaction==="pushed" ? "rgba(255,96,144,0.5)"
-: dir==="land" ? "rgba(107,255,184,0.4)"
-: dir==="push" ? "rgba(255,96,144,0.4)"
-: "rgba(255,255,255,0.18)" }}>
-{saved?"✓ bookmarked":holding?"hold...":reaction==="landed"?"resonates ←":reaction==="pushed"?"pushed back →":dir==="land"?"← resonates":dir==="push"?"push back →":"hold to save · swipe to react"}
+: opt ? (opt.color + "99"
+) : "rgba(255,255,255,0.18)" }}>
+{saved ? "✓ bookmarked" : holding ? "hold..." : opt ? "← " + (opt.label || feedback) : "hold to bookmark · click text to react"}
 </div>
 </div>
-{noteOpen && !noteSaved && (
-<div onClick={function(e){e.stopPropagation();}}
-style={{ marginTop:8, padding:"12px 14px", borderRadius:12,
-background:"rgba(255,96,144,0.05)", border:"1px solid rgba(255,96,144,0.2)",
-animation:"riseUp 0.3s ease both" }}>
-<div style={{ fontSize:11, color:"rgba(255,96,144,0.65)", fontFamily:FB,
-letterSpacing:"0.1em", marginBottom:8 }}>what doesn't fit?</div>
-<textarea value={noteDraft} onChange={function(e){setNoteDraft(e.target.value);}}
-onKeyDown={function(e){
-if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();setNoteSaved(true);setNoteOpen(false);}
-if(e.key==="Escape"){setNoteOpen(false);setReaction(null);}
-}}
-placeholder="type anything — used as signal, not shown back"
-autoFocus
-style={{ width:"100%", minHeight:52, background:"rgba(255,255,255,0.03)",
-border:"1px solid rgba(255,96,144,0.2)", borderRadius:8,
-color:"rgba(255,255,255,0.85)", fontFamily:FD, fontSize:14,
-padding:"8px 12px", resize:"none", outline:"none",
-lineHeight:1.55, boxSizing:"border-box" }} />
-<div style={{ display:"flex", justifyContent:"space-between", marginTop:6 }}>
-<button onClick={function(){setNoteOpen(false);setReaction(null);setNoteDraft("");}}
-style={{ fontSize:11, color:"rgba(255,255,255,0.2)", fontFamily:FB,
-background:"transparent", border:"none", cursor:"pointer" }}>cancel</button>
-<button onClick={function(){setNoteSaved(true);setNoteOpen(false);}}
-style={{ fontSize:12, fontFamily:FB, background:"transparent",
-border:"1px solid rgba(255,96,144,0.25)", borderRadius:12,
-padding:"4px 16px", cursor:"pointer",
-color:noteDraft.trim()?"rgba(255,96,144,0.8)":"rgba(255,96,144,0.3)"
-}}>signal sent</button>
-</div>
-</div>
-)}
-{noteSaved && (
-<div style={{ marginTop:4, fontSize:11, color:"rgba(255,255,255,0.25)", fontFamily:FB,
-paddingLeft:4 }}>incorporated</div>
-)}
 </div>
 );
 }
@@ -7158,7 +7189,7 @@ if (/CONCLUSION/.test(t)) return "The thread that ties it together";
 return "";
 }
 
-function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, sliderValues, portrait, portraitReady, goNext }) {
+function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, sliderValues, portrait, portraitReady, goNext, sentenceFeedback: propSentenceFeedback, onSentenceFeedback }) {
 themes = themes || [];
 allSessions = allSessions || [];
 var isMobile = React.useContext(FieldMobileContext);
@@ -7344,8 +7375,9 @@ var lastSessData = allSessions.length > 0 ? allSessions[allSessions.length - 1] 
 var poursBlurb = (lastSessData && lastSessData.sessionPours && lastSessData.sessionPours.length > 0)
 ? "SESSION POURS (what came up for the subject while reading — use when relevant):\n" + lastSessData.sessionPours.map(function(p){ return "\""+(p.text||"").slice(0,200)+"\""; }).join("\n") + "\n\n"
 : "";
-var sentFbBlurb = (lastSessData && lastSessData.sentenceFeedback && Object.keys(lastSessData.sentenceFeedback).length > 0)
-? "SENTENCE FEEDBACK (how report lines landed — PRIMARY; respect this):\n" + Object.keys(lastSessData.sentenceFeedback).map(function(k){ var v=lastSessData.sentenceFeedback[k]; return "\""+k.slice(0,80)+(k.length>80?"…":"")+"\" → "+v; }).join("\n") + "\n\n"
+var _effectiveSentFb = Object.assign({}, (lastSessData && lastSessData.sentenceFeedback) || {}, propSentenceFeedback || {});
+var sentFbBlurb = (Object.keys(_effectiveSentFb).length > 0)
+? "SENTENCE FEEDBACK (how session/field/report lines landed — use ONLY when the subject EXPLICITLY gave this feedback; do NOT infer from absence):\n" + Object.keys(_effectiveSentFb).map(function(k){ var v=_effectiveSentFb[k]; var lab=(SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===v;})||{}).label||v; return "\""+k.slice(0,80)+(k.length>80?"…":"")+"\" → "+lab; }).join("\n") + "\n\nFEEDBACK RULE: If the subject marked something as \"Not Feeling That\" or \"Doesn't Fit Quite Right,\" that is THEIR TRUTH at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Do NOT use feedback or resistance unless the subject explicitly indicated it — never infer from silence or absence of interaction.\n\n"
 : "";
 
 var underList = [];
@@ -7359,6 +7391,30 @@ if (Array.isArray(sd.underneath)) sd.underneath.forEach(function(x){ if (typeof 
 else if (typeof sd.underneath==="string"&&sd.underneath.trim()) underList.push(sd.underneath.trim());
 }
 var underBlurb = underList.length ? "What's underneath (pattern intelligence — patterns hard for the subject to self-see: repetition, structure, blind spots; use these exact ideas in prose, never write labels like underneath_0): " + underList.map(function(u,i){ return "("+(i+1)+") \""+u.slice(0,120)+(u.length>120?"…":"")+"\""; }).join("; ") + ".\n\n" : "";
+
+var tensionsRecord = [];
+var blindSpotsRecord = [];
+allSessions.forEach(function(s, si) {
+var t = s.tension;
+if (t && (t.a || t.b)) {
+var txt = (t.text || "").trim().slice(0, 100);
+var fb = _effectiveSentFb[txt] ? (SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===_effectiveSentFb[txt];})||{}).label || _effectiveSentFb[txt] : null;
+tensionsRecord.push("S"+(si+1)+": "+t.a+" vs "+t.b+(t.text?" — \""+t.text.slice(0,80)+(t.text.length>80?"…":"")+"\"" : "")+(fb ? " [subject feedback: "+fb+"]" : ""));
+}
+var bs = typeof s.blind_spot === "string" ? s.blind_spot.trim() : "";
+if (bs) {
+var bsKey = bs.slice(0, 100);
+var bsFb = _effectiveSentFb[bsKey] ? (SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===_effectiveSentFb[bsKey];})||{}).label || _effectiveSentFb[bsKey] : null;
+blindSpotsRecord.push("S"+(si+1)+": \""+bs.slice(0,100)+(bs.length>100?"…":"")+"\""+(bsFb ? " [subject feedback: "+bsFb+"]" : ""));
+}
+});
+var tensionsBlindSpotsBlurb = "";
+if (tensionsRecord.length > 0 || blindSpotsRecord.length > 0) {
+tensionsBlindSpotsBlurb = "TENSIONS AND BLIND SPOTS RECORD (with user feedback when available):\n";
+if (tensionsRecord.length) tensionsBlindSpotsBlurb += "Tensions in the subject's life:\n" + tensionsRecord.slice(0, 8).join("\n") + "\n\n";
+if (blindSpotsRecord.length) tensionsBlindSpotsBlurb += "Blind spots (pattern intelligence — what may be hard to self-see):\n" + blindSpotsRecord.slice(0, 8).join("\n") + "\n\n";
+tensionsBlindSpotsBlurb += "TENSIONS/BLIND SPOTS RULE: When the pattern suggests a tension or blind spot, BRING IT UP and see how it lands — do NOT assert it as fact. Frame as: 'The pattern suggests X — does that land?' or 'Something that may be worth considering: X. How does that feel?' If the subject has given feedback (Not Feeling That, Doesn't Fit Quite Right), their truth overrides. Record that. Do NOT conclude anything from user disagreement — that is their truth at that moment.\n\n";
+}
 
 var descentBlurb = "";
 var currDescent = (currentSessionData && currentSessionData.descent) ? currentSessionData.descent : (lastSession && lastSession.descent ? lastSession.descent : (sd.descent || null));
@@ -7397,7 +7453,9 @@ var cardFeedbackBlurb = "";
 var cfKeys = Object.keys(sliderValues).filter(function(k){ return sliderValues[k] !== undefined && SLIDER_LABELS[k]; });
 if (cfKeys.length > 0) {
 var cfLines = cfKeys.map(function(k){ var v = sliderValues[k]; return k + ": value=" + v + " → " + sliderToChose(k, v) + " (scale: 0=left \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].left:"") + "\", 100=right \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].right:"") + "\")"; });
-cardFeedbackBlurb = "CARD SLIDERS — SUBJECT'S EXACT CHOICE (0=left pole, 100=right pole. Use ONLY what they chose — never invert):\n" + cfLines.join("\n") + "\n\nCRITICAL: The value and CHOSE direction are authoritative. If it says \"CHOSE toward right: X\", the subject moved the slider RIGHT toward X. Do NOT write that they chose the opposite pole. When citing, name the scale and use words (slightly, moderately, strongly) — not bare percentages.\n\n";
+cardFeedbackBlurb = "CARD SLIDERS — SUBJECT'S EXACT CHOICE (0=left pole, 100=right pole. Use ONLY what they chose — never invert):\n" + cfLines.join("\n") + "\n\nCRITICAL: Only the cards listed above were interacted with. If a card (the_mirror, synthesis, blind_spot, etc.) is NOT in this list, the subject did NOT interact with it — do NOT claim it landed, resonated, or that they responded to it. The value and CHOSE direction are authoritative. When citing, name the scale and use words (slightly, moderately, strongly) — not bare percentages.\n\n";
+} else {
+cardFeedbackBlurb = "CARD SLIDERS: (none — subject did not interact with any field card sliders). Do NOT claim that the mirror, synthesis, blind spot, or any other card landed or resonated. You have no basis for that.\n\n";
 }
 
 var mapValuesBlurb = "";
@@ -7421,7 +7479,7 @@ if (insight) line += " | insight: \""+insight+(insight.length>=120?"…":"")+"\"
 line += " | "+val+(mapChose ? " | "+mapChose : "")+cmt;
 connLines.push(line);
 });
-if (connLines.length) mapValuesBlurb = "MAP CONNECTORS (the magic is in the INSIGHT — what the AI said; the user's response is how that landed):\n" + connLines.slice(0, 15).join("\n") + "\n\nMAP RULE: Lead with the connector's insight (what was offered), then how the user responded. Do NOT frame as 'testing the connection between nodes.' Everything is related — the question is what's underlying. The map surfaces that.\n\nMAP SLIDER POLARITY: confirmed = subject moved slider RIGHT toward 'very alive in me'. rejected = subject moved slider LEFT toward 'not how it lives in me'. partly = middle. If CHOSE says 'toward right', they CONFIRMED. If CHOSE says 'toward left', they REJECTED. Never invert.\n\n";
+if (connLines.length) mapValuesBlurb = "MAP CONNECTORS (raw data — the insight is what the AI said; the user's response is how that landed):\n" + connLines.slice(0, 15).join("\n") + "\n\nMAP RULE — CRITICAL: Do NOT use 'The map offered,' 'the map showed,' node labels (X↔Y), or quote the raw connector insight verbatim. That language is difficult to comprehend. Instead: translate the insight into plain human sentences. Describe what arose in the session — the tension, the recognition, the feeling — in words anyone can grasp. Example: 'A tension arose: [what it was about, in plain language]. The subject confirmed it strongly.' Lead with meaning, then how they responded. Never use comparison jargon or abstract node phrasing. The report should feel intelligent and readable.\n\nMAP SLIDER POLARITY: confirmed = subject moved slider RIGHT toward 'very alive in me'. rejected = subject moved slider LEFT toward 'not how it lives in me'. partly = middle. If CHOSE says 'toward right', they CONFIRMED. If CHOSE says 'toward left', they REJECTED. Never invert.\n\n";
 }
 
 var patternEngineBlurb = "";
@@ -7473,19 +7531,22 @@ if (esLines.length) emergentSignalsBlurb = "EMERGENT SIGNALS (what wants to happ
 }
 }
 
-var prompt = "You are writing a confidential field report. Plain declarative past tense. Clinical but human. The report is for the subject — they will read it.\n\n"
-+ "CLARITY: Write for a reader with a college or strong high school education. Use plain words. Avoid jargon: say \"over time\" not \"longitudinal arc,\" \"the big pattern\" not \"meta-pattern,\" \"what the data points to\" not \"pattern-intelligence.\" Lead each section with the simplest version of the insight. Add nuance in the next sentence. Don't pack theme + tension + archetype into one long opening.\n\n"
-+ "VOICE: Use \"you\" when quoting the subject's words (e.g. \"You said: \\\"...\\\"\") or in the one-line verdict when it fits. The report is for them — \"you\" makes it feel personal. Otherwise third person is fine. Never use he, she, him, her.\n\n"
+var prompt = "You are writing a confidential field report. Plain declarative past tense. The report is for the subject — they will read it. It should feel like a complete piece, not facts strung together.\n\n"
++ "FEELING AND INTELLIGENCE: The report's value is the intelligence — the pattern beneath the pattern, the thread that ties it together. Weave insight into flowing prose. The reader should feel seen and understood. Not a list of what happened; a coherent reading of what it means. Write with depth.\n\n"
++ "CLARITY: Write for a reader with a college or strong high school education. Use plain words. Avoid jargon: say \"over time\" not \"longitudinal arc,\" \"the big pattern\" not \"meta-pattern.\" Lead each section with the simplest version of the insight. Add nuance in the next sentence. Don't pack theme + tension + archetype into one long opening.\n\n"
++ "VOICE: Use ONE consistent voice throughout — either \"the subject\" (third person) or \"you\" (second person). Do not mix. Never use he, she, him, her. When quoting their words, use \"The subject said: \\\"...\\\"\" or \"You said: \\\"...\\\"\" depending on which voice you chose. Pick one and stick to it.\n\n"
 + "PRACTITIONER MODE: Draw on pattern recognition, systems thinking, and deep listening — without naming disciplines. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth.\n\n"
 + "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
-+ "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. Every claim about the subject's actions must be traceable to the source data. When in doubt, omit.\n\n"
++ "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. CRITICAL: Do NOT claim a card (mirror, synthesis, blind spot, connection, etc.) landed or resonated unless it appears in CARD SLIDERS with a value. If the subject did not interact with a card, you have no basis to say it landed — omit it. Every claim must be traceable to the source data. When in doubt, omit.\n\n"
++ "USER FEEDBACK AND RESISTANCE — CRITICAL: Use feedback and resistance ONLY when the subject EXPLICITLY indicated it (e.g. chose \"Not Feeling That,\" \"Doesn't Fit Quite Right,\" pushed back on a connection, or similar). Do NOT infer resistance from absence of feedback. Silence = no data. If the subject disagrees or says something doesn't fit, that IS their truth at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Never pathologize disagreement.\n\n"
++ "TENSIONS AND BLIND SPOTS: When the pattern suggests a tension or blind spot, BRING IT UP and see how it lands — do NOT assert it as fact. Offer it: 'The pattern suggests X — does that land?' or 'Something that may be worth considering: X.' If the subject has given feedback (Not Feeling That, Doesn't Fit Quite Right), their truth overrides. Record tensions and blind spots with the subject's feedback when available. Do NOT conclude anything from user disagreement — that is their truth.\n\n"
 + "TENSE AWARENESS (past / present / future): Be mindful of when the subject said something. If they said they are going to do something, or plan to, or will — that is a PLAN, not an action. Do NOT conclude they did it. If they said they did it — that is past action. If they said they are doing it — that is present. Never collapse future intention into past accomplishment. \"I'm going to try\" is not \"they tried.\" \"I plan to stop\" is not \"they stopped.\" Honor the tense.\n\n"
 + "CURIOUS, NOT DIAGNOSTIC: NEVER use defensiveness, defensive, or similar labels. The report is curious and honoring — not pathologizing. If something seems to warrant that kind of read, ASK it as a question (and that belongs in Descent, not here). Stay curious.\n\n"
 + "NO ASSUMPTIONS ABOUT \"THE MAIN THING\": Do NOT assume what is most important in someone's life based on time, frequency, or what shows up most in sessions. Unless the subject explicitly says \"this is my main focus\" or \"the most important thing,\" do not conclude it. You may observe: \"After X sessions, this keeps coming up — an interesting question is why it's in the background\" — but never \"this is the main thing.\" The subject's life has many parts; don't collapse it into one.\n\n"
 + "DON'T ASSERT — ASK IN DESCENT: If you have a question about what's going on (e.g. \"Are you putting X before Y?\" \"Is revenue a way of delaying launch?\"), that belongs in Descent as a question the subject can answer — NOT in the report as an assertion. Never assume motivations (e.g. \"not wanting to launch because putting revenue first\") and state them as fact. If the data suggests a tension, name the tension; don't invent the motive. When in doubt, frame as curiosity, not conclusion.\n\n"
-+ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report.\n"
++ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report. The report should read as one coherent piece with intelligence and feeling — not facts strung together. NO NODE LANGUAGE: Never use 'The map offered,' node labels (X↔Y), or quote connector insights verbatim. Rewrite into plain human sentences.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
-+ "GROUNDING: For each major insight, anchor it in evidence the reader can trace (e.g. \"the map showed control↔trust confirmed in 5 of the last 6 sessions\" or \"you corrected the blind spot twice, refining it from X to Y\"). Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, you tended to Y\" — interpretation, not certainty. Prefer \"you showed up with\" over \"the subject exhibited.\" Where a pattern is not absolute, add light nuance: \"with exceptions at S9 and S16\" or \"though not in every session.\" Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
++ "GROUNDING: For each major insight, anchor it in evidence the reader can trace. Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, the subject tended to Y.\" Never use node labels (X↔Y), connector jargon, or comparison language. Where a pattern is not absolute, add light nuance. Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
 + "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
 + (prevReportHint ? prevReportHint : "")
 + (shiftBlurb ? shiftBlurb : "")
@@ -7506,13 +7567,14 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + subjectWordsBlurb
 + (poursBlurb || "")
 + (sentFbBlurb || "")
++ (tensionsBlindSpotsBlurb || "")
 + underBlurb
-+ "STRUCTURE: The current session is the CORE and BACKBONE — anchor the report there. The VALUE is the Y-axis: what has accumulated over time. The report's power is how the longitudinal arc (themes, patterns, blind spots across many sessions) gets BROUGHT UP and surfaced in this session. Use descent answers and map feedback as the backbone of what landed now. Weave the past into the current — the value over time is what this session brings into focus. When 20+ sessions, the meta-pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
++ "STRUCTURE: The current session is the CORE — anchor the report there. The value is what has accumulated over time. The report's power is how themes, patterns, and blind spots across sessions surface in this moment. Use descent answers and map feedback as the backbone of what landed. Weave the past into the current. When 20+ sessions, the pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
 + "NO DRIFT: The conclusion must tie to the heart of what this report established. Use prior-session material to bring the Y-axis (value over time) into the current moment — not to drift into unrelated history. Stay on topic.\n\n"
 + "Write 4 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
 + "SECTION TITLES: Section 1: WHAT SHOWED UP or THIS SESSION. Section 2: WHAT CHANGED (the Y-axis — the journey). Section 3: WHAT KEEPS RETURNING or WHAT'S STILL HERE. Section 4: CONCLUSION.\n"
 + "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use \"You said: \\\"...\\\"\" with their exact phrasing. Do not paraphrase into something they didn't say. In the third section, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
-+ "SECTION 1 (WHAT SHOWED UP / THIS SESSION): What dominated in THIS session. Use the MAP CONNECTORS' magic — the insight (what the AI offered), then how the user responded. Lead with what the connector said; the user's yes/partly/no and their words show how it landed. Do NOT frame as 'testing the connection between two nodes.' Everything is related; the question is what's underlying. The map is excellent at surfacing that. 3 short paragraphs.\n"
++ "SECTION 1 (WHAT SHOWED UP / THIS SESSION): What dominated in THIS session. When citing map connections: do NOT say 'The map offered:' or quote node language verbatim. Instead, describe the tension or insight that arose in the session in plain sentences — e.g. 'A tension arose: [what it was about, in human language]. You confirmed it strongly.' Rewrite connector insights into flowing prose the reader can grasp. Lead with the meaning, then how they responded. 3 short paragraphs.\n"
 + "SECTION 2 (WHAT CHANGED): The Y-axis — the user's JOURNEY. The arc from previous sessions all the way to the beginning, if relevant to this session. What changed over time. This is the longitudinal arc and is super valuable. Not 'what changed in this session' narrowly — the journey across sessions. How themes, archetypes, blind spots, tensions have evolved. 3 short paragraphs.\n"
 + "SECTION 3 (WHAT KEEPS RETURNING / WHAT'S STILL HERE): Still unresolved. Still returning. Refer to the 'what's underneath' phrases above — repetition, structure, blind spots the subject may not see. Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction. 2 short paragraphs.\n\n"
 + "SECTION 4 (CONCLUSION): A powerful closing. The one thread that runs through everything. The single most honest thing to take away. Written for the subject — use \"you\" when it fits. 2-3 sentences max. No summary of what came before — a landing, an invitation, a truth that ties the report together. Make it memorable. Make it land.\n\n"
@@ -7824,7 +7886,7 @@ color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConcl
 
 <div style={{ fontSize: isConclusion ? 20 : 17, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
 fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal" }}>
-{renderBody(sec.body, isConclusion, function(s){ _setSelectedSentence(s); }, _sentenceFeedback)}
+{renderBody(sec.body, isConclusion, function(s){ _setSelectedSentence(s); }, Object.assign({}, propSentenceFeedback || {}, _sentenceFeedback))}
 </div>
 
 </div>
@@ -8163,6 +8225,7 @@ descent: sData.descent,
 clarity: (sData.clarity || sd.sessionClarity || ""),
 signals: sData.signals || null,
 sessionPours: sData.sessionPours || [],
+sentenceFeedback: sData.sentenceFeedback || {},
 cardFeedback: (function() {
 var fb = {};
 Object.keys(sliderValues).forEach(function(k) {
@@ -8341,6 +8404,27 @@ var [sliderValues, setSliderValues] = useState({});
 function setSlider(key, v) { setSliderValues(function(prev) { return Object.assign({}, prev, {[key]: v}); }); }
 var [cardComments, setCardComments] = useState({});
 function setCardComment(key, text) { setCardComments(function(prev) { return Object.assign({}, prev, {[key]: text}); }); }
+var [fieldCardSentenceFeedback, setFieldCardSentenceFeedback] = useState({});
+function handleFieldCardFeedback(text, optionId) {
+var key = (text || "").slice(0, 100);
+setFieldCardSentenceFeedback(function(prev) {
+var next = Object.assign({}, prev, { [key]: optionId });
+try {
+var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
+if (sessions.length > 0) {
+var last = sessions[sessions.length - 1];
+var merged = Object.assign({}, last.sentenceFeedback || {}, next);
+sessions[sessions.length - 1] = Object.assign({}, last, { sentenceFeedback: merged });
+localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
+if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
+window.storage.set("sessions", JSON.stringify(sessions)).catch(function(){});
+}
+}
+} catch(e) {}
+return next;
+});
+}
+var mergedSentenceFeedback = Object.assign({}, (sData && sData.sentenceFeedback) || {}, fieldCardSentenceFeedback);
 var [bookmarks, setBookmarks] = useState(function() { try { return JSON.parse(localStorage.getItem("saycrd-bookmarks")||"[]"); } catch(e) { return []; } });
 
 function handleArchResponse(response) {
@@ -8445,7 +8529,7 @@ case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "field_report": {
-return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={portrait} portraitReady={portraitReady} goNext={advance} sentenceFeedback={mergedSentenceFeedback} onSentenceFeedback={handleFieldCardFeedback}/>;
 }
 case "the_underdrawing": {
 return <UnderdrawingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -8722,6 +8806,7 @@ return <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, ani
 case "synthesis": {
 var sv = sliderValues.synthesis !== undefined ? sliderValues.synthesis : 50;
 var alive = sv >= 68; var away = sv <= 32;
+var synText = synthesis || "Something is moving underneath your words.";
 return (
 <BookmarkableCard text={synthesis} label="The Reading" color="#D6B26D">
 <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
@@ -8734,7 +8819,7 @@ fontFamily:FD, lineHeight:1.65, textAlign:"center", maxWidth:320,
 animation:"riseUp 0.8s ease both",
 textShadow: alive ? "0 0 40px rgba(232,184,78,0.25)" : "none",
 transition:"text-shadow 0.5s, color 0.3s" }}>
-{synthesis || "Something is moving underneath your words."}
+<HighlightableReading text={synText} feedbackMap={mergedSentenceFeedback} onFeedback={handleFieldCardFeedback} dark />
 </div>
 {alive && <div style={{ position:"absolute", inset:20, borderRadius:20,
 border:"1px solid rgba(232,184,78,0.18)", pointerEvents:"none",
@@ -8849,7 +8934,7 @@ return (
 <div style={{ display:"flex", flexDirection:"column", gap:12, maxWidth:320, width:"100%" }}>
 {underneath.slice(0,3).map(function(t, idx) {
 var text = typeof t === "string" ? t : t.observation || "";
-return <UnderneathItem key={idx} text={text} index={idx} />;
+return <UnderneathItem key={idx} text={text} index={idx} feedback={propSentenceFeedback ? propSentenceFeedback[(text||"").slice(0,100)] : null} onFeedback={onSentenceFeedback} />;
 })}
 </div>
 </FC>
