@@ -4139,6 +4139,82 @@ result.push({ domain: d, topThemes: top, totalWeight: byDomain[d].totalWeight })
 });
 return result.sort(function(a, b) { return b.totalWeight - a.totalWeight; }).slice(0, 5);
 }
+
+function computeFocusOverTime(sessions) {
+var domains = ["work","relationship","self","creativity","money"];
+var byDomain = {};
+domains.forEach(function(d){ byDomain[d] = { perSession: [], total: 0, sessionsWithFocus: 0 }; });
+sessions.forEach(function(s, si) {
+var fa = s.focusAreas || computeFocusAreas(s.themes);
+var row = {};
+domains.forEach(function(d) {
+var v = fa[d] || 0;
+row[d] = v;
+byDomain[d].perSession.push({ si: si, val: v });
+if (v > 0.05) byDomain[d].sessionsWithFocus++;
+byDomain[d].total += v;
+});
+});
+var n = sessions.length;
+var result = [];
+domains.forEach(function(d) {
+var arr = byDomain[d];
+var avg = n > 0 ? arr.total / n : 0;
+var recent = arr.perSession.slice(-3);
+var recentAvg = recent.length ? recent.reduce(function(s,x){ return s + x.val; }, 0) / recent.length : 0;
+var early = arr.perSession.slice(0, Math.min(3, n));
+var earlyAvg = early.length ? early.reduce(function(s,x){ return s + x.val; }, 0) / early.length : 0;
+var shift = recentAvg - earlyAvg;
+result.push({
+domain: d,
+label: LIFE_DOMAIN_LABELS[d] || d,
+avgFocus: Math.round(avg * 100) / 100,
+sessionsWithFocus: arr.sessionsWithFocus,
+shift: Math.round(shift * 100) / 100,
+recentAvg: Math.round(recentAvg * 100) / 100,
+});
+});
+var totalAvg = result.reduce(function(s,r){ return s + r.avgFocus; }, 0);
+var maxD = result.reduce(function(m,r){ return r.avgFocus > (m.avgFocus||0) ? r : m; }, {});
+var imbalance = maxD.avgFocus > 0.5 ? { domain: maxD.domain, pct: Math.round(maxD.avgFocus * 100) } : null;
+return { byDomain: result, imbalance: imbalance, totalSessions: n };
+}
+
+function alchemyToMetamorphosisStage(alch) {
+if (!alch) return "forming";
+if (alch === "nigredo") return "eating";
+if (alch === "albedo") return "digesting";
+if (alch === "citrinitas") return "forming";
+if (alch === "rubedo") return "flying";
+return "forming";
+}
+
+function computeMetamorphosisByDomain(sessions) {
+var domains = ["work","relationship","self","creativity","money"];
+var byDomain = {};
+domains.forEach(function(d){ byDomain[d] = []; });
+sessions.forEach(function(s, si) {
+var fa = s.focusAreas || computeFocusAreas(s.themes);
+var alch = (s.alchemy && s.alchemy.stage) ? s.alchemy.stage : null;
+var stage = alchemyToMetamorphosisStage(alch);
+domains.forEach(function(d) {
+var focus = fa[d] || 0;
+if (focus >= 0.1) byDomain[d].push({ si: si, focus: focus, stage: stage });
+});
+});
+var result = {};
+domains.forEach(function(d) {
+var arr = byDomain[d];
+var last = arr.length > 0 ? arr[arr.length - 1] : null;
+result[d] = {
+label: LIFE_DOMAIN_LABELS[d] || d,
+stage: last ? last.stage : null,
+sessionsCount: arr.length,
+lastSessionIndex: last ? last.si : null,
+};
+});
+return result;
+}
 function computePatternEngine() {
 var sessions = loadSessions();
 if (sessions.length < 2) return null;
@@ -4212,6 +4288,7 @@ if (topClarity.length) engine.repeating_goals = topClarity.map(function(e) { ret
 engine.connection_arcs = computeConnectionArcs(sessions);
 engine.pattern_morphology = computePatternMorphology(sessions);
 engine.life_domain_signals = computeLifeDomainSignals(sessions);
+engine.focus_over_time = computeFocusOverTime(sessions);
 engine.regression_context = computeRegressionContext(sessions);
 var peKey = "saycrd-" + getCurrentUid() + "-pattern-engine";
 try { localStorage.setItem(peKey, JSON.stringify(engine)); } catch(e) {}
@@ -6247,6 +6324,7 @@ themes = themes || []; sd = sd || {};
 var _all = (function(){ try { return loadSessions(); } catch(e){ return []; } })();
 var evoSessions = _all.length > 0 ? _all : [{ alchemy: sd.alchemy || null, isCurrent: true }];
 var [idx, setIdx] = useState(Math.max(0, evoSessions.length - 1));
+var [metamorphosisWriteup, setMetamorphosisWriteup] = useState("");
 var sel = evoSessions[Math.min(idx, evoSessions.length - 1)] || {};
 var alchStage = (sel.alchemy && sel.alchemy.stage) ? sel.alchemy.stage : null;
 var stageFromAlch = alchStage ? (alchStage === "nigredo" ? (idx < evoSessions.length * 0.5 ? "eating" : "spinning") : alchStage === "albedo" ? (idx % 2 === 0 ? "digesting" : "fighting") : alchStage === "citrinitas" ? (idx === evoSessions.length - 1 && evoSessions.length >= 3 ? "emerging" : "forming") : "flying") : null;
@@ -6254,6 +6332,7 @@ var frac = evoSessions.length <= 1 ? 0.5 : idx / (evoSessions.length - 1);
 var stageFromPos = !stageFromAlch ? (frac < 0.2 ? "eating" : frac < 0.4 ? "spinning" : frac < 0.6 ? "digesting" : frac < 0.8 ? "forming" : "flying") : null;
 var stageKey = stageFromAlch || stageFromPos || "forming";
 var st = METAMORPHOSIS_STAGES.find(function(s){ return s.key === stageKey; }) || METAMORPHOSIS_STAGES[4];
+
 useEffect(function() {
 var h = function(e) {
 if (e.key === "ArrowRight") { e.preventDefault(); if (idx < evoSessions.length - 1) setIdx(idx + 1); else goNext && goNext(); }
@@ -6262,6 +6341,31 @@ if (e.key === "ArrowLeft") { e.preventDefault(); if (idx > 0) setIdx(idx - 1); }
 window.addEventListener("keydown", h, true);
 return function() { window.removeEventListener("keydown", h, true); };
 }, [idx, evoSessions.length]);
+
+useEffect(function() {
+if (evoSessions.length < 1) { setMetamorphosisWriteup(""); return; }
+var cancelled = false;
+var sessionsUpToNow = evoSessions.slice(0, idx + 1);
+var metaByDomain = computeMetamorphosisByDomain(sessionsUpToNow);
+var domainLines = [];
+["work","relationship","self","creativity","money"].forEach(function(d) {
+var info = metaByDomain[d];
+if (info && info.stage && info.sessionsCount > 0) {
+var stageLabel = (METAMORPHOSIS_STAGES.find(function(s){ return s.key === info.stage; }) || {}).label || info.stage;
+domainLines.push(info.label + ": " + stageLabel);
+}
+});
+var p = "You are writing a short paragraph (3-5 sentences) for a metamorphosis / inner weather view. The person is viewing their session history. The OVERALL metamorphosis stage for the selected moment is: " + st.label + " (" + st.desc + ").\n\n";
+p += "PER-AREA STAGES (where they focused in each life area — they may be flying in one area but still consuming in another):\n" + (domainLines.length ? domainLines.join("\n") : "(no domain data yet)") + "\n\n";
+p += "Write a short, poetic, honest paragraph that: 1) Describes their overall state compared to the metamorphosis (all areas combined). 2) Notes where different areas of life are at different stages — e.g. 'Work might be airborne while relationship is still building mass.' Be specific to the data. Don't be generic. 2-4 sentences. Plain, evocative language. No bullet points. JSON: {\"writeup\":\"...\"}";
+callClaudeClient(p, "Generate the metamorphosis write-up.", 180).then(function(r) {
+if (cancelled) return;
+var d = parseJSON(r);
+if (d && d.writeup) setMetamorphosisWriteup(String(d.writeup).trim().slice(0, 500));
+}).catch(function(){ if (!cancelled) setMetamorphosisWriteup(""); });
+return function(){ cancelled = true; };
+}, [idx, evoSessions.length, stageKey, st.label, st.desc]);
+
 return (
 <div data-noadvance="true"
 style={{ position:"absolute", inset:0, overflowY:"auto", overflowX:"hidden",
@@ -6274,6 +6378,11 @@ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"cen
 <MetamorphosisViz stageKey={stageKey}/>
 <div style={{ marginTop:24, fontSize:18, fontWeight:700, color:st.color, fontFamily:FB, letterSpacing:"0.08em", textAlign:"center" }}>{st.label}</div>
 <div style={{ marginTop:10, fontSize:14, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.6, textAlign:"center", maxWidth:300 }}>{st.desc}</div>
+{metamorphosisWriteup && (
+<div style={{ marginTop:20, padding:"16px 18px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", maxWidth:320, animation:"riseUp 0.5s ease both" }}>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontFamily:FD, lineHeight:1.65, fontStyle:"italic" }}>{metamorphosisWriteup}</div>
+</div>
+)}
 {evoSessions.length > 1 && (
 <div style={{ width:"100%", maxWidth:280, marginTop:28 }} onClick={function(e){ e.stopPropagation(); }}>
 <input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
@@ -7496,6 +7605,12 @@ if (pe.emotional_cycles && pe.emotional_cycles.recent) peLines.push("Recent ener
 if (pe.connection_arcs && pe.connection_arcs.length) peLines.push("Connection arcs (how map feedback evolved): " + pe.connection_arcs.slice(0, 5).map(function(a){ return a.connectionKey + " " + a.trend + " (" + a.summary.slice(-80) + ")"; }).join("; "));
 if (pe.pattern_morphology && pe.pattern_morphology.length) peLines.push("Pattern evolution (subject refined readings over time): " + pe.pattern_morphology.map(function(m){ return m.type === "blind_spot" ? "blind spot: \"" + m.before + "\" → \"" + m.after + "\"" : m.key + " refined " + m.count + "x"; }).join("; "));
 if (pe.life_domain_signals && pe.life_domain_signals.length) peLines.push("Life domains (where themes cluster): " + pe.life_domain_signals.map(function(d){ return d.domain + ": " + d.topThemes.join(", "); }).join("; "));
+if (pe.focus_over_time && pe.focus_over_time.byDomain) {
+var fot = pe.focus_over_time;
+var fotLines = fot.byDomain.filter(function(d){ return d.avgFocus > 0.02; }).map(function(d){ return d.label + ": " + Math.round(d.avgFocus*100) + "% avg" + (d.shift !== 0 ? " (shift " + (d.shift > 0 ? "+" : "") + Math.round(d.shift*100) + "%)" : ""); });
+if (fotLines.length) peLines.push("Focus areas over time: " + fotLines.join("; "));
+if (fot.imbalance) peLines.push("Focus imbalance: " + (LIFE_DOMAIN_LABELS[fot.imbalance.domain] || fot.imbalance.domain) + " dominates at " + fot.imbalance.pct + "%");
+}
 if (pe.regression_context && pe.regression_context.length) peLines.push("Regressions (when themes/map values dropped — prior context): " + pe.regression_context.map(function(r){ return "S" + (r.sessionIndex + 1) + " " + r.type + " " + r.key + (r.priorContext ? " — prior: " + r.priorContext.slice(0, 60) : ""); }).join("; "));
 if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' — never state as fact.\n\n";
 }
@@ -7544,6 +7659,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "CURIOUS, NOT DIAGNOSTIC: NEVER use defensiveness, defensive, or similar labels. The report is curious and honoring — not pathologizing. If something seems to warrant that kind of read, ASK it as a question (and that belongs in Descent, not here). Stay curious.\n\n"
 + "NO ASSUMPTIONS ABOUT \"THE MAIN THING\": Do NOT assume what is most important in someone's life based on time, frequency, or what shows up most in sessions. Unless the subject explicitly says \"this is my main focus\" or \"the most important thing,\" do not conclude it. You may observe: \"After X sessions, this keeps coming up — an interesting question is why it's in the background\" — but never \"this is the main thing.\" The subject's life has many parts; don't collapse it into one.\n\n"
 + "DON'T ASSERT — ASK IN DESCENT: If you have a question about what's going on (e.g. \"Are you putting X before Y?\" \"Is revenue a way of delaying launch?\"), that belongs in Descent as a question the subject can answer — NOT in the report as an assertion. Never assume motivations (e.g. \"not wanting to launch because putting revenue first\") and state them as fact. If the data suggests a tension, name the tension; don't invent the motive. When in doubt, frame as curiosity, not conclusion.\n\n"
++ "LIFE AREA FOCUS: When you have focus-over-time data (which areas of life they focus on — work, relationships, self, creativity, money — and how much per session), weave it into the report where it matters: imbalance (one area dominating), concentration (really focused in one area), or shift (focus moving from one area to another over time). Do NOT be obvious or mechanical — e.g. don't say 'You focused 60% on work.' Instead: 'The record shows work has been the dominant ground.' or 'Something has shifted — what was once all relationship is now making room for self.' Weave naturally into the prose.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report. The report should read as one coherent piece with intelligence and feeling — not facts strung together. NO NODE LANGUAGE: Never use 'The map offered,' node labels (X↔Y), or quote connector insights verbatim. Rewrite into plain human sentences.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
 + "GROUNDING: For each major insight, anchor it in evidence the reader can trace. Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, the subject tended to Y.\" Never use node labels (X↔Y), connector jargon, or comparison language. Where a pattern is not absolute, add light nuance. Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
