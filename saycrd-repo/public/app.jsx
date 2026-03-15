@@ -33,24 +33,25 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 {text}
 </span>
 {open && (
-<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)", animation: "riseUp 0.2s ease both" }}
+<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ setOpen(false); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ background: dark ? "#1a1a2e" : "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.35)", border: dark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(0,0,0,0.08)" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.4em", color: dark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.45)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
-<div style={{ fontSize: 13, color: dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ background: dark ? "#fff" : "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
+<div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
 {SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
+var isRgba = o.color.indexOf("rgba") >= 0;
 return (
 <button key={o.id} onClick={function(){
 onFeedback && onFeedback(text, o.id);
 setOpen(false);
-}} style={{ padding: "8px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "1px solid " + (o.color.indexOf("rgba")>=0 ? "rgba(255,255,255,0.2)" : o.color + "66"), background: o.color.indexOf("rgba")>=0 ? "rgba(255,255,255,0.06)" : o.color + "15", color: o.color.indexOf("rgba")>=0 ? "rgba(255,255,255,0.7)" : o.color, cursor: "pointer", transition: "all 0.2s" }}>
+}} style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
 {o.label}
 </button>
 );
 })}
 </div>
-<button onClick={function(){ setOpen(false); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+<button onClick={function(){ setOpen(false); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
 </div>
 </div>
 )}
@@ -7331,7 +7332,6 @@ var [_reportNotes, _setReportNotes] = useState("");
 var [_notesSummary, _setNotesSummary] = useState("");
 var [_notesSummarizing, _setNotesSummarizing] = useState(false);
 var [_sentenceFeedback, _setSentenceFeedback] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sentenceFeedback ? l.sentenceFeedback : {}; } catch(e){ return {}; } });
-var [_selectedSentence, _setSelectedSentence] = useState(null);
 useEffect(function() {
 try {
 var n = localStorage.getItem(_notesKey) || "";
@@ -7993,7 +7993,7 @@ color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConcl
 
 <div style={{ fontSize: isConclusion ? 20 : 17, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
 fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal" }}>
-{renderBody(sec.body, isConclusion, function(s){ _setSelectedSentence(s); }, Object.assign({}, propSentenceFeedback || {}, _sentenceFeedback))}
+{renderBody(sec.body, isConclusion, null, null)}
 </div>
 
 </div>
@@ -8002,31 +8002,6 @@ fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ?
 </>
 )}
 
-{_selectedSentence && (
-<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)", animation: "riseUp 0.2s ease both" }}
-onClick={function(){ _setSelectedSentence(null); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: "1px solid rgba(0,0,0,0.08)" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.45)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
-<div style={{ fontSize: 13, color: "rgba(0,0,0,0.6)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{_selectedSentence.length > 80 ? _selectedSentence.slice(0,77)+"…" : _selectedSentence}"</div>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-{SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
-return (
-<button key={o.id} onClick={function(){
-var key = _selectedSentence.slice(0, 100);
-var next = Object.assign({}, _sentenceFeedback, { [key]: o.id });
-_setSentenceFeedback(next);
-updateLastSession({ sentenceFeedback: next });
-_setSelectedSentence(null);
-}} style={{ padding: "8px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "1px solid " + (o.color.indexOf("rgba")>=0 ? "rgba(0,0,0,0.2)" : o.color + "66"), background: o.color.indexOf("rgba")>=0 ? "rgba(0,0,0,0.06)" : o.color + "15", color: o.color.indexOf("rgba")>=0 ? "rgba(0,0,0,0.6)" : o.color, cursor: "pointer", transition: "all 0.2s" }}>
-{o.label}
-</button>
-);
-})}
-</div>
-<button onClick={function(){ _setSelectedSentence(null); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
-</div>
-</div>
-)}
 
 <div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
 <div style={{ fontSize:10, letterSpacing:"0.4em", color:"rgba(0,0,0,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:12 }}>Your notes</div>
