@@ -2350,9 +2350,6 @@ const [signals, setSignals] = useState({ resisted_count:0, held_count:0, landed_
 const [revisedSynthesis, setRevisedSynthesis] = useState(null);
 const [isRevising, setIsRevising] = useState(false);
 const [signalStatus, setSignalStatus] = useState(null);
-const [sessionPours, setSessionPours] = useState([]);
-const [pourOpen, setPourOpen] = useState(false);
-const [pourText, setPourText] = useState("");
 const [sentenceFeedback, setSentenceFeedback] = useState({}); 
 
 function extractTopics(note) {
@@ -2600,21 +2597,7 @@ boxShadow: "0 0 24px rgba(214,178,109,0.2)",
 </div>}
 </div>
 
-{!pourOpen ? (
-<button onClick={function(){ setPourOpen(true); }} style={{ fontSize: 11, letterSpacing: "0.2em", fontFamily: FB, color: "rgba(107,255,184,0.7)", background: "transparent", border: "none", marginBottom: 12, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>
-What's coming up for you now?
-</button>
-) : (
-<div style={{ marginBottom: 16, padding: 14, background: "rgba(107,255,184,0.06)", borderRadius: 12, border: "1px solid rgba(107,255,184,0.2)" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.25em", color: "rgba(107,255,184,0.8)", fontFamily: FB, marginBottom: 8 }}>What's coming up for you now?</div>
-<textarea value={pourText} onChange={function(e){ setPourText(e.target.value); }} placeholder="Let it flow…" style={{ width: "100%", minHeight: 60, padding: 10, fontSize: 14, fontFamily: FD, fontStyle: "italic", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(107,255,184,0.2)", borderRadius: 8, color: "rgba(255,255,255,0.9)", resize: "vertical", outline: "none", boxSizing: "border-box" }}/>
-<div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-<button onClick={function(){ if (pourText.trim()) { setSessionPours(function(p){ return p.concat([{ text: pourText.trim().slice(0, 800), ts: new Date().toISOString() }]); }); setPourText(""); setPourOpen(false); } }} style={{ padding: "6px 14px", fontSize: 11, fontFamily: FB, background: "rgba(107,255,184,0.3)", color: "#0A2E1A", border: "none", borderRadius: 8, cursor: "pointer" }}>Save</button>
-<button onClick={function(){ setPourOpen(false); setPourText(""); }} style={{ padding: "6px 14px", fontSize: 11, fontFamily: FB, background: "transparent", color: "rgba(255,255,255,0.5)", border: "none", cursor: "pointer" }}>Skip</button>
-</div>
-</div>
-)}
-<button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sessionPours: sessionPours, sentenceFeedback: sentenceFeedback }); }} style={{
+<button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sentenceFeedback: sentenceFeedback }); }} style={{
 width: "100%", background: descentDone ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
 border: descentDone ? "none" : "1px solid rgba(107,255,184,0.15)",
 borderRadius: 24, padding: "16px 28px", minHeight: 52,
@@ -3693,7 +3676,6 @@ signals: data.signals || null,
 reactions: data.reactions || {},
 corrections: data.corrections || {},
 revisedSynthesis: data.revisedSynthesis || null,
-sessionPours: data.sessionPours || [],
 sentenceFeedback: data.sentenceFeedback || {},
 focusAreas: computeFocusAreas(data.themes || []),
 });
@@ -6368,27 +6350,27 @@ return function(){ cancelled = true; };
 
 return (
 <div data-noadvance="true"
-style={{ position:"absolute", inset:0, overflowY:"auto", overflowX:"hidden",
+style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"linear-gradient(180deg, #0A0618 0%, #0D0818 30%, #080510 70%, #050308 100%)",
-display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", WebkitOverflowScrolling:"touch" }}>
+display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
 <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 30%, "+(st.color||"#6BFFB8")+"12 0%, transparent 60%)", pointerEvents:"none" }}/>
-<div style={{ position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"32px 24px 48px", width:"100%", maxWidth:360 }}>
-<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:20, textTransform:"uppercase" }}>INNER WEATHER</div>
-<div style={{ fontSize:14, color:"rgba(255,255,255,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:24 }}>metamorphosis · where you are in the continuum</div>
-<MetamorphosisViz stageKey={stageKey}/>
-<div style={{ marginTop:24, fontSize:18, fontWeight:700, color:st.color, fontFamily:FB, letterSpacing:"0.08em", textAlign:"center" }}>{st.label}</div>
-<div style={{ marginTop:10, fontSize:14, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.6, textAlign:"center", maxWidth:300 }}>{st.desc}</div>
-{metamorphosisWriteup && (
-<div style={{ marginTop:20, padding:"16px 18px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", maxWidth:320, animation:"riseUp 0.5s ease both" }}>
-<div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontFamily:FD, lineHeight:1.65, fontStyle:"italic" }}>{metamorphosisWriteup}</div>
+<div style={{ position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", padding:"20px 24px 24px", width:"100%", maxWidth:360, flex:1, minHeight:0, justifyContent:"center" }}>
+<div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.3)", fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>INNER WEATHER</div>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:16 }}>metamorphosis · where you are in the continuum</div>
+<div style={{ flexShrink:0, maxWidth:220 }}><MetamorphosisViz stageKey={stageKey}/></div>
+<div style={{ marginTop:16, fontSize:17, fontWeight:700, color:st.color, fontFamily:FB, letterSpacing:"0.08em", textAlign:"center" }}>{st.label}</div>
+<div style={{ marginTop:6, fontSize:13, color:"rgba(255,255,255,0.7)", fontFamily:FD, lineHeight:1.5, textAlign:"center", maxWidth:300 }}>{st.desc}</div>
+{(metamorphosisWriteup || "") && (
+<div style={{ marginTop:14, padding:"12px 16px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", maxWidth:300, animation:"riseUp 0.5s ease both", flexShrink:0 }}>
+<div style={{ fontSize:12, color:"rgba(255,255,255,0.85)", fontFamily:FD, lineHeight:1.55, fontStyle:"italic", display:"-webkit-box", WebkitLineClamp:4, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{metamorphosisWriteup}</div>
 </div>
 )}
 {evoSessions.length > 1 && (
-<div style={{ width:"100%", maxWidth:280, marginTop:28 }} onClick={function(e){ e.stopPropagation(); }}>
+<div style={{ width:"100%", maxWidth:280, marginTop:16, flexShrink:0 }} onClick={function(e){ e.stopPropagation(); }}>
 <input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
 onChange={function(e){ setIdx(parseInt(e.target.value, 10)); }}
 style={{ width:"100%", accentColor:st.color, cursor:"pointer" }}/>
-<div style={{ display:"flex", justifyContent:"space-between", marginTop:8, fontSize:10, letterSpacing:"0.15em", color:"rgba(255,255,255,0.35)", fontFamily:FB }}>
+<div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:10, letterSpacing:"0.15em", color:"rgba(255,255,255,0.35)", fontFamily:FB }}>
 <span>Session 1</span>
 <span>Session {evoSessions.length}</span>
 </div>
@@ -7311,12 +7293,8 @@ var _notesKey = "saycrd-report-notes-" + sessionCount;
 var [_reportNotes, _setReportNotes] = useState("");
 var [_notesSummary, _setNotesSummary] = useState("");
 var [_notesSummarizing, _setNotesSummarizing] = useState(false);
-var [_pourOpen, _setPourOpen] = useState(false);
-var [_pourText, _setPourText] = useState("");
-var [_sessionPours, _setSessionPours] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sessionPours ? l.sessionPours : []; } catch(e){ return []; } });
 var [_sentenceFeedback, _setSentenceFeedback] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sentenceFeedback ? l.sentenceFeedback : {}; } catch(e){ return {}; } });
 var [_selectedSentence, _setSelectedSentence] = useState(null);
-var [_pourHover, _setPourHover] = useState(false);
 useEffect(function() {
 try {
 var n = localStorage.getItem(_notesKey) || "";
@@ -7481,9 +7459,6 @@ var subjectWordsBlurb = subjectWordsList.length > 0
 ? "SUBJECT'S OWN WORDS (session corrections and map notes — when citing these, use the exact quote in the report):\n" + subjectWordsList.slice(0, 14).map(function(w){ return "\""+w+"\""; }).join("\n") + "\n\n"
 : "";
 var lastSessData = allSessions.length > 0 ? allSessions[allSessions.length - 1] : null;
-var poursBlurb = (lastSessData && lastSessData.sessionPours && lastSessData.sessionPours.length > 0)
-? "SESSION POURS (what came up for the subject while reading — use when relevant):\n" + lastSessData.sessionPours.map(function(p){ return "\""+(p.text||"").slice(0,200)+"\""; }).join("\n") + "\n\n"
-: "";
 var _effectiveSentFb = Object.assign({}, (lastSessData && lastSessData.sentenceFeedback) || {}, propSentenceFeedback || {});
 var sentFbBlurb = (Object.keys(_effectiveSentFb).length > 0)
 ? "SENTENCE FEEDBACK (how session/field/report lines landed — use ONLY when the subject EXPLICITLY gave this feedback; do NOT infer from absence):\n" + Object.keys(_effectiveSentFb).map(function(k){ var v=_effectiveSentFb[k]; var lab=(SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===v;})||{}).label||v; return "\""+k.slice(0,80)+(k.length>80?"…":"")+"\" → "+lab; }).join("\n") + "\n\nFEEDBACK RULE: If the subject marked something as \"Not Feeling That\" or \"Doesn't Fit Quite Right,\" that is THEIR TRUTH at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Do NOT use feedback or resistance unless the subject explicitly indicated it — never infer from silence or absence of interaction.\n\n"
@@ -7681,7 +7656,6 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + (metaPatternBlurb ? metaPatternBlurb : "")
 + mapNotesBlurb
 + subjectWordsBlurb
-+ (poursBlurb || "")
 + (sentFbBlurb || "")
 + (tensionsBlindSpotsBlurb || "")
 + underBlurb
@@ -7893,9 +7867,7 @@ animation:"breathe 2s ease-in-out "+(i*0.2+j*0.08)+"s infinite alternate" }}/>
 })}
 </div>
 ) : _report ? (
-<div style={{ paddingTop:24, position: "relative" }}
-onMouseEnter={function(){ _setPourHover(true); }}
-onMouseLeave={function(){ _setPourHover(false); }}>
+<div style={{ paddingTop:24, position: "relative" }}>
 
 {_report.generationFailed ? (
 <div style={{ marginBottom:32, padding:"28px 24px", background:"rgba(0,0,0,0.02)", borderRadius:12, border:"1px solid rgba(0,0,0,0.08)" }}>
@@ -7931,32 +7903,6 @@ fontFamily:FD, lineHeight:1.6, fontStyle:"italic" }}>
 </div>
 )}
 
-{(_pourHover || _pourOpen) && (
-<div style={{ position: "absolute", top: 12, right: 30, zIndex: 10 }}>
-{!_pourOpen ? (
-<button onClick={function(){ _setPourOpen(true); }} style={{ fontSize: 10, letterSpacing: "0.35em", fontFamily: FB, padding: "8px 16px", borderRadius: 20, border: "1px solid " + _accent + "66", background: _accent + "12", color: _accent, cursor: "pointer", transition: "all 0.2s" }}>
-POUR NOW
-</button>
-) : (
-<div style={{ position: "absolute", right: 0, top: 0, width: 280, background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.08)" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.3em", color: _accent, fontFamily: FB, marginBottom: 8 }}>What's coming up for you now?</div>
-<textarea value={_pourText} onChange={function(e){ _setPourText(e.target.value); }} placeholder="Let it flow…" style={{ width: "100%", minHeight: 72, padding: 12, fontSize: 14, fontFamily: FD, fontStyle: "italic", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, resize: "vertical", outline: "none", boxSizing: "border-box" }}/>
-<div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-<button onClick={function(){
-if (!_pourText.trim()) return;
-var pour = { text: _pourText.trim().slice(0, 800), ts: new Date().toISOString() };
-var next = _sessionPours.concat([pour]);
-_setSessionPours(next);
-updateLastSession({ sessionPours: next });
-_setPourText("");
-_setPourOpen(false);
-}} style={{ padding: "8px 16px", fontSize: 11, fontFamily: FB, background: _accent, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}>Save</button>
-<button onClick={function(){ _setPourOpen(false); _setPourText(""); }} style={{ padding: "8px 16px", fontSize: 11, fontFamily: FB, background: "transparent", color: "rgba(0,0,0,0.5)", border: "none", cursor: "pointer" }}>Cancel</button>
-</div>
-</div>
-)}
-</div>
-)}
 
 {(() => {
 var hasMapOrSessionWords = allSessions.some(function(s){
@@ -8071,7 +8017,6 @@ allSessions.forEach(function(s) {
 if (s.corrections) Object.values(s.corrections).forEach(function(c){ if (typeof c==="string"&&c.trim()) userWords.push("\""+c.trim().slice(0,150)+"\""); });
 if (s.mapResponses) Object.keys(s.mapResponses).forEach(function(k){ var mr=s.mapResponses[k]; if (mr&&mr.comment&&String(mr.comment).trim()) userWords.push("\""+String(mr.comment).trim().slice(0,150)+"\""); });
 });
-_sessionPours.forEach(function(p){ if (p&&p.text&&p.text.trim()) userWords.push("\"Pour (during report): "+String(p.text).trim().slice(0,130)+"\""); });
 if (Object.keys(_sentenceFeedback||{}).length > 0) {
 userWords.push("SENTENCE FEEDBACK (how report lines landed):");
 Object.keys(_sentenceFeedback).forEach(function(k){ var v=_sentenceFeedback[k]; var lab=(SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===v;})||{}).label||v; userWords.push("  \""+k.slice(0,60)+(k.length>60?"…":"")+"\" → "+lab); });
@@ -8340,7 +8285,6 @@ revisedSynthesis: revisedSynthesis || null,
 descent: sData.descent,
 clarity: (sData.clarity || sd.sessionClarity || ""),
 signals: sData.signals || null,
-sessionPours: sData.sessionPours || [],
 sentenceFeedback: sData.sentenceFeedback || {},
 cardFeedback: (function() {
 var fb = {};
@@ -8581,7 +8525,6 @@ c.push({ type: "depths_field", bg: "#010810" });
 if (sessionCount >= 2) {
 c.push({ type: "whats_growing", bg: "#010A04" });
 c.push({ type: "the_mirror", bg: "#08080C" });
-c.push({ type: "the_realm", bg: "#04020A" });
 c.push({ type: "inner_wrapped", bg: "#0A0618" });
 }
 c.push({ type: "year_review", bg: "#060606" });
