@@ -1,5 +1,7 @@
 const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = React;
 
+var PICKER_ACCENT = "#E84393";
+var PICKER_TRACK_INACTIVE = "#D0D0D0";
 var SENTENCE_FEEDBACK_OPTIONS = [
 { id: "lands_hard", label: "Lands Hard", color: PICKER_ACCENT },
 { id: "truth_revealed", label: "Truth Revealed", color: PICKER_ACCENT },
@@ -13,6 +15,7 @@ function HighlightableText({ text, feedback, onFeedback, dark }) {
 var [open, setOpen] = useState(false);
 var key = (text || "").slice(0, 100);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
+var optColor = opt && (opt.color || PICKER_ACCENT);
 return (
 <>
 <span
@@ -22,8 +25,8 @@ cursor: "pointer",
 borderRadius: 4,
 padding: "2px 4px",
 margin: "0 1px",
-background: opt ? (opt.color + "22") : "transparent",
-borderBottom: opt ? "1.5px solid " + opt.color : "1px solid transparent",
+background: optColor ? (optColor + "22") : "transparent",
+borderBottom: optColor ? "1.5px solid " + optColor : "1px solid transparent",
 transition: "all 0.2s",
 color: "inherit",
 }}
@@ -41,12 +44,13 @@ onClick={function(){ setOpen(false); }}>
 <div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
 {SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
-var isRgba = o.color.indexOf("rgba") >= 0;
+var c = o.color || PICKER_ACCENT;
+var isRgba = (c && typeof c === "string" && c.indexOf("rgba") >= 0);
 return (
 <button key={o.id} onClick={function(){
 onFeedback && onFeedback(text, o.id);
 setOpen(false);
-}} style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
+}} style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : c, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + c + "44" }}>
 {o.label}
 </button>
 );
@@ -115,8 +119,6 @@ return out;
 
 const FD = "'DM Serif Display', Georgia, serif";
 const FB = "'DM Sans', sans-serif";
-var PICKER_ACCENT = "#E84393";
-var PICKER_TRACK_INACTIVE = "#D0D0D0";
 const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field"];
 const GRADIENTS = {
 landing: "#000",
@@ -140,6 +142,50 @@ function Particles({ color, count = 20 }) {
 return <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
 {Array.from({length:count}).map((_,i) => { const s=(i*37+13)%100; return <div key={i} style={{ position: "absolute", left: `${s}%`, top: `${(s*53)%100}%`, width: 2+(s%4), height: 2+(s%4), borderRadius: "50%", background: color, opacity: 0.12+(s%20)*0.015, animation: `floatParticle ${5+s%6}s ease-in-out infinite`, animationDelay: `${-(s%5)}s` }}/>; })}
 </div>;
+}
+
+function ProcessingScreen({ stage, label, sublabel, palette }) {
+var colors = palette || ["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"];
+var shafts = [{ x: 18, w: 6, dur: 8, delay: 0, opacity: 0.05 }, { x: 42, w: 10, dur: 11, delay: -3, opacity: 0.07 }, { x: 67, w: 7, dur: 9, delay: -5.5, opacity: 0.06 }, { x: 82, w: 5, dur: 13, delay: -1.5, opacity: 0.04 }];
+var particles = useMemo(function() {
+var pts = [];
+for (var pi = 0; pi < 32; pi++) {
+var seed = pi * 137.508;
+pts.push({ x: ((seed * 7.3) % 100), y: ((seed * 3.1) % 100), size: 1 + (pi % 3) * 0.8, dur: 6 + (pi % 5) * 2.4, delay: -(pi % 7) * 1.3, opacity: 0.12 + (pi % 4) * 0.1, color: colors[pi % colors.length] });
+}
+return pts;
+}, [colors]);
+return (
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)" }}>
+<div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+<div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "22%", background: "linear-gradient(180deg, #0A3A4A44 0%, transparent 100%)" }}/>
+<div style={{ position: "absolute", top: "25%", left: 0, right: 0, height: "35%", background: "linear-gradient(180deg, transparent, #050A3022 50%, transparent)" }}/>
+<div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "38%", background: "linear-gradient(0deg, #03010F 0%, #06041A44 60%, transparent 100%)" }}/>
+</div>
+{shafts.map(function(sh, si) {
+return (
+<div key={si} style={{ position: "absolute", top: 0, left: sh.x + "%", width: sh.w + "%", height: "60%", background: "linear-gradient(180deg, rgba(107,200,255," + sh.opacity + ") 0%, rgba(78,160,200," + Math.round(sh.opacity * 0.4 * 100) / 100 + ") 40%, transparent 100%)", transform: "skewX(-8deg)", transformOrigin: "top center", animation: "shaftPulse " + sh.dur + "s ease-in-out " + sh.delay + "s infinite", pointerEvents: "none" }}/>
+);
+})}
+<svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible", pointerEvents: "none" }}>
+{particles.map(function(p, pi) {
+return (
+<circle key={pi} cx={p.x + "%"} cy={p.y + "%"} r={p.size} fill={p.color} opacity={p.opacity}>
+<animate attributeName="cy" values={p.y + "%;" + (p.y - 28) + "%;" + (p.y - 56) + "%"} dur={p.dur + "s"} begin={p.delay + "s"} repeatCount="indefinite" calcMode="linear"/>
+<animate attributeName="opacity" values={p.opacity + ";" + Math.min(p.opacity * 2.5, 0.7) + ";0"} dur={p.dur + "s"} begin={p.delay + "s"} repeatCount="indefinite"/>
+<animate attributeName="r" values={p.size + ";" + (p.size * 1.6) + ";0"} dur={p.dur + "s"} begin={p.delay + "s"} repeatCount="indefinite"/>
+</circle>
+);
+})}
+</svg>
+<div style={{ position: "absolute", top: "32%", left: 0, right: 0, textAlign: "center", padding: "0 28px", zIndex: 2 }}>
+<div style={{ fontSize: 9, letterSpacing: "0.5em", color: "rgba(107,200,255,0.35)", fontFamily: FB, textTransform: "uppercase", marginBottom: 16 }}>SAYCRD</div>
+<div style={{ fontSize: 26, fontWeight: 700, color: "rgba(200,235,255,0.92)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 50px rgba(107,184,255,0.2)", animation: "riseUp 0.6s ease both" }}>{label}</div>
+{sublabel && <div style={{ marginTop: 12, fontSize: 14, color: "rgba(150,200,255,0.55)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both" }}>{sublabel}</div>}
+</div>
+<div style={{ position: "absolute", bottom: "18%", left: 0, right: 0, zIndex: 2 }}>{stage}</div>
+</div>
+);
 }
 
 function ImaginalCells({ stage, velocity, color }) {
@@ -928,20 +974,32 @@ Continue
 </div>
 </div>
 )}
-<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-<div style={{ textAlign: "center", padding: "0 32px" }}>
-<div style={{ width: 6, height: 6, borderRadius: "50%", background: err ? "rgba(255,107,107,0.8)" : "rgba(107,184,255,0.5)", margin: "0 auto 28px", animation: err ? "none" : "pulse 2s ease infinite" }}/>
-<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: err ? "rgba(255,107,107,0.9)" : "rgba(255,255,255,0.88)", lineHeight: 1.4 }}>
-{step===0&&"Reading your words..."}
-{step===1&&"Finding what's underneath..."}
-{step===2&&(err?"Error: " + (err.length > 90 ? err.slice(0,90)+"…" : err):"Building your map..." )}
+{err ? (
+<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px" }}>
+<div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,107,107,0.8)", margin: "0 auto 28px" }}/>
+<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(255,107,107,0.9)", lineHeight: 1.4 }}>Error: {(err.length > 90 ? err.slice(0,90)+"…" : err)}</div>
+<button onClick={function(){ window.location.reload(); }} style={{ marginTop:20, padding:"10px 24px", borderRadius:999, border:"1px solid rgba(255,107,107,0.4)", background:"transparent", color:"rgba(255,107,107,0.7)", fontFamily:FB, fontSize:13, cursor:"pointer" }}>go back and retry</button>
 </div>
-{err && <button onClick={function(){ window.location.reload(); }} style={{ marginTop:20, padding:"10px 24px", borderRadius:999, border:"1px solid rgba(255,107,107,0.4)", background:"transparent", color:"rgba(255,107,107,0.7)", fontFamily:FB, fontSize:13, cursor:"pointer" }}>go back and retry</button>}
-<div style={{ marginTop: 14, fontSize: 12, color: err ? "rgba(255,107,107,0.45)" : "rgba(255,255,255,0.2)", fontFamily: FB }}>
-{err ? err.slice(0,60) : step < 2 ? "analyzing patterns…" : "themes found"}
+) : (
+<ProcessingScreen
+label={step===0?"Reading your words":step===1?"Finding what's underneath":"Building your map"}
+sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":step===1?"Extracting themes, connections, and the structure beneath":step===2?"Themes, connections, and archetype are forming into your map"}
+palette={["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"]}
+stage={
+step===0 ? (
+<div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", padding: "0 20px" }}>
+{["flow","settle","merge","form","rise","fall","gather","drift"].map(function(w,i){
+return <span key={i} style={{ fontSize: 11, color: "rgba(107,184,255,"+(0.25+i*0.08)+")", fontFamily: FD, fontStyle: "italic", animation: "floatWord "+(4+i*0.5)+"s ease-in-out infinite", animationDelay: -(i*0.4)+"s" }}>{w}</span>;
+})}
 </div>
-</div>
-</div>
+) : step===1 ? (
+<svg viewBox="0 0 200 80" style={{ width: "100%", maxWidth: 280, height: 70 }}><g fill="none" stroke="rgba(107,184,255,0.4)" strokeWidth="1.2"><circle cx="50" cy="35" r="12" style={{ animation: "ringPulse 2.5s ease infinite" }}/><circle cx="110" cy="25" r="10" style={{ animation: "ringPulse 2.5s ease 0.3s infinite" }}/><circle cx="150" cy="45" r="8" style={{ animation: "ringPulse 2.5s ease 0.6s infinite" }}/><circle cx="85" cy="55" r="9" style={{ animation: "ringPulse 2.5s ease 0.9s infinite" }}/><line x1="62" y1="35" x2="100" y2="28" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear infinite" }}/><line x1="120" y1="28" x2="142" y2="42" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear 0.5s infinite" }}/><line x1="95" y1="52" x2="58" y2="42" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear 1s infinite" }}/></g></svg>
+) : (
+<svg viewBox="0 0 200 90" style={{ width: "100%", maxWidth: 280, height: 75 }}><g fill="none"><circle cx="60" cy="35" r="14" fill="rgba(78,201,184,0.25)" stroke="#4EC9B8" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease infinite" }}/><circle cx="140" cy="30" r="12" fill="rgba(107,184,255,0.25)" stroke="#6BB8FF" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.2s infinite" }}/><circle cx="100" cy="60" r="10" fill="rgba(167,139,250,0.25)" stroke="#A78BFA" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.4s infinite" }}/><path d="M 74 35 Q 100 20 126 30" stroke="#6BB8FF" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear infinite" }}/><path d="M 68 45 Q 85 55 92 58" stroke="#A78BFA" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.3s infinite" }}/><path d="M 128 38 Q 125 50 108 56" stroke="#4EC9B8" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.6s infinite" }}/></g></svg>
+)
+}
+/>
+)}
 </>
 );
 }
@@ -2552,14 +2610,15 @@ background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", 
 var uKey = (t || "").slice(0, 100);
 var uFb = sentenceFeedback[uKey];
 var opt = uFb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === uFb; }) : null;
-var bg = opt ? (opt.color + "22") : "rgba(183,107,255,0.04)";
-var bord = opt ? "1px solid " + opt.color + "44" : "1px solid rgba(183,107,255,0.08)";
+var optC = opt && (opt.color || PICKER_ACCENT);
+var bg = optC ? (optC + "22") : "rgba(183,107,255,0.04)";
+var bord = optC ? "1px solid " + optC + "44" : "1px solid rgba(183,107,255,0.08)";
 return <div key={i} style={{ padding: "12px 14px 12px 20px", borderRadius: 12,
 background: bg,
 border: bord,
 marginBottom: 8, position: "relative", animation: "riseUp 0.5s ease " + (0.3 + i * 0.1) + "s both", transition: "all 0.3s" }}>
 <div style={{ position: "absolute", left: 10, top: 16, width: 3, height: 3, borderRadius: "50%",
-background: opt ? opt.color : "#B86BFF", opacity: 0.5 }} />
+background: optC || "#B86BFF", opacity: 0.5 }} />
 <p style={{ fontSize: 15, color: opt ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.55)", fontFamily: FD, lineHeight: 1.65, margin: "0 0 6px" }}>
 <HighlightableText text={t} feedback={uFb} onFeedback={handleSentenceFeedback} dark />
 </p>
@@ -4737,12 +4796,13 @@ setHolding(false);
 }
 
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
+var optC = opt && (opt.color || PICKER_ACCENT);
 var bg = saved ? "rgba(107,255,184,0.1)"
-: opt ? (opt.color + "22")
+: optC ? (optC + "22")
 : holding ? "rgba(184,107,255,0.18)"
 : "rgba(184,107,255,0.07)";
 var bord = saved ? "1px solid rgba(107,255,184,0.3)"
-: opt ? "1px solid " + opt.color + "44"
+: optC ? "1px solid " + optC + "44"
 : holding ? "1px solid rgba(184,107,255,0.45)"
 : "1px solid rgba(184,107,255,0.14)";
 
@@ -4764,7 +4824,7 @@ color: opt ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.88)" }}>
 <div style={{ fontSize:10, fontFamily:FB, letterSpacing:"0.08em",
 color: saved ? "rgba(107,255,184,0.7)"
 : holding ? "rgba(184,107,255,0.7)"
-: opt ? (opt.color + "99"
+: optC ? (optC + "99"
 ) : "rgba(255,255,255,0.18)" }}>
 {saved ? "✓ bookmarked" : holding ? "hold..." : opt ? "← " + (opt.label || feedback) : "hold to bookmark · click text to react"}
 </div>
@@ -7786,6 +7846,7 @@ if (!s) return null;
 var key = s.slice(0, 100);
 var fb = sentenceFeedback && sentenceFeedback[key];
 var opt = fb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === fb; }) : null;
+var optC = opt && (opt.color || PICKER_ACCENT);
 return (
 <span key={si}>
 <span
@@ -7795,8 +7856,8 @@ cursor: "pointer",
 borderRadius: 4,
 padding: "2px 4px",
 margin: "0 1px",
-background: opt ? (opt.color + "22") : "transparent",
-borderBottom: opt ? "1.5px solid " + opt.color : "1px solid transparent",
+background: optC ? (optC + "22") : "transparent",
+borderBottom: optC ? "1.5px solid " + optC : "1px solid transparent",
 transition: "all 0.2s",
 }}
 onMouseEnter={function(e){ if(!fb) e.currentTarget.style.background="rgba(0,0,0,0.04)"; }}
@@ -7820,6 +7881,19 @@ return (
 });
 }
 
+if (!_ready) {
+return (
+<ProcessingScreen
+label="Writing your report"
+sublabel="Gathering your sessions, finding patterns across time, weaving the reading"
+palette={["#D6B26D","#B86BFF","#6BB8FF","#E84393","#4EC9B8"]}
+stage={
+<svg viewBox="0 0 200 75" style={{ width: "100%", maxWidth: 280, height: 65 }}><g fill="none"><line x1="30" y1="60" x2="50" y2="60" stroke="#D6B26D" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear infinite" }}/><line x1="30" y1="45" x2="70" y2="45" stroke="#B86BFF" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear 0.3s infinite" }}/><line x1="30" y1="30" x2="90" y2="30" stroke="#6BB8FF" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear 0.6s infinite" }}/><line x1="100" y1="20" x2="170" y2="20" stroke="#E84393" strokeWidth="1.2" opacity="0.6" strokeDasharray="6 4" style={{ animation: "flowLine 1.8s linear 0.2s infinite" }}/><line x1="100" y1="38" x2="160" y2="38" stroke="#4EC9B8" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear 0.5s infinite" }}/><line x1="100" y1="55" x2="150" y2="55" stroke="#D6B26D" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2.2s linear 0.8s infinite" }}/><circle cx="95" cy="38" r="4" fill="rgba(214,178,109,0.3)" stroke="#D6B26D" strokeWidth="0.8"/><circle cx="95" cy="55" r="3" fill="rgba(184,107,255,0.3)" stroke="#B86BFF" strokeWidth="0.8"/><circle cx="95" cy="20" r="3" fill="rgba(107,184,255,0.3)" stroke="#6BB8FF" strokeWidth="0.8"/></g></svg>
+}
+/>
+);
+}
+
 return (
 <div onClick={function(e){e.stopPropagation();}}
 style={{ position:"absolute", inset:0, overflow:"hidden",
@@ -7834,10 +7908,11 @@ onClick={function(){ _setEditingSentence(null); }}>
 <div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{_editingSentence.length > 80 ? _editingSentence.slice(0,77)+"…" : _editingSentence}"</div>
 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
 {SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
-var isRgba = o.color.indexOf("rgba") >= 0;
+var c = o.color || PICKER_ACCENT;
+var isRgba = (c && typeof c === "string" && c.indexOf("rgba") >= 0);
 return (
 <button key={o.id} onClick={function(){ _handleReportSentenceFeedback(_editingSentence, o.id); }}
-style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
+style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : c, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + c + "44" }}>
 {o.label}
 </button>
 );
@@ -7880,28 +7955,7 @@ letterSpacing:"0.2em", fontWeight:600 }}>CONFIDENTIAL</div>
 <div style={{ flex:1, overflowY:"auto", padding:"0 30px",
 WebkitOverflowScrolling:"touch" }}>
 
-{!_ready ? (
-<div style={{ paddingTop:28, display:"flex", flexDirection:"column", gap:28 }}>
-{[0,1,2].map(function(i){
-return (
-<div key={i} style={{ paddingBottom:24,
-borderBottom:"1px solid rgba(0,0,0,0.06)" }}>
-<div style={{ width:"28%", height:8, background:"rgba(0,0,0,0.08)",
-borderRadius:2, marginBottom:18,
-animation:"breathe 2s ease-in-out "+(i*0.2)+"s infinite alternate" }}/>
-{[0,1,2,3].map(function(j){
-return (
-<div key={j} style={{ width:(93-j*7)+"%", height:14,
-background:"rgba(0,0,0,"+(0.055-j*0.008)+")",
-borderRadius:2, marginBottom: j===1 ? 20 : 9,
-animation:"breathe 2s ease-in-out "+(i*0.2+j*0.08)+"s infinite alternate" }}/>
-);
-})}
-</div>
-);
-})}
-</div>
-) : _report ? (
+{_report ? (
 <div style={{ paddingTop:24, position: "relative" }}>
 
 {_report.generationFailed ? (
@@ -10175,24 +10229,14 @@ onComplete();
 }, []);
 
 return (
-<div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
-<Particles color="#B86BFF" count={20}/>
-
-<div style={{ position:"absolute", width:320, height:320, borderRadius:"50%", background:"radial-gradient(circle, rgba(184,107,255,0.12), transparent 70%)", filter:"blur(60px)", pointerEvents:"none" }}/>
-
-<div style={{ position:"relative", zIndex:1, textAlign:"center", padding:"0 32px" }}>
-<BreathingOrb color="#B86BFF" size={80}/>
-
-<div style={{ marginTop:32, fontFamily:FB, fontSize:11, letterSpacing:"0.4em", textTransform:"uppercase", color:"rgba(184,107,255,0.6)", animation:"pulse 1.8s ease infinite" }}>
-{MESSAGES[msgIdx]}
-</div>
-
-<div style={{ marginTop:16, fontFamily:FD, fontSize:14, fontStyle:"italic", color:"rgba(255,255,255,0.2)", lineHeight:1.7 }}>
-building the session from what you marked
-</div>
-
-</div>
-</div>
+<ProcessingScreen
+label={MESSAGES[msgIdx]}
+sublabel="Weaving your map feedback into the reading — your confirmations and corrections are primary"
+palette={["#B86BFF","#E84393","#6BB8FF","#7FFFD4","#A78BFA"]}
+stage={
+<svg viewBox="0 0 200 70" style={{ width: "100%", maxWidth: 260, height: 60 }}><g fill="none"><circle cx="55" cy="28" r="10" fill="rgba(184,107,255,0.2)" stroke="#B86BFF" strokeWidth="1.2" opacity="0.9"/><circle cx="145" cy="32" r="9" fill="rgba(184,107,255,0.2)" stroke="#B86BFF" strokeWidth="1.2" opacity="0.9"/><circle cx="100" cy="50" r="8" fill="rgba(232,67,147,0.2)" stroke="#E84393" strokeWidth="1.2" opacity="0.9"/><path d="M 65 28 L 92 42" stroke="#B86BFF" strokeWidth="1" opacity="0.5" strokeDasharray="3 2" style={{ animation: "flowLine 1.8s linear infinite" }}/><path d="M 136 32 L 108 46" stroke="#E84393" strokeWidth="1" opacity="0.5" strokeDasharray="3 2" style={{ animation: "flowLine 1.8s linear 0.4s infinite" }}/><path d="M 55 35 L 95 48" stroke="#6BB8FF" strokeWidth="0.8" opacity="0.4" strokeDasharray="2 3" style={{ animation: "flowLine 2s linear 0.8s infinite" }}/><text x="55" y="26" fontSize="6" fill="rgba(255,255,255,0.6)" fontFamily={FB} textAnchor="middle">✓</text><text x="145" y="30" fontSize="6" fill="rgba(255,255,255,0.6)" fontFamily={FB} textAnchor="middle">✓</text></g></svg>
+}
+/>
 );
 }
 
