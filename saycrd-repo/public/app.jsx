@@ -5839,7 +5839,7 @@ marginBottom:16 }}/>
 <div style={{ width:"100%", height:60, borderRadius:12,
 background:"rgba(255,255,255,0.04)",
 animation:"breathe 1.5s ease-in-out 0.2s infinite alternate",
-marginBottom:20 }/>
+marginBottom:20 }}/>
 <div style={{ width:"100%", height:60, borderRadius:12,
 background:"rgba(255,255,255,0.04)",
 animation:"breathe 1.5s ease-in-out 0.4s infinite alternate" }}/>
