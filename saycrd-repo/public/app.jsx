@@ -1,12 +1,12 @@
 const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = React;
 
 var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: "#6BFFB8" },
-{ id: "truth_revealed", label: "Truth Revealed", color: "#6BB8FF" },
-{ id: "something_to_consider", label: "Something to Consider", color: "#FFB86B" },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#B86BFF" },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#D6B264" },
-{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.4)" },
+{ id: "lands_hard", label: "Lands Hard", color: PICKER_ACCENT },
+{ id: "truth_revealed", label: "Truth Revealed", color: PICKER_ACCENT },
+{ id: "something_to_consider", label: "Something to Consider", color: PICKER_ACCENT },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: PICKER_ACCENT },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#8B8B8B" },
+{ id: "not_feeling", label: "Not Feeling That", color: "#6B6B6B" },
 ];
 
 function HighlightableText({ text, feedback, onFeedback, dark }) {
@@ -72,6 +72,18 @@ if (!raw) return null;
 try { var c = raw.replace(/```json|```/g, "").trim(); var m = c.match(/\{[\s\S]*\}/) || c.match(/\[[\s\S]*\]/); return m ? JSON.parse(m[0]) : null; } catch (e) { return null; }
 }
 function getCurrentUid() { return (typeof window !== "undefined" && window.currentUser && window.currentUser.id) ? window.currentUser.id : "local"; }
+
+// Crisis resources — official US services (988 is the national Suicide & Crisis Lifeline; Crisis Text Line is the main text-based option)
+var CRISIS_RESOURCES = [
+  { name: "988 Suicide & Crisis Lifeline", line: "Call or text 988", url: "https://988lifeline.org" },
+  { name: "Crisis Text Line", line: "Text HOME to 741741", url: "https://www.crisistextline.org" }
+];
+var CRISIS_PHRASES = ["kill myself","end my life","want to die","suicide","self-harm","self harm","hurt myself","harm myself","thinking about suicide","take my life","hurt someone","kill someone","harm someone"];
+function checkCrisisText(text) {
+  if (!text || typeof text !== "string") return false;
+  var t = text.toLowerCase();
+  return CRISIS_PHRASES.some(function(p) { return t.indexOf(p) >= 0; });
+}
 function normalizeThemeLabel(label) { return String(label || "").trim().toLowerCase(); }
 var THEME_COLORS = ["#FF6B9D","#FFB86B","#6BFFB8","#6BB8FF","#B86BFF","#FFD700","#E84393","#7DB7AE"];
 function getThemeColor(theme, index) { return (theme && theme.color) ? theme.color : THEME_COLORS[(index || 0) % THEME_COLORS.length]; }
@@ -103,6 +115,8 @@ return out;
 
 const FD = "'DM Serif Display', Georgia, serif";
 const FB = "'DM Sans', sans-serif";
+var PICKER_ACCENT = "#E84393";
+var PICKER_TRACK_INACTIVE = "#D0D0D0";
 const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field"];
 const GRADIENTS = {
 landing: "#000",
@@ -536,8 +550,15 @@ return (
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
 const [err, setErr] = useState(null);
+const [crisisState, setCrisisState] = useState(null);
 const ran = useRef(false);
+useEffect(function crisisCheck() {
+  if (!rawText) { setCrisisState("cleared"); return; }
+  if (crisisState !== null) return;
+  setCrisisState(checkCrisisText(rawText) ? "detected" : "cleared");
+}, [rawText, crisisState]);
 useEffect(() => {
+if (crisisState !== "cleared") return;
 if (ran.current) return; ran.current = true;
 var t1 = setTimeout(function() { setStep(1); }, 800);
 
@@ -878,8 +899,35 @@ setStep(2);
 }
 })();
 return function() { clearTimeout(t1); };
-}, []);
+}, [crisisState]);
 return (
+<>
+{crisisState === "detected" && (
+<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", animation: "riseUp 0.25s ease both" }} onClick={function(e){ if (e.target === e.currentTarget) {} }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "linear-gradient(180deg, #0d0d1a 0%, #15152a 100%)", borderRadius: 24, padding: "32px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06) inset", border: "1px solid rgba(107,184,255,0.2)" }}>
+<div style={{ fontSize: 11, letterSpacing: "0.35em", color: "rgba(255,255,255,0.5)", fontFamily: FB, marginBottom: 16, textTransform: "uppercase" }}>We noticed something</div>
+<div style={{ fontSize: 17, fontFamily: FD, color: "rgba(255,255,255,0.95)", lineHeight: 1.5, marginBottom: 24 }}>
+We noticed some language that might suggest you're going through something difficult. If you're struggling, these resources are here for you:
+</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
+{CRISIS_RESOURCES.map(function(r) {
+return (
+<a key={r.name} href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "14px 18px", background: "rgba(107,184,255,0.12)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.3)", color: "#6BB8FF", fontFamily: FB, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}>
+<div style={{ marginBottom: 2 }}>{r.name}</div>
+<div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{r.line}</div>
+</a>
+);
+})}
+</div>
+<div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FB, lineHeight: 1.5, marginBottom: 24 }}>
+If you're okay and want to continue, you can proceed.
+</div>
+<button onClick={function(){ setCrisisState("cleared"); }} style={{ width: "100%", padding: "14px 24px", borderRadius: 20, border: "none", background: "linear-gradient(135deg, rgba(107,184,255,0.35), rgba(107,184,255,0.2))", color: "#fff", fontFamily: FB, fontSize: 14, fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.2)" }}>
+Continue
+</button>
+</div>
+</div>
+)}
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
 <div style={{ textAlign: "center", padding: "0 32px" }}>
 <div style={{ width: 6, height: 6, borderRadius: "50%", background: err ? "rgba(255,107,107,0.8)" : "rgba(107,184,255,0.5)", margin: "0 auto 28px", animation: err ? "none" : "pulse 2s ease infinite" }}/>
@@ -894,6 +942,7 @@ return (
 </div>
 </div>
 </div>
+</>
 );
 }
 
@@ -1745,29 +1794,29 @@ onSet(Math.round(p));
 }
 return <div>
 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
-<span style={{ fontSize:13, color: p < 40 ? color : "rgba(255,255,255,0.75)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleA}</span>
-<span style={{ fontSize:13, color: p > 60 ? color : "rgba(255,255,255,0.75)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleB}</span>
+<span style={{ fontSize:13, color: p < 40 ? PICKER_ACCENT : "rgba(255,255,255,0.75)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleA}</span>
+<span style={{ fontSize:13, color: p > 60 ? PICKER_ACCENT : "rgba(255,255,255,0.75)", fontFamily:FB, fontWeight:500, transition:"color 0.3s" }}>{poleB}</span>
 </div>
 <div ref={tr} onPointerDown={hd} style={{ position:"relative", height:36, display:"flex", alignItems:"center", cursor:"pointer", touchAction:"none" }}>
-<div style={{ position:"absolute", left:0, right:0, height:3, background:"rgba(255,255,255,0.06)", borderRadius:2 }} />
-<div style={{ position:"absolute", left:0, height:3, width:p+"%", background:"linear-gradient(90deg,"+color+"33,"+color+"88)", borderRadius:2, transition:d?"none":"width 0.1s" }} />
+<div style={{ position:"absolute", left:0, right:0, height:3, background:PICKER_TRACK_INACTIVE, borderRadius:2 }} />
+<div style={{ position:"absolute", left:0, height:3, width:p+"%", background:"linear-gradient(90deg,"+PICKER_ACCENT+"99,"+PICKER_ACCENT+")", borderRadius:2, transition:d?"none":"width 0.1s" }} />
 <div style={{ position:"absolute", left:p+"%", transform:"translateX(-50%)",
 width:confirmed?30:26, height:confirmed?30:26, borderRadius:"50%",
-background: confirmed ? color+"66" : "rgba(255,255,255,0.1)",
-border:"2px solid "+(confirmed ? color : "rgba(255,255,255,0.2)"),
+background: confirmed ? PICKER_ACCENT : "rgba(255,255,255,0.3)",
+border:"2px solid "+(confirmed ? PICKER_ACCENT : PICKER_TRACK_INACTIVE),
 cursor:d?"grabbing":"grab",
-boxShadow: confirmed ? "0 0 18px "+color+"44" : "none",
+boxShadow: confirmed ? "0 0 18px "+PICKER_ACCENT+"88" : "0 1px 4px rgba(0,0,0,0.2)",
 transition:d?"none":"all 0.2s", zIndex:2 }} />
 </div>
 {!confirmed
 ? <div style={{ textAlign:"center", marginTop:14 }}>
-<button onClick={confirm} style={{ fontSize:13, color:color, fontFamily:FB, fontWeight:600,
-background:color+"18", border:"1px solid "+color+"44", borderRadius:20,
+<button onClick={confirm} style={{ fontSize:13, color:PICKER_ACCENT, fontFamily:FB, fontWeight:600,
+background:PICKER_ACCENT+"22", border:"1px solid "+PICKER_ACCENT+"66", borderRadius:20,
 padding:"8px 28px", cursor:"pointer", letterSpacing:"0.08em", transition:"all 0.2s" }}>
 confirm
 </button>
 </div>
-: <div style={{ textAlign:"center", marginTop:10, fontSize:11, color:color+"88", fontFamily:FB, letterSpacing:"0.1em" }}>
+: <div style={{ textAlign:"center", marginTop:10, fontSize:11, color:PICKER_ACCENT+"cc", fontFamily:FB, letterSpacing:"0.1em" }}>
 ✓ set — drag to adjust
 </div>
 }
@@ -4615,18 +4664,18 @@ var away = pct <= _pushed;
 return (
 <div onClick={function(e){ e.stopPropagation(); }} style={{ width:"100%", maxWidth:300, marginTop:22, animation:"riseUp 0.6s ease 1.4s both" }}>
 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-<span style={{ fontSize:11, color: away ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.05em", transition:"color 0.3s" }}>{leftLabel}</span>
-<span style={{ fontSize:11, color: alive ? color : "rgba(255,255,255,0.35)", fontFamily:FB, letterSpacing:"0.05em", transition:"color 0.3s" }}>{rightLabel}</span>
+<span style={{ fontSize:11, color: away ? PICKER_ACCENT : "rgba(255,255,255,0.5)", fontFamily:FB, letterSpacing:"0.05em", transition:"color 0.3s" }}>{leftLabel}</span>
+<span style={{ fontSize:11, color: alive ? PICKER_ACCENT : "rgba(255,255,255,0.5)", fontFamily:FB, letterSpacing:"0.05em", transition:"color 0.3s" }}>{rightLabel}</span>
 </div>
 <div ref={trackRef}
 onPointerDown={onDown} onTouchStart={onDown}
-style={{ position:"relative", height:6, borderRadius:3, background:"rgba(255,255,255,0.1)", cursor:"pointer", userSelect:"none" }}>
+style={{ position:"relative", height:6, borderRadius:3, background:PICKER_TRACK_INACTIVE, cursor:"pointer", userSelect:"none" }}>
 <div style={{ position:"absolute", left:0, top:0, height:"100%", width:pct+"%", borderRadius:3,
-background: alive ? "linear-gradient(90deg,"+color+"66,"+color+")" : away ? "rgba(255,255,255,0.2)" : "linear-gradient(90deg,rgba(255,255,255,0.15),rgba(255,255,255,0.4))",
-transition:"background 0.3s", boxShadow: alive ? "0 0 10px "+color+"55" : "none" }} />
+background: alive ? "linear-gradient(90deg,"+PICKER_ACCENT+"99,"+PICKER_ACCENT+")" : away ? "rgba(255,255,255,0.4)" : "linear-gradient(90deg,"+PICKER_ACCENT+"66,"+PICKER_ACCENT+"99)",
+transition:"background 0.3s", boxShadow: alive ? "0 0 10px "+PICKER_ACCENT+"66" : "none" }} />
 <div style={{ position:"absolute", top:"50%", left:pct+"%", transform:"translate(-50%,-50%)",
-width:18, height:18, borderRadius:"50%", background: alive ? color : "rgba(255,255,255,0.7)",
-boxShadow: alive ? "0 0 14px "+color+"88" : "0 1px 4px rgba(0,0,0,0.4)",
+width:18, height:18, borderRadius:"50%", background: alive ? PICKER_ACCENT : "rgba(255,255,255,0.9)",
+boxShadow: alive ? "0 0 14px "+PICKER_ACCENT+"99" : "0 1px 4px rgba(0,0,0,0.3)",
 transition:"background 0.3s, box-shadow 0.3s", cursor:"grab" }} />
 </div>
 </div>
@@ -6318,7 +6367,7 @@ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"cen
 <div style={{ width:"100%", maxWidth:280, marginTop:16, flexShrink:0 }} onClick={function(e){ e.stopPropagation(); }}>
 <input type="range" min={0} max={Math.max(0, evoSessions.length - 1)} value={idx} step={1}
 onChange={function(e){ setIdx(parseInt(e.target.value, 10)); }}
-style={{ width:"100%", accentColor:st.color, cursor:"pointer" }}/>
+style={{ width:"100%", accentColor:PICKER_ACCENT, cursor:"pointer" }}/>
 <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:10, letterSpacing:"0.15em", color:"rgba(255,255,255,0.35)", fontFamily:FB }}>
 <span>Session 1</span>
 <span>Session {evoSessions.length}</span>
@@ -7677,12 +7726,12 @@ return function(){ cancelled = true; };
 
 var _accent = (themes[0] && themes[0].color) || "#111";
 var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: "#6BFFB8" },
-{ id: "truth_revealed", label: "Truth Revealed", color: "#6BB8FF" },
-{ id: "something_to_consider", label: "Something to Consider", color: "#FFB86B" },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#B86BFF" },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#D6B264" },
-{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.4)" },
+{ id: "lands_hard", label: "Lands Hard", color: PICKER_ACCENT },
+{ id: "truth_revealed", label: "Truth Revealed", color: PICKER_ACCENT },
+{ id: "something_to_consider", label: "Something to Consider", color: PICKER_ACCENT },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: PICKER_ACCENT },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#8B8B8B" },
+{ id: "not_feeling", label: "Not Feeling That", color: "#6B6B6B" },
 ];
 
 function renderBody(text, emphasizeFirst, onSentenceClick, sentenceFeedback) {
