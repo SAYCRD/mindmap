@@ -7775,64 +7775,74 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 {_report && !_report.generationFailed && (_report.sections||[]).length > 0 && (
 <button
 onClick={function(){
-var thList = (themes || []).map(function(t,i){ return { label: t.label||t, color: getThemeColor(t,i) }; });
-var connList = sd.connections || [];
-var n = thList.length;
-var cx=50, cy=48, r=32;
-var pts = [];
-for(var i=0;i<n;i++){ var ang=(i/n)*2*Math.PI-Math.PI/2; pts.push({ x: cx+Math.cos(ang)*r, y: cy+Math.sin(ang)*r*0.85, label: thList[i].label, color: thList[i].color||THEME_COLORS[i%THEME_COLORS.length] }); }
-var lineEls = "";
-(connList||[]).forEach(function(c){
-var a=pts.find(function(p){ return (p.label||"").toLowerCase()===(c.from||"").toLowerCase(); });
-var b=pts.find(function(p){ return (p.label||"").toLowerCase()===(c.to||"").toLowerCase(); });
-if(a&&b) lineEls += '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="rgba(0,0,0,0.2)" stroke-width="0.8"/>';
-});
-var circleEls = pts.map(function(p){ return '<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="'+p.color+'"/><text x="'+p.x+'" y="'+(p.y+5)+'" text-anchor="middle" font-size="4" fill="#333" font-family="Georgia">'+(p.label||"").toUpperCase().slice(0,10)+'</text>'; }).join("");
-var svg = n>0 ? '<svg viewBox="0 0 100 100" style="width:280px;height:280px;display:block;margin:0 auto"><g transform="translate(0,0)">'+lineEls+circleEls+'</g></svg>' : "";
 var esc = function(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>"); };
+var thList = (themes || []).map(function(t,i){ return { label: (t.label||t).trim(), color: getThemeColor(t,i) }; });
+var connList = (sd.connections || []).slice(0, 12);
 var verdict = _report && _report.oneLineVerdict ? String(_report.oneLineVerdict).trim() : "";
 var dateRange = _report && _report.dateRange ? String(_report.dateRange).trim() : "";
 var nextEdge = _report && _report.whatMightWantToHappen ? String(_report.whatMightWantToHappen).trim() : "";
-var sections = (_report && _report.sections || []).slice(0,4);
-var proseBlocks = sections.map(function(sec, idx){
-var full = (sec.body||"").trim();
-var isConclusion = /CONCLUSION/i.test(sec.title||"");
-return { body: full, isConclusion: isConclusion || idx === sections.length - 1 };
-});
-var accent = (_accent||"#111").replace(/"/g,"");
-function paraToHtml(txt) {
-var paras = (txt||"").split(/\n\n+/).filter(function(p){ return p.trim(); });
-if (paras.length === 0) return "";
-return paras.map(function(p){ return '<p class="prose-body">'+esc(p)+'</p>'; }).join("");
+var accent = (_accent||"#6BB8FF").replace(/"/g,"");
+var hex = accent.replace("#","");
+if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+var r=parseInt(hex.slice(0,2),16)||107, g=parseInt(hex.slice(2,4),16)||184, b=parseInt(hex.slice(4,6),16)||255;
+var accentRgba = "rgba("+r+","+g+","+b+",0.15)";
+function extractTakeaway(body, maxWords) {
+if (!body || !body.trim()) return "";
+var words = body.trim().split(/\s+/);
+if (words.length <= maxWords) return body.trim();
+return words.slice(0, maxWords).join(" ") + (words.length > maxWords ? "…" : "");
 }
-var proseHtml = proseBlocks.map(function(b){ return '<div class="prose-block'+(b.isConclusion ? ' prose-conclusion' : '')+'">'+paraToHtml(b.body)+'</div>'; }).join("");
-var nextHtml = nextEdge ? '<div class="prose-block prose-close"><p class="prose-body">'+esc(nextEdge)+'</p></div>' : "";
-var notesHtml = _notesSummary ? '<div class="prose-block prose-notes"><p class="prose-body">'+esc(_notesSummary)+'</p></div>' : "";
-var metaLine = [sessionCount + " session" + (sessionCount !== 1 ? "s" : ""), dateRange].filter(Boolean).join(" · ");
-var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Field Report · SAYCRD</title><style>'
-+'*{box-sizing:border-box} body{margin:0;padding:0;font-family:"DM Serif Display",Georgia,serif;background:#fff;color:#1a1a1a;line-height:1.5}'
-+'.page{max-width:580px;margin:0 auto;padding:56px 36px 72px}'
-+'.meta-line{font-size:12px;color:rgba(0,0,0,0.4);font-family:sans-serif;margin-bottom:40px;letter-spacing:0.08em}'
-+'.hero{font-size:clamp(26px,4.5vw,38px);font-weight:700;line-height:1.3;letter-spacing:-0.02em;margin-bottom:48px;color:#0a0a0a}'
-+'.prose-block{margin-bottom:36px}'
-+'.prose-body{font-size:19px;line-height:1.7;color:#2a2a2a;margin:0 0 1em;font-weight:400}'
-+'.prose-body:last-child{margin-bottom:0}'
-+'.prose-close .prose-body{font-style:italic;color:#333}'
-+'.prose-notes .prose-body{color:#444;font-style:italic}'
-+'.prose-conclusion{margin-top:48px;padding-top:32px;border-top:2px solid rgba(0,0,0,0.12)} .prose-conclusion .prose-body{font-size:22px;font-weight:500;color:#1a1a1a;line-height:1.6}'
-+'.map-wrap{text-align:center;margin:40px 0 48px} .map-wrap svg{opacity:0.85} .map-wrap .map-label{font-size:11px;letter-spacing:0.25em;color:rgba(0,0,0,0.35);margin-top:16px}'
-+'.disclaimer{font-size:11px;color:rgba(0,0,0,0.35);line-height:1.6;margin-top:56px;padding-top:28px;border-top:1px solid rgba(0,0,0,0.08)}'
-+'@media print{.page{padding:40px 28px 56px} .hero{font-size:34px} .prose-body{font-size:17px} body{background:#fff}}'
+var sections = (_report && _report.sections || []).slice(0, 4);
+var takeaways = sections.map(function(sec, idx){
+var isConclusion = /CONCLUSION/i.test(sec.title||"");
+var maxW = isConclusion ? 35 : 22;
+return { title: (sec.title||"").trim(), body: extractTakeaway(sec.body||"", maxW) };
+}).filter(function(t){ return t.body; });
+var themesHtml = thList.length ? '<div class="takeaway-section"><div class="section-label">YOUR THEMES</div><div class="theme-pills">'+thList.map(function(t){ return '<span class="theme-pill" style="background:'+t.color+'22;border-color:'+t.color+'55;color:'+t.color+'">'+esc(t.label)+'</span>'; }).join("")+'</div></div>' : "";
+var connsHtml = connList.length ? '<div class="takeaway-section"><div class="section-label">CONNECTIONS</div><div class="conn-cards">'+connList.map(function(c){ var col = thList.find(function(t){ return (t.label||"").toLowerCase()===(c.to||"").toLowerCase(); }); col = col ? col.color : accent; return '<div class="conn-card" style="border-color:'+col+'33"><span class="conn-from">'+esc((c.from||"").trim())+'</span><span class="conn-arrow">↔</span><span class="conn-to">'+esc((c.to||"").trim())+'</span>'+(c.label ? '<span class="conn-label">'+esc(String(c.label).toUpperCase())+'</span>' : '')+'</div>'; }).join("")+'</div></div>' : "";
+var takeawayCards = takeaways.map(function(t){ return '<div class="takeaway-card"><div class="takeaway-title">'+esc(t.title)+'</div><div class="takeaway-body">'+esc(t.body)+'</div></div>'; }).join("");
+var nextHtml = nextEdge ? '<div class="next-edge"><div class="section-label">WHAT MIGHT WANT TO HAPPEN</div><div class="next-edge-text">'+esc(nextEdge)+'</div></div>' : "";
+var notesHtml = _notesSummary ? '<div class="notes-block"><div class="section-label">YOUR REFLECTION</div><div class="notes-text">'+esc(_notesSummary)+'</div></div>' : "";
+var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your Takeaway · SAYCRD</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"><style>'
++'*{box-sizing:border-box;margin:0;padding:0}'
++'body{font-family:"DM Sans",system-ui,sans-serif;background:linear-gradient(165deg,#050510 0%,#0a0a1e 25%,#0d0d28 50%,#080818 100%);color:rgba(255,255,255,0.92);line-height:1.5;min-height:100vh}'
++'.page{max-width:520px;margin:0 auto;padding:48px 28px 64px}'
++'.brand{font-size:10px;letter-spacing:0.4em;color:rgba(255,255,255,0.35);margin-bottom:8px;font-weight:600}'
++'.hero-count{font-size:clamp(42px,10vw,64px);font-weight:800;letter-spacing:-0.04em;background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,0.7) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:4px}'
++'.hero-meta{font-size:13px;letter-spacing:0.2em;color:rgba(255,255,255,0.45);margin-bottom:40px}'
++'.verdict-block{background:linear-gradient(135deg,'+accentRgba+' 0%,rgba(255,255,255,0.03) 100%);border:1px solid '+accent+'44;border-radius:20px;padding:28px 24px;margin-bottom:40px;text-align:center}'
++'.verdict-text{font-family:"DM Serif Display",Georgia,serif;font-size:clamp(20px,4vw,26px);font-weight:500;line-height:1.5;color:#fff;font-style:italic}'
++'.section-label{font-size:9px;letter-spacing:0.5em;color:rgba(255,255,255,0.4);margin-bottom:16px;font-weight:700;text-transform:uppercase}'
++'.takeaway-section{margin-bottom:36px}'
++'.theme-pills{display:flex;flex-wrap:wrap;gap:10px}'
++'.theme-pill{padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;letter-spacing:0.06em;border:1px solid}'
++'.conn-cards{display:flex;flex-direction:column;gap:12px}'
++'.conn-card{padding:16px 20px;border-radius:14px;border-left:4px solid;background:rgba(255,255,255,0.02);display:flex;flex-wrap:wrap;align-items:center;gap:10px}'
++'.conn-from,.conn-to{font-size:15px;font-weight:600;color:rgba(255,255,255,0.95)}'
++'.conn-arrow{font-size:14px;color:rgba(255,255,255,0.35);font-weight:400}'
++'.conn-label{font-size:10px;letter-spacing:0.2em;color:rgba(255,255,255,0.5);width:100%;margin-top:4px}'
++'.takeaway-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 22px;margin-bottom:16px}'
++'.takeaway-title{font-size:11px;letter-spacing:0.35em;color:'+accent+';margin-bottom:12px;font-weight:700;text-transform:uppercase}'
++'.takeaway-body{font-family:"DM Serif Display",Georgia,serif;font-size:17px;line-height:1.65;color:rgba(255,255,255,0.88)}'
++'.next-edge{background:linear-gradient(135deg,rgba(107,255,184,0.08) 0%,transparent 100%);border:1px solid rgba(107,255,184,0.2);border-radius:16px;padding:24px;margin-bottom:36px}'
++'.next-edge-text{font-family:"DM Serif Display",Georgia,serif;font-size:18px;line-height:1.6;color:rgba(255,255,255,0.9);font-style:italic}'
++'.notes-block{margin-bottom:36px;padding:20px;background:rgba(92,74,58,0.08);border-left:4px solid rgba(214,178,109,0.5);border-radius:0 12px 12px 0}'
++'.notes-text{font-size:15px;line-height:1.7;color:rgba(255,255,255,0.8);font-style:italic}'
++'.disclaimer{font-size:10px;color:rgba(255,255,255,0.3);line-height:1.6;margin-top:48px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.08)}'
++'@media print{body{background:#0a0a1e;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:32px 24px 48px}}'
 +'</style></head><body><div class="page">'
-+(metaLine ? '<div class="meta-line">'+esc(metaLine)+'</div>' : '')
-+(verdict ? '<div class="hero">'+esc(verdict)+'</div>' : '')
-+(svg ? '<div class="map-wrap">'+svg+'<div class="map-label">Your map</div></div>' : '')
-+proseHtml
++'<div class="brand">SAYCRD</div>'
++'<div class="hero-count">'+sessionCount+' '+(sessionCount===1?'SESSION':'SESSIONS')+'</div>'
++(dateRange ? '<div class="hero-meta">'+esc(dateRange)+'</div>' : '')
++(verdict ? '<div class="verdict-block"><div class="verdict-text">'+esc(verdict)+'</div></div>' : '')
++(takeawayCards ? '<div class="section-label" style="margin-top:8px">KEY TAKEAWAYS</div>'+takeawayCards : '')
++themesHtml
++connsHtml
 +nextHtml
 +notesHtml
-+'<div class="disclaimer">This report is for personal insight and reflection only. Not a clinical assessment, medical advice, or psychological diagnosis.</div>'
++'<div class="disclaimer">For personal insight and reflection only. Not a clinical assessment, medical advice, or psychological diagnosis.</div>'
 +'</div></body></html>';
-var w = window.open("","_blank","width=720,height=900");
+var w = window.open("","_blank","width=560,height=900");
 if(w){ w.document.write(html); w.document.close(); w.focus(); }
 }}
 style={{ marginTop:16, padding:"12px 20px", fontSize:12, letterSpacing:"0.2em", fontFamily:FB, background:_accent, color:"white", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>
