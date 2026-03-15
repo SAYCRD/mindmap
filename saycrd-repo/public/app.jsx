@@ -482,12 +482,12 @@ return <svg viewBox="0 0 160 160" style={{ width: size, height: size }}>
 }
 
 function PhaseIndicator({ current, phases }) {
-return <div style={{ display: "flex", gap: 3, padding: "14px 20px 0", position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}>
+return <div style={{ display: "flex", gap: 3, padding: "calc(14px + env(safe-area-inset-top, 0px)) 20px 0", position: "absolute", top: 0, left: 0, right: 0, zIndex: 20 }}>
 {phases.map((p, i) => <div key={p} style={{ flex: 1, height: 3, borderRadius: 2, background: i<current?"rgba(255,255,255,0.6)":i===current?"rgba(255,255,255,0.85)":"rgba(255,255,255,0.1)" }}/>)}
 </div>;
 }
 
-function PourPhase({ onComplete }) {
+function PourPhase({ onComplete, onBack }) {
 var _draftKey = "saycrd-pour-draft";
 var _restored = (function(){ try { var d = localStorage.getItem(_draftKey); return d ? d : ""; } catch(e){ return ""; } })();
 const [text, setText] = useState(_restored);
@@ -498,23 +498,21 @@ useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480);
 useEffect(function(){ if (!text.trim()) return; try { localStorage.setItem(_draftKey, text); } catch(e){} }, [text]);
 var wc = text.split(/\s+/).filter(Boolean).length;
 var canContinue = wc >= 20;
-var progress = Math.min(1, wc / 20);
 var showFloating = !isMobile && words.length >= 5;
 var _handleComplete = function(){ try { localStorage.removeItem(_draftKey); } catch(e){} onComplete(text); };
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 {showFloating ? <FloatingWords words={words} color="#6BB8FF"/> : null}
 <Particles color="#6BB8FF" count={isMobile ? 8 : 15}/>
-<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: isMobile ? "20px 20px 80px" : "32px 24px 40px", paddingBottom: "calc(" + (isMobile ? "80px" : "40px") + " + env(safe-area-inset-bottom, 0px))" }}>
+<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: isMobile ? "20px 20px 32px" : "32px 24px 40px", paddingBottom: "calc(" + (isMobile ? "100px" : "40px") + " + env(safe-area-inset-bottom, 0px))" }}>
 {isMobile ? (
-<>
-<div style={{ padding: "16px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.15)", marginBottom: 16 }}>
-<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 220, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
+<div style={{ display: "flex", flexDirection: "column", minHeight: "100%", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+<textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 280, flex: 1, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
+<div style={{ marginTop: 24, padding: "20px 0", borderTop: "1px solid rgba(107,184,255,0.15)" }}>
+<button onClick={_handleComplete} disabled={!canContinue} style={{ width: "100%", background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.15)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.3)", borderRadius: 24, padding: "18px 28px", minHeight: 56, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 17, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none" }}>{canContinue ? "Synthesize →" : "20 words to continue"}</button>
+{onBack && <button onClick={onBack} style={{ marginTop: 12, width: "100%", background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Back</button>}
 </div>
-<div style={{ fontSize: 11, letterSpacing: "0.35em", fontWeight: 600, color: "#6BB8FF", marginBottom: 8, fontFamily: FB, zIndex: 1 }}>POUR</div>
-<p style={{ fontSize: 15, fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", textAlign: "center", zIndex: 1, fontWeight: 400, lineHeight: 1.2 }}>What's alive in you right now?</p>
-<p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: FD, fontStyle: "italic", margin: "0 0 20px", textAlign: "center", zIndex: 1 }}>Don't think. Just pour.</p>
-</>
+</div>
 ) : (
 <>
 {!isMobile && <div style={{ fontSize: 12, letterSpacing: "0.4em", fontWeight: 600, color: "#6BB8FF", marginBottom: 16, fontFamily: FB, zIndex: 1 }}>POUR</div>}
@@ -523,26 +521,13 @@ return (
 <div style={{ padding: "24px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.15)", marginBottom: 24 }}>
 <textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 200, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
 </div>
+<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+<button onClick={_handleComplete} disabled={!canContinue} style={{ width: "100%", maxWidth: 340, background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.12)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.25)", borderRadius: 24, padding: "18px 28px", minHeight: 56, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none", WebkitTapHighlightColor: "transparent", opacity: canContinue ? 1 : 0.9 }}>{canContinue ? "Synthesize →" : "20 words to continue"}</button>
+{onBack && <button onClick={onBack} style={{ marginTop: 8, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Back</button>}
+</div>
 </>
 )}
-<div style={{ marginTop: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-<div style={{ width: "100%", maxWidth: 340, display: "flex", flexDirection: "column", gap: 8 }}>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-<span style={{ fontSize: 14, fontWeight: 600, color: wc >= 20 ? "rgba(107,184,255,0.95)" : "rgba(255,255,255,0.5)", fontFamily: FB }}>{wc}/20 words</span>
-{wc > 0 && wc < 20 && <span style={{ fontSize: 12, color: "rgba(107,184,255,0.7)", fontFamily: FB }}>keep going</span>}
 </div>
-<div style={{ width: "100%", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-<div style={{ width: (progress * 100) + "%", height: "100%", borderRadius: 3, background: wc >= 20 ? "linear-gradient(90deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.4)", transition: "width 0.3s ease" }}/>
-</div>
-</div>
-{!isMobile && <button onClick={_handleComplete} disabled={!canContinue} style={{ width: "100%", maxWidth: 340, background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.12)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.25)", borderRadius: 24, padding: "18px 28px", minHeight: 56, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none", WebkitTapHighlightColor: "transparent", opacity: canContinue ? 1 : 0.9 }}>{canContinue ? "Synthesize →" : "20 words to continue"}</button>}
-</div>
-</div>
-{isMobile && (
-<div style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(10,10,46,0.98) 0%, rgba(10,10,46,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.2)", zIndex: 50, display: "flex", justifyContent: "center", boxSizing: "border-box" }}>
-<button onClick={_handleComplete} disabled={!canContinue} style={{ width: "100%", maxWidth: 340, background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.15)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.3)", borderRadius: 24, padding: "16px 24px", minHeight: 52, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none" }}>{canContinue ? "Synthesize →" : wc + "/20 words"}</button>
-</div>
-)}
 </div>
 );
 }
@@ -1017,7 +1002,7 @@ color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.6)"
 );
 }
 
-function MapPhase({ onComplete, synthesisData, rawText, onPatchSynthesis }) {
+function MapPhase({ onComplete, synthesisData, rawText, onPatchSynthesis, onBack }) {
 const [activeConn, setActiveConn] = useState(null);
 const [responses, setResponses] = useState({});
 const [dragging, setDragging] = useState(null);
@@ -1463,7 +1448,7 @@ window.addEventListener("pointerup", u);
 return () => { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
 }, [dragging, selectedNode]);
 
-var _bottomPad = explored >= 1 ? (isMobile ? "calc(110px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))") : "0";
+var _bottomPad = isMobile ? "calc(110px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))";
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "22px 0 " + _bottomPad + " 0", overflow: "hidden",
 background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a14 100%)" }}>
@@ -1603,7 +1588,7 @@ textOverflow: "ellipsis",
 
 {selectedDetail && !activeConn && (
 <div onClick={function(e){e.stopPropagation();}} style={{
-position:"absolute", left:16, right:16, bottom: explored>=1 ? (isMobile ? "calc(100px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))") : 14,
+position:"absolute", left:16, right:16, bottom: isMobile ? "calc(100px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))",
 zIndex:30,
 background:"rgba(12,14,28,0.95)",
 border:"1px solid rgba(255,255,255,0.25)",
@@ -1706,11 +1691,10 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 />}
 </>}
 </div>
-{explored>=1&&(
-<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
-<button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "#fff", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>continue →</button>
+<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
+<button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "#fff", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>{explored >= 1 ? "continue →" : "continue →"}</button>
+{onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Back</button>}
 </div>
-)}
 </div>
 );
 }
@@ -2585,9 +2569,9 @@ boxShadow: "0 0 24px rgba(214,178,109,0.2)",
 </div>
 )}
 {descentOpen && !descentDone && (
-<div style={{ animation: "riseUp 0.5s ease", position: isMobile ? "fixed" : "relative", inset: isMobile ? 0 : undefined, zIndex: isMobile ? 40 : undefined, background: isMobile ? "linear-gradient(160deg, #0A0A1E 0%, #1A1A3B 40%, #2D1B5B 100%)" : undefined, overflowY: isMobile ? "auto" : undefined, paddingTop: isMobile ? "calc(20px + env(safe-area-inset-top, 0px))" : undefined, paddingBottom: isMobile ? "calc(20px + env(safe-area-inset-bottom, 0px))" : undefined }}>
-<div style={{ position: "relative", fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 8, fontFamily: FB, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-{isMobile && <button onClick={function(){ setDescentOpen(false); }} style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>×</button>}
+<div style={{ animation: "riseUp 0.5s ease", position: "relative", paddingTop: 16, paddingBottom: 24 }}>
+<div style={{ position: "relative", fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 16, fontFamily: FB, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+{isMobile && <button onClick={function(){ setDescentOpen(false); }} style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>×</button>}
 <span>THE DESCENT</span>
 </div>
 <DescentGame cards={descentCards} onDone={function(data) { setDescentResult(data); setDescentDone(true); }} onSkip={isMobile ? function(){ setDescentOpen(false); } : undefined} isMobile={isMobile} />
@@ -9518,7 +9502,7 @@ return <div style={{position:"absolute",inset:0,background:"#060910",display:"fl
 return (
 <FieldMobileContext.Provider value={isMobile}>
 <div ref={containerRef} onClick={handleClick} style={{ width: "100%", height: "100%", background: card.bg, position: "absolute", inset: 0, cursor: "pointer", userSelect: "none", transition: "background 0.7s ease" }}>
-<div style={{ display:"flex", flexDirection:"column", gap:0, padding:"14px 16px 0", position:"absolute", top:0, left:0, right:0, zIndex:10 }}>
+<div style={{ display:"flex", flexDirection:"column", gap:0, padding:"calc(14px + env(safe-area-inset-top, 0px)) 16px 0", position:"absolute", top:0, left:0, right:0, zIndex:10 }}>
 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
 <div style={{ flex:1, display:"flex", gap:3 }}>
 {CARDS.map(function(_, i) {
@@ -9593,7 +9577,7 @@ filter:"blur(80px)", animation:"floatWord 18s ease-in-out infinite", animationDe
 </div>
 
 <nav style={{ position:"sticky", top:0, zIndex:20, display:"flex", justifyContent:"space-between",
-alignItems:"center", padding:"20px 7vw",
+alignItems:"center", padding:"calc(20px + env(safe-area-inset-top, 0px)) 7vw 20px",
 background:"rgba(10,9,20,0.8)", backdropFilter:"blur(20px)",
 borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
@@ -9607,7 +9591,7 @@ fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"poin
 </button>
 </nav>
 
-<div style={{ position:"relative", zIndex:1, maxWidth:660, margin:"0 auto", padding:"0 7vw 80px" }}>
+<div style={{ position:"relative", zIndex:1, maxWidth:660, margin:"0 auto", padding:"0 7vw calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 
 <section style={{ padding:"72px 0 56px" }}>
 <div style={{ fontSize:13, letterSpacing:"0.4em", fontFamily:FB, textTransform:"uppercase",
@@ -10243,15 +10227,15 @@ setFieldTransition(true);
 setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
 return (
-<div style={{width:"100%",height:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"center"}}>
+<div style={{width:"100%",minHeight:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,height:"100vh",maxHeight: cp === "landing" ? "100%" : 860,background:GRADIENTS[cp],position:"relative",overflow:"hidden",transition:"background 0.8s ease"}}>
+<div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,minHeight:"100vh",height:"100%",background:GRADIENTS[cp],position:"relative",overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",height:"100%",animation:"slideIn 0.4s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
-{cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(2);}}/>}
+{cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(2);}} onBack={function(){setPhase(0);}}/>}
 {cp==="synthesize"&&<SynthesizePhase rawText={rawText} onComplete={function(){setPhase(3);}} onSynthesis={setSynthesisData}/>}
-{cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onPatchSynthesis={onPatchSynthesis}/>}
+{cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(2);}}/>}
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
 {cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData}/>}
@@ -10281,7 +10265,7 @@ return (
 @keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
-body{margin:0;background:#000;overflow:hidden}
+body{margin:0;background:#000;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
 .pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
 textarea{caret-color:#6BB8FF}
