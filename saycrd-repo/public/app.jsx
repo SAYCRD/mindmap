@@ -7411,6 +7411,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "PRACTITIONER MODE: Draw on pattern recognition, systems thinking, and deep listening — without naming disciplines. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth.\n\n"
 + "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
 + "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. Every claim about the subject's actions must be traceable to the source data. When in doubt, omit.\n\n"
++ "TENSE AWARENESS (past / present / future): Be mindful of when the subject said something. If they said they are going to do something, or plan to, or will — that is a PLAN, not an action. Do NOT conclude they did it. If they said they did it — that is past action. If they said they are doing it — that is present. Never collapse future intention into past accomplishment. \"I'm going to try\" is not \"they tried.\" \"I plan to stop\" is not \"they stopped.\" Honor the tense.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
 + "GROUNDING: For each major insight, anchor it in evidence the reader can trace (e.g. \"the map showed control↔trust confirmed in 5 of the last 6 sessions\" or \"you corrected the blind spot twice, refining it from X to Y\"). Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, you tended to Y\" — interpretation, not certainty. Prefer \"you showed up with\" over \"the subject exhibited.\" Where a pattern is not absolute, add light nuance: \"with exceptions at S9 and S16\" or \"though not in every session.\" Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
@@ -7763,11 +7764,54 @@ var b=pts.find(function(p){ return (p.label||"").toLowerCase()===(c.to||"").toLo
 if(a&&b) lineEls += '<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="rgba(0,0,0,0.2)" stroke-width="0.8"/>';
 });
 var circleEls = pts.map(function(p){ return '<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="'+p.color+'"/><text x="'+p.x+'" y="'+(p.y+5)+'" text-anchor="middle" font-size="4" fill="#333" font-family="Georgia">'+(p.label||"").toUpperCase().slice(0,10)+'</text>'; }).join("");
-var svg = n>0 ? '<svg viewBox="0 0 100 100" style="width:200px;height:200px;display:block;margin:16px auto"><g transform="translate(0,0)">'+lineEls+circleEls+'</g></svg>' : "";
-var summary = (_report && _report.oneLineVerdict ? _report.oneLineVerdict : "") + (_notesSummary ? "\n\n" + _notesSummary : "");
-var body = (_report && _report.sections) ? (_report.sections||[]).slice(0,2).map(function(s){ return (s.body||"").slice(0,300)+(s.body&&s.body.length>300?"…":""); }).join("\n\n") : "";
-var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Session Summary</title><style>body{font-family:Georgia,serif;max-width:400px;margin:24px auto;padding:20px;color:#333;line-height:1.6} h1{font-size:18px;margin-bottom:12px}.map{text-align:center;margin:20px 0} @media print{body{padding:0}}</style></head><body><h1>Session Summary</h1><p style="font-style:italic;color:#555">'+summary.replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")+'</p>'+svg+'<div class="map" style="font-size:11px;color:#888">SAYCRD · '+sessionCount+' session'+(sessionCount!==1?"s":"")+'</div><p style="margin-top:24px;font-size:12px;color:#666">'+body.replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")+'</p></body></html>';
-var w = window.open("","_blank","width=480,height=640");
+var svg = n>0 ? '<svg viewBox="0 0 100 100" style="width:280px;height:280px;display:block;margin:0 auto"><g transform="translate(0,0)">'+lineEls+circleEls+'</g></svg>' : "";
+var esc = function(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>"); };
+var verdict = _report && _report.oneLineVerdict ? String(_report.oneLineVerdict).trim() : "";
+var dateRange = _report && _report.dateRange ? String(_report.dateRange).trim() : "";
+var nextEdge = _report && _report.whatMightWantToHappen ? String(_report.whatMightWantToHappen).trim() : "";
+var sectionCards = (_report && _report.sections || []).slice(0,3).map(function(sec){
+var firstPara = (sec.body||"").split(/\n\n+/)[0] || (sec.body||"").split("\n")[0] || "";
+var punch = firstPara.trim().slice(0, 120) + (firstPara.length > 120 ? "…" : "");
+return { title: sec.title||"", punch: punch };
+});
+var accent = (_accent||"#111").replace(/"/g,"");
+var cardHtml = sectionCards.map(function(c){ return '<div class="card"><div class="card-title">'+esc(c.title)+'</div><div class="card-punch">'+esc(c.punch)+'</div></div>'; }).join("");
+var nextHtml = nextEdge ? '<div class="next-edge"><div class="next-label">WHAT MIGHT WANT TO HAPPEN</div><div class="next-text">'+esc(nextEdge)+'</div></div>' : "";
+var notesHtml = _notesSummary ? '<div class="notes-block"><div class="notes-label">YOUR REFLECTION</div><div class="notes-text">'+esc(_notesSummary)+'</div></div>' : "";
+var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Field Report · SAYCRD</title><style>'
++'*{box-sizing:border-box} body{margin:0;padding:0;font-family:"DM Serif Display",Georgia,serif;background:#FAFAF8;color:#1a1a1a;line-height:1.4}'
++'.page{max-width:700px;margin:0 auto;padding:48px 40px 64px}'
++'.brand{font-size:11px;letter-spacing:0.5em;color:rgba(0,0,0,0.35);font-family:sans-serif;margin-bottom:32px;font-weight:600}'
++'.hero{font-size:clamp(28px,5vw,42px);font-weight:700;line-height:1.25;letter-spacing:-0.02em;margin-bottom:40px;color:#0a0a0a}'
++'.meta{display:flex;gap:32px;margin-bottom:40px;flex-wrap:wrap}'
++'.meta-item{display:flex;flex-direction:column;gap:4px} .meta-num{font-size:36px;font-weight:800;color:'+accent+';line-height:1} .meta-label{font-size:11px;letter-spacing:0.35em;color:rgba(0,0,0,0.4);font-family:sans-serif}'
++'.map-wrap{text-align:center;margin:32px 0 48px} .map-wrap .map-label{font-size:10px;letter-spacing:0.4em;color:rgba(0,0,0,0.3);margin-top:12px}'
++'.cards{display:grid;gap:24px;margin-bottom:40px}'
++'.card{background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:12px;padding:28px 32px;border-left:4px solid '+accent+'}'
++'.card-title{font-size:11px;letter-spacing:0.4em;color:'+accent+';font-family:sans-serif;font-weight:700;margin-bottom:12px}'
++'.card-punch{font-size:20px;line-height:1.5;color:#2a2a2a;font-weight:400}'
++'.next-edge{background:linear-gradient(135deg,rgba(0,0,0,0.02),rgba(0,0,0,0.04));border-radius:12px;padding:28px 32px;margin-bottom:32px;border:1px solid rgba(0,0,0,0.06)}'
++'.next-label{font-size:10px;letter-spacing:0.4em;color:rgba(0,0,0,0.4);font-family:sans-serif;font-weight:600;margin-bottom:10px}'
++'.next-text{font-size:22px;line-height:1.45;color:#1a1a1a;font-style:italic}'
++'.notes-block{margin-bottom:32px;padding:24px 28px;background:rgba(92,74,58,0.04);border-left:4px solid '+accent+';border-radius:8px}'
++'.notes-label{font-size:10px;letter-spacing:0.35em;color:rgba(0,0,0,0.4);margin-bottom:8px}'
++'.notes-text{font-size:18px;line-height:1.6;color:#3a3a3a;font-style:italic}'
++'.disclaimer{font-size:11px;color:rgba(0,0,0,0.35);line-height:1.6;margin-top:48px;padding-top:24px;border-top:1px solid rgba(0,0,0,0.08)}'
++'@media print{.page{padding:32px 24px} .hero{font-size:36px} .meta-num{font-size:32px} body{background:#fff}}'
++'</style></head><body><div class="page">'
++'<div class="brand">SAYCRD · FIELD REPORT</div>'
++(verdict ? '<div class="hero">'+esc(verdict)+'</div>' : '')
++'<div class="meta">'
++'<div class="meta-item"><span class="meta-num">'+sessionCount+'</span><span class="meta-label">SESSION'+(sessionCount!==1?'S':'')+'</span></div>'
++(dateRange ? '<div class="meta-item"><span class="meta-num" style="font-size:24px;color:#333">'+esc(dateRange)+'</span><span class="meta-label">DATE RANGE</span></div>' : '')
++'</div>'
++(svg ? '<div class="map-wrap">'+svg+'<div class="map-label">YOUR MAP</div></div>' : '')
++(cardHtml ? '<div class="cards">'+cardHtml+'</div>' : '')
++nextHtml
++notesHtml
++'<div class="disclaimer">This report is for personal insight and reflection only. Not a clinical assessment, medical advice, or psychological diagnosis.</div>'
++'</div></body></html>';
+var w = window.open("","_blank","width=720,height=900");
 if(w){ w.document.write(html); w.document.close(); w.focus(); }
 }}
 style={{ marginTop:16, padding:"12px 20px", fontSize:12, letterSpacing:"0.2em", fontFamily:FB, background:_accent, color:"white", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>
