@@ -7325,13 +7325,13 @@ var ans = currDescent.answers[i];
 if (ans === undefined || ans === null) return;
 var display = "";
 if (card.type === "energy") { var v = typeof ans==="number" ? ans : parseInt(ans,10); display = (v>=0&&v<=5) ? (v+"/5 intensity") : String(ans); }
-else if (card.type === "spectrum") { var pct = typeof ans==="number" ? Math.round(ans) : parseInt(ans,10); var toward = (pct>=0&&pct<=100) ? (pct>=50 ? { p: pct, pole: card.pole_b||"right" } : { p: 100-pct, pole: card.pole_a||"left" }) : null; display = toward ? (toward.p+"% toward \""+toward.pole+"\"") : String(ans); }
-else if (card.type === "binary") { display = ans === "a" || ans === "b" ? "chose \"" + (ans==="a" ? (card.option_a||"a") : (card.option_b||"b")) + "\"" : String(ans); }
+else if (card.type === "spectrum") { var pct = typeof ans==="number" ? Math.round(ans) : parseInt(ans,10); var toward = (pct>=0&&pct<=100) ? (pct>=50 ? { p: pct, pole: card.pole_b||"right", side: "right" } : { p: 100-pct, pole: card.pole_a||"left", side: "left" }) : null; display = toward ? ("value="+pct+" CHOSE toward "+toward.side+": \""+toward.pole+"\" ("+toward.p+"%)") : String(ans); }
+else if (card.type === "binary") { display = ans === "a" || ans === "b" ? "CHOSE: \"" + (ans==="a" ? (card.option_a||"a") : (card.option_b||"b")) + "\" (left=a, right=b)" : String(ans); }
 else display = String(ans);
 var prompt = card.phrase || card.prompt || "";
 if (prompt) lines.push("\""+prompt.slice(0,80)+"\" → "+display);
 });
-if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\nDESCENT CITATION: When you cite descent data in the report, ALWAYS include the question so the subject can trace it. Write: \"When asked '[the question]', you said...\" or \"In the descent, [question] — you answered...\" Use WORDS, not percentages: \"you leaned toward X\" or \"you chose Y\" — never \"50% toward X\" or \"51%.\" If the subject selected a spectrum value, describe it in words (slightly, moderately, strongly) with the question named. The subject must recognize when and where they said it.\n\n";
+if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\nDESCENT POLARITY: Spectrum sliders: 0=left pole (pole_a), 100=right pole (pole_b). Binary: 'a' = left option, 'b' = right option. The CHOSE/toward direction is authoritative — if it says 'toward X' or 'chose X', the subject chose X. NEVER invert or write the opposite.\n\nDESCENT CITATION: When you cite descent data in the report, ALWAYS include the question so the subject can trace it. Write: \"When asked '[the question]', you said...\" or \"In the descent, [question] — you answered...\" Use WORDS, not percentages: \"you leaned toward X\" or \"you chose Y\" — never \"50% toward X\" or \"51%.\" If the subject selected a spectrum value, describe it in words (slightly, moderately, strongly) with the question named. The subject must recognize when and where they said it.\n\n";
 }
 
 var clarityBlurb = "";
@@ -7340,12 +7340,20 @@ if (currClarity && String(currClarity).trim()) {
 clarityBlurb = "CLARITY (subject's own words — what they're taking with them; quote when relevant): \"" + String(currClarity).trim().slice(0, 200) + (String(currClarity).length > 200 ? "…" : "") + "\"\n\n";
 }
 
-var SLIDER_LABELS = { the_mirror: "doesn't land → lands big time", synthesis: "doesn't fit → exactly this", bigword: "coincidence → significant", connection: "forced → I see it", tension: "not quite → that's the one", blind_spot: "way off → that's the gap" };
+var SLIDER_LABELS = { the_mirror: "doesn't land → lands big time", synthesis: "doesn't fit → exactly this", bigword: "coincidence → significant", connection: "forced → I see it", tension: "not quite → that's the one", blind_spot: "way off → that's the gap", live_tension: "pushing away → lands" };
+var SLIDER_POLES = { the_mirror: { left: "doesn't land", right: "lands big time" }, synthesis: { left: "doesn't fit", right: "exactly this" }, bigword: { left: "coincidence", right: "significant" }, connection: { left: "forced", right: "I see it" }, tension: { left: "not quite", right: "that's the one" }, blind_spot: { left: "way off", right: "that's the gap" }, live_tension: { left: "pushing away", right: "lands" } };
+function sliderToChose(k, v) {
+var poles = SLIDER_POLES[k];
+if (!poles || v === undefined) return "";
+if (v <= 33) return "CHOSE toward left: \""+poles.left+"\"";
+if (v >= 67) return "CHOSE toward right: \""+poles.right+"\"";
+return "CHOSE middle (between \""+poles.left+"\" and \""+poles.right+"\")";
+}
 var cardFeedbackBlurb = "";
 var cfKeys = Object.keys(sliderValues).filter(function(k){ return sliderValues[k] !== undefined && SLIDER_LABELS[k]; });
 if (cfKeys.length > 0) {
-var cfLines = cfKeys.map(function(k){ return k + ": " + sliderValues[k] + " (scale: " + SLIDER_LABELS[k] + ")"; });
-cardFeedbackBlurb = "CARD SLIDERS (subject's rating on each; 0=left pole, 100=right pole. When citing, ALWAYS name the scale so the subject knows what they chose):\n" + cfLines.join("\n") + "\n\nPERCENTAGE RULE: Do NOT use percentages (e.g. 51%, 72%) in the report unless the subject explicitly selected that value AND you name the scale. If you cite a slider, write: \"On the Mirror (doesn't land → lands big time), you marked toward the right\" or \"The synthesis landed strongly (doesn't fit → exactly this).\" Use WORDS — slightly, moderately, strongly, toward the left, toward the right — not numbers. The subject must recognize what they chose; bare numbers without scale context are meaningless and confusing.\n\n";
+var cfLines = cfKeys.map(function(k){ var v = sliderValues[k]; return k + ": value=" + v + " → " + sliderToChose(k, v) + " (scale: 0=left \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].left:"") + "\", 100=right \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].right:"") + "\")"; });
+cardFeedbackBlurb = "CARD SLIDERS — SUBJECT'S EXACT CHOICE (0=left pole, 100=right pole. Use ONLY what they chose — never invert):\n" + cfLines.join("\n") + "\n\nCRITICAL: The value and CHOSE direction are authoritative. If it says \"CHOSE toward right: X\", the subject moved the slider RIGHT toward X. Do NOT write that they chose the opposite pole. When citing, name the scale and use words (slightly, moderately, strongly) — not bare percentages.\n\n";
 }
 
 var mapValuesBlurb = "";
@@ -7361,13 +7369,15 @@ var from = (parts[0]||"").trim(), to = (parts[1]||"").trim();
 var conn = allConns.find(function(c){ return (c.from||"").trim()===from && (c.to||"").trim()===to; });
 var insight = conn && conn.insight ? String(conn.insight).trim().slice(0, 120) : "";
 var val = mr.value === "yes" ? "confirmed" : mr.value === "partly" ? "partly" : mr.value === "no" ? "rejected" : mr.value || "";
+var slider = mr.slider;
+var mapChose = (slider !== undefined && slider !== null) ? (slider >= 66 ? "CHOSE: toward right 'very alive in me'" : slider < 33 ? "CHOSE: toward left 'not how it lives in me'" : "CHOSE: middle") : "";
 var cmt = mr.comment && String(mr.comment).trim() ? " — user said: \""+String(mr.comment).trim().slice(0,100)+"\"" : "";
 var line = from+" ↔ "+to;
 if (insight) line += " | insight: \""+insight+(insight.length>=120?"…":"")+"\"";
-line += " | "+val+cmt;
+line += " | "+val+(mapChose ? " | "+mapChose : "")+cmt;
 connLines.push(line);
 });
-if (connLines.length) mapValuesBlurb = "MAP CONNECTORS (the magic is in the INSIGHT — what the AI said; the user's response is how that landed):\n" + connLines.slice(0, 15).join("\n") + "\n\nMAP RULE: Lead with the connector's insight (what was offered), then how the user responded. Do NOT frame as 'testing the connection between nodes.' Everything is related — the question is what's underlying. The map surfaces that.\n\n";
+if (connLines.length) mapValuesBlurb = "MAP CONNECTORS (the magic is in the INSIGHT — what the AI said; the user's response is how that landed):\n" + connLines.slice(0, 15).join("\n") + "\n\nMAP RULE: Lead with the connector's insight (what was offered), then how the user responded. Do NOT frame as 'testing the connection between nodes.' Everything is related — the question is what's underlying. The map surfaces that.\n\nMAP SLIDER POLARITY: confirmed = subject moved slider RIGHT toward 'very alive in me'. rejected = subject moved slider LEFT toward 'not how it lives in me'. partly = middle. If CHOSE says 'toward right', they CONFIRMED. If CHOSE says 'toward left', they REJECTED. Never invert.\n\n";
 }
 
 var patternEngineBlurb = "";
@@ -7789,7 +7799,7 @@ var currSd = currentSessionData || lastSd || sd;
 var underneath = (currSd.underneath && Array.isArray(currSd.underneath) ? currSd.underneath : (sd.underneath && Array.isArray(sd.underneath) ? sd.underneath : [])).filter(function(u){ return typeof u==="string"&&u.trim(); }).slice(0,3);
 var blindSpot = (currSd.blind_spot || sd.blind_spot || "").trim();
 var synthesis = (currSd.synthesis || sd.synthesis || "").trim();
-if (synthesis && synthesis.length > 80) synthesis = synthesis.slice(0,77)+"…";
+if (synthesis && synthesis.length > 220) synthesis = synthesis.slice(0,217)+"…";
 var clarity = (currSd.clarity || "").trim();
 var userQuote = clarity;
 if (!userQuote && currSd.mapResponses) {
