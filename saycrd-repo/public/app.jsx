@@ -5661,7 +5661,6 @@ animation:"breathe 1.5s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 
 <div style={{ animation:"riseUp 0.6s ease 0.4s both" }}>
-<div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, marginBottom:16 }}>Before and after</div>
 {(() => {
 var _tTxt = (_thenWords || []).join(" ");
 var _nTxt = (_nowWords || []).join(" ");
@@ -5670,6 +5669,7 @@ var _opacity = 0.35 + (_landVal / 100) * 0.65;
 var _brightness = 0.5 + (_landVal / 100) * 0.8;
 return (
 <div>
+<div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, marginBottom:16 }}>Before and after</div>
 <div style={{ opacity: _opacity, filter: "brightness(" + _brightness + ")", transition: "opacity 0.25s, filter 0.25s" }}>
 <div style={{ display:"flex", flexDirection: stackCols ? "column" : "row", alignItems:"stretch", gap:16 }}>
 
