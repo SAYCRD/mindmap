@@ -1497,7 +1497,6 @@ return <line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke="#7DB7AE" stroke
 {allConns.map(c => {
 const m=mid(c), k=K(c), resp=responses[k];
 const isAct = activeConn && K(activeConn)===k;
-if (isMobile && !isAct) return null;
 var isUserDefined = resp && resp.value==="no" && resp.comment && resp.comment.trim();
 var isExp = !!resp; var accent = isUserDefined ? "#D6B264" : c.color;
 var _lpa=pos[c.from],_lpb=pos[c.to];
@@ -10227,11 +10226,11 @@ setFieldTransition(true);
 setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
 return (
-<div style={{width:"100%",minHeight:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
+<div style={{width:"100%",height:"100vh",minHeight:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,minHeight:"100vh",height:"100%",background:GRADIENTS[cp],position:"relative",overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
-<div key={phase} style={{width:"100%",height:"100%",animation:"slideIn 0.4s ease-out"}}>
+<div key={phase} style={{width:"100%",height:"100%",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
 {cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(2);}} onBack={function(){setPhase(0);}}/>}
 {cp==="synthesize"&&<SynthesizePhase rawText={rawText} onComplete={function(){setPhase(3);}} onSynthesis={setSynthesisData}/>}
@@ -10246,6 +10245,7 @@ return (
 </div>
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes phaseIn{from{opacity:0.6}to{opacity:1}}
 @keyframes morphIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
 @keyframes riseUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:0.7}50%{opacity:1}}
