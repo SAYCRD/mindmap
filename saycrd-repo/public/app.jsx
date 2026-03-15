@@ -5526,11 +5526,8 @@ fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break
 );
 }
 
-function MirrorCard({ themes, sd, sessionCount, rawText, portrait, portraitReady, goNext, setSlider, sliderValues }) {
+function MirrorCard({ themes, sd, sessionCount, rawText, portrait, portraitReady, goNext }) {
 themes = themes || [];
-
-var _landVal = (sliderValues && sliderValues.the_mirror !== undefined) ? sliderValues.the_mirror : 50;
-var _setLand = setSlider ? function(v) { setSlider("the_mirror", v); } : function() {};
 
 var _allSessions = (function() {
 try { return loadSessions(); } catch(e) { return []; }
@@ -5661,17 +5658,12 @@ animation:"breathe 1.5s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 
 <div style={{ animation:"riseUp 0.6s ease 0.4s both" }}>
-<div>
+<div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, marginBottom:16 }}>Before and after</div>
 {(() => {
 var _tTxt = (_thenWords || []).join(" ");
 var _nTxt = (_nowWords || []).join(" ");
 var stackCols = (_tTxt.length > 22 || _nTxt.length > 22);
-var _opacity = 0.35 + (_landVal / 100) * 0.65;
-var _brightness = 0.5 + (_landVal / 100) * 0.8;
 return (
-<div>
-<div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, marginBottom:16 }}>Before and after</div>
-<div style={{ opacity: _opacity, filter: "brightness(" + _brightness + ")", transition: "opacity 0.25s, filter 0.25s" }}>
 <div style={{ display:"flex", flexDirection: stackCols ? "column" : "row", alignItems:"stretch", gap:16 }}>
 
 <div style={{ flex:1, minWidth:0 }}>
@@ -5765,10 +5757,6 @@ lineHeight:1.25
 </div>
 </div>
 </div>
-<div style={{ marginTop:20 }} data-noadvance>
-<AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
-</div>
-</div>
 );
 })()}
 {!_archShifted && _prevArch && (
@@ -5777,7 +5765,6 @@ color:"rgba(220,235,255,0.8)", fontFamily:FD, lineHeight:1.5 }}>
 Same archetype, deeper work — you're staying with it.
 </div>
 )}
-</div>
 </div>
 </div>
 )}
@@ -8174,7 +8161,7 @@ return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} por
 }
 
 case "the_mirror": {
-return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} portrait={portrait} portraitReady={portraitReady} goNext={advance} setSlider={setSlider} sliderValues={sliderValues}/>;
+return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "the_realm": {
 return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
