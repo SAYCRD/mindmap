@@ -5526,13 +5526,15 @@ fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break
 );
 }
 
-function MirrorCard({ themes, sd, sessionCount, rawText, portrait, portraitReady, goNext }) {
+function MirrorCard({ themes, sd, sessionCount, rawText, portrait, portraitReady, goNext, setSlider, sliderValues }) {
 themes = themes || [];
+var _landVal = (sliderValues && sliderValues.the_mirror !== undefined) ? sliderValues.the_mirror : 50;
+var _setLand = setSlider ? function(v) { setSlider("the_mirror", v); } : function() {};
 
 var _allSessions = (function() {
 try { return loadSessions(); } catch(e) { return []; }
 })();
-var _prev = _allSessions.length > 0 ? _allSessions[_allSessions.length - 1] : null;
+var _prev = _allSessions.length >= 2 ? _allSessions[_allSessions.length - 2] : null;
 
 var _prevArch = (_prev && _prev.archetypes && _prev.archetypes[0] && _prev.archetypes[0].name) || "";
 var _prevDate = _prev && _prev.date
@@ -5765,6 +5767,9 @@ color:"rgba(220,235,255,0.8)", fontFamily:FD, lineHeight:1.5 }}>
 Same archetype, deeper work — you're staying with it.
 </div>
 )}
+<div style={{ marginTop:20 }} data-noadvance>
+<AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
+</div>
 </div>
 </div>
 )}
@@ -7114,11 +7119,12 @@ if (/REMAINS|RETURNING|STILL HERE/.test(t)) return "What's still unresolved";
 return "";
 }
 
-function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, portrait, portraitReady, goNext }) {
+function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, sliderValues, portrait, portraitReady, goNext }) {
 themes = themes || [];
 allSessions = allSessions || [];
 var isMobile = React.useContext(FieldMobileContext);
 currentSessionData = currentSessionData || null;
+sliderValues = sliderValues || {};
 
 var [_report, _setReport] = useState(null);
 var [_ready, _setReady] = useState(false);
@@ -7326,6 +7332,14 @@ if (currClarity && String(currClarity).trim()) {
 clarityBlurb = "CLARITY (subject's own words — what they're taking with them; quote when relevant): \"" + String(currClarity).trim().slice(0, 200) + (String(currClarity).length > 200 ? "…" : "") + "\"\n\n";
 }
 
+var SLIDER_LABELS = { the_mirror: "doesn't land → lands big time", synthesis: "doesn't fit → exactly this", bigword: "coincidence → significant", connection: "forced → I see it", tension: "not quite → that's the one", blind_spot: "way off → that's the gap" };
+var cardFeedbackBlurb = "";
+var cfKeys = Object.keys(sliderValues).filter(function(k){ return sliderValues[k] !== undefined && SLIDER_LABELS[k]; });
+if (cfKeys.length > 0) {
+var cfLines = cfKeys.map(function(k){ return k + ": " + sliderValues[k] + " (scale: " + SLIDER_LABELS[k] + ")"; });
+cardFeedbackBlurb = "CARD SLIDERS (subject's rating on each; 0=left pole, 100=right pole. When citing, ALWAYS name the scale so the subject knows what they chose):\n" + cfLines.join("\n") + "\n\nCITATION: Never write bare percentages like \"51%\" without context. Write: \"On the Mirror (doesn't land → lands big time), you marked 51\" or \"The synthesis landed at 72 (doesn't fit → exactly this).\" The subject must recognize what they chose.\n\n";
+}
+
 var mapValuesBlurb = "";
 var currMap = (currentSessionData && currentSessionData.mapResponses) ? currentSessionData.mapResponses : (lastSession && lastSession.mapResponses ? lastSession.mapResponses : {});
 if (Object.keys(currMap).length > 0) {
@@ -7396,6 +7410,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "VOICE: Use \"you\" when quoting the subject's words (e.g. \"You said: \\\"...\\\"\") or in the one-line verdict when it fits. The report is for them — \"you\" makes it feel personal. Otherwise third person is fine. Never use he, she, him, her.\n\n"
 + "PRACTITIONER MODE: Draw on pattern recognition, systems thinking, and deep listening — without naming disciplines. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth.\n\n"
 + "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
++ "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. Every claim about the subject's actions must be traceable to the source data. When in doubt, omit.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
 + "GROUNDING: For each major insight, anchor it in evidence the reader can trace (e.g. \"the map showed control↔trust confirmed in 5 of the last 6 sessions\" or \"you corrected the blind spot twice, refining it from X to Y\"). Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, you tended to Y\" — interpretation, not certainty. Prefer \"you showed up with\" over \"the subject exhibited.\" Where a pattern is not absolute, add light nuance: \"with exceptions at S9 and S16\" or \"though not in every session.\" Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
@@ -7409,6 +7424,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "CURRENT SESSION (structure the report around this): " + currSummary + "\n\n"
 + (descentBlurb ? descentBlurb : "")
 + (clarityBlurb ? clarityBlurb : "")
++ (cardFeedbackBlurb ? cardFeedbackBlurb : "")
 + (mapValuesBlurb ? mapValuesBlurb : "")
 + (patternEngineBlurb ? patternEngineBlurb : "")
 + (narrativeBlurb ? narrativeBlurb : "")
@@ -7511,10 +7527,14 @@ return (
 </div>
 );
 }
-var _bold = boldLead(p, 4);
+var wordCounts = [1, 2, 3, 2, 1, 2, 1];
+var wc = wordCounts[pi % wordCounts.length];
+var _bold = boldLead(p, wc);
+var weights = [600, 600, 550, 600, 550];
+var fw = weights[pi % weights.length];
 return (
 <div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85 }}>
-{_bold[0] ? <span style={{ fontWeight: 600 }}>{_bold[0]}</span> : null}{_bold[1]}
+{_bold[0] ? <span style={{ fontWeight: fw, opacity: fw >= 600 ? 1 : 0.92 }}>{_bold[0]}</span> : null}{_bold[1]}
 </div>
 );
 });
@@ -8161,7 +8181,7 @@ return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} por
 }
 
 case "the_mirror": {
-return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} portrait={portrait} portraitReady={portraitReady} goNext={advance} setSlider={setSlider} sliderValues={sliderValues}/>;
 }
 case "the_realm": {
 return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -8173,7 +8193,7 @@ case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "field_report": {
-return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "the_underdrawing": {
 return <UnderdrawingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
