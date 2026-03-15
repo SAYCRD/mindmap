@@ -5772,6 +5772,7 @@ lineHeight:1.25
 </div>
 );
 })()}
+</div>
 
 {!_archShifted && _prevArch && (
 <div style={{ marginTop:16, padding:"12px 16px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", fontSize:13,
@@ -5780,7 +5781,7 @@ Same archetype, deeper work — you're staying with it.
 </div>
 )}
 </div>
-</div>)}
+)}
 </div>
 
 <div style={{ padding:"0 28px 36px", flexShrink:0,
