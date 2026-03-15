@@ -2271,7 +2271,10 @@ const [corrections, setCorrections] = useState({});
 const [signals, setSignals] = useState({ resisted_count:0, held_count:0, landed_count:0, counter_topics:[], shifted_tension:false });
 const [revisedSynthesis, setRevisedSynthesis] = useState(null);
 const [isRevising, setIsRevising] = useState(false);
-const [signalStatus, setSignalStatus] = useState(null); 
+const [signalStatus, setSignalStatus] = useState(null);
+const [sessionPours, setSessionPours] = useState([]);
+const [pourOpen, setPourOpen] = useState(false);
+const [pourText, setPourText] = useState(""); 
 
 function extractTopics(note) {
 if (!note) return [];
@@ -2504,7 +2507,21 @@ boxShadow: "0 0 24px rgba(214,178,109,0.2)",
 </div>}
 </div>
 
-<button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis }); }} style={{
+{!pourOpen ? (
+<button onClick={function(){ setPourOpen(true); }} style={{ fontSize: 11, letterSpacing: "0.2em", fontFamily: FB, color: "rgba(107,255,184,0.7)", background: "transparent", border: "none", marginBottom: 12, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>
+What's coming up for you now?
+</button>
+) : (
+<div style={{ marginBottom: 16, padding: 14, background: "rgba(107,255,184,0.06)", borderRadius: 12, border: "1px solid rgba(107,255,184,0.2)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.25em", color: "rgba(107,255,184,0.8)", fontFamily: FB, marginBottom: 8 }}>What's coming up for you now?</div>
+<textarea value={pourText} onChange={function(e){ setPourText(e.target.value); }} placeholder="Let it flow…" style={{ width: "100%", minHeight: 60, padding: 10, fontSize: 14, fontFamily: FD, fontStyle: "italic", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(107,255,184,0.2)", borderRadius: 8, color: "rgba(255,255,255,0.9)", resize: "vertical", outline: "none", boxSizing: "border-box" }}/>
+<div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+<button onClick={function(){ if (pourText.trim()) { setSessionPours(function(p){ return p.concat([{ text: pourText.trim().slice(0, 800), ts: new Date().toISOString() }]); }); setPourText(""); setPourOpen(false); } }} style={{ padding: "6px 14px", fontSize: 11, fontFamily: FB, background: "rgba(107,255,184,0.3)", color: "#0A2E1A", border: "none", borderRadius: 8, cursor: "pointer" }}>Save</button>
+<button onClick={function(){ setPourOpen(false); setPourText(""); }} style={{ padding: "6px 14px", fontSize: 11, fontFamily: FB, background: "transparent", color: "rgba(255,255,255,0.5)", border: "none", cursor: "pointer" }}>Skip</button>
+</div>
+</div>
+)}
+<button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sessionPours: sessionPours }); }} style={{
 width: "100%", background: descentDone ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
 border: descentDone ? "none" : "1px solid rgba(107,255,184,0.15)",
 borderRadius: 24, padding: "16px 28px", minHeight: 52,
@@ -3583,6 +3600,8 @@ signals: data.signals || null,
 reactions: data.reactions || {},
 corrections: data.corrections || {},
 revisedSynthesis: data.revisedSynthesis || null,
+sessionPours: data.sessionPours || [],
+sentenceFeedback: data.sentenceFeedback || {},
 });
 if (sessions.length > 100) sessions = sessions.slice(-100);
 localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
@@ -3634,6 +3653,18 @@ window.storage.set("sessions", JSON.stringify(sess)).catch(function() {});
 }
 
 function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
+function updateLastSession(partial) {
+try {
+var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
+if (sessions.length === 0) return;
+var last = sessions[sessions.length - 1];
+sessions[sessions.length - 1] = Object.assign({}, last, partial);
+localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
+if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
+window.storage.set("sessions", JSON.stringify(sessions)).catch(function(){});
+}
+} catch(e) { console.warn("[SAYCRD] updateLastSession:", e); }
+}
 function exportUserData() {
 try {
 var uid = getCurrentUid();
@@ -7140,6 +7171,12 @@ var _notesKey = "saycrd-report-notes-" + sessionCount;
 var [_reportNotes, _setReportNotes] = useState("");
 var [_notesSummary, _setNotesSummary] = useState("");
 var [_notesSummarizing, _setNotesSummarizing] = useState(false);
+var [_pourOpen, _setPourOpen] = useState(false);
+var [_pourText, _setPourText] = useState("");
+var [_sessionPours, _setSessionPours] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sessionPours ? l.sessionPours : []; } catch(e){ return []; } });
+var [_sentenceFeedback, _setSentenceFeedback] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sentenceFeedback ? l.sentenceFeedback : {}; } catch(e){ return {}; } });
+var [_selectedSentence, _setSelectedSentence] = useState(null);
+var [_pourHover, _setPourHover] = useState(false);
 useEffect(function() {
 try {
 var n = localStorage.getItem(_notesKey) || "";
@@ -7303,6 +7340,13 @@ if (subjectWordsList.indexOf(t) === -1) subjectWordsList.push(t);
 var subjectWordsBlurb = subjectWordsList.length > 0
 ? "SUBJECT'S OWN WORDS (session corrections and map notes — when citing these, use the exact quote in the report):\n" + subjectWordsList.slice(0, 14).map(function(w){ return "\""+w+"\""; }).join("\n") + "\n\n"
 : "";
+var lastSessData = allSessions.length > 0 ? allSessions[allSessions.length - 1] : null;
+var poursBlurb = (lastSessData && lastSessData.sessionPours && lastSessData.sessionPours.length > 0)
+? "SESSION POURS (what came up for the subject while reading — use when relevant):\n" + lastSessData.sessionPours.map(function(p){ return "\""+(p.text||"").slice(0,200)+"\""; }).join("\n") + "\n\n"
+: "";
+var sentFbBlurb = (lastSessData && lastSessData.sentenceFeedback && Object.keys(lastSessData.sentenceFeedback).length > 0)
+? "SENTENCE FEEDBACK (how report lines landed — PRIMARY; respect this):\n" + Object.keys(lastSessData.sentenceFeedback).map(function(k){ var v=lastSessData.sentenceFeedback[k]; return "\""+k.slice(0,80)+(k.length>80?"…":"")+"\" → "+v; }).join("\n") + "\n\n"
+: "";
 
 var underList = [];
 allSessions.forEach(function(s) {
@@ -7460,6 +7504,8 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + (metaPatternBlurb ? metaPatternBlurb : "")
 + mapNotesBlurb
 + subjectWordsBlurb
++ (poursBlurb || "")
++ (sentFbBlurb || "")
 + underBlurb
 + "STRUCTURE: The current session is the CORE and BACKBONE — anchor the report there. The VALUE is the Y-axis: what has accumulated over time. The report's power is how the longitudinal arc (themes, patterns, blind spots across many sessions) gets BROUGHT UP and surfaced in this session. Use descent answers and map feedback as the backbone of what landed now. Weave the past into the current — the value over time is what this session brings into focus. When 20+ sessions, the meta-pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
 + "NO DRIFT: The conclusion must tie to the heart of what this report established. Use prior-session material to bring the Y-axis (value over time) into the current moment — not to drift into unrelated history. Stay on topic.\n\n"
@@ -7513,12 +7559,24 @@ return function(){ cancelled = true; };
 }, []);
 
 var _accent = (themes[0] && themes[0].color) || "#111";
+var SENTENCE_FEEDBACK_OPTIONS = [
+{ id: "lands_hard", label: "Lands Hard", color: "#6BFFB8" },
+{ id: "truth_revealed", label: "Truth Revealed", color: "#6BB8FF" },
+{ id: "something_to_consider", label: "Something to Consider", color: "#FFB86B" },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#B86BFF" },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#D6B264" },
+{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.4)" },
+];
 
-function renderBody(text, emphasizeFirst) {
+function renderBody(text, emphasizeFirst, onSentenceClick, sentenceFeedback) {
 if (!text) return null;
 var paras = text.split(/\n\n+/);
 if (paras.length <= 1) paras = text.split(/\n/);
 paras = paras.filter(function(p){ return p.trim(); });
+function splitSentences(para) {
+var parts = para.split(/(?<=[.!?])\s+/);
+return parts.filter(function(p){ return p.trim().length > 3; });
+}
 function boldLead(s, wordCount) {
 var words = s.trim().split(/\s+/);
 if (words.length <= wordCount) return [s, ""];
@@ -7548,11 +7606,46 @@ return (
 </div>
 );
 }
+var sentences = onSentenceClick ? splitSentences(p) : [p];
 var wordCounts = [1, 2, 3, 2, 1, 2, 1];
 var wc = wordCounts[pi % wordCounts.length];
-var _bold = boldLead(p, wc);
 var weights = [600, 600, 550, 600, 550];
 var fw = weights[pi % weights.length];
+if (onSentenceClick && sentences.length > 0) {
+return (
+<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85 }}>
+{sentences.map(function(sent, si) {
+var s = sent.trim();
+if (!s) return null;
+var key = s.slice(0, 100);
+var fb = sentenceFeedback && sentenceFeedback[key];
+var opt = fb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === fb; }) : null;
+return (
+<span key={si}>
+<span
+onClick={function(){ onSentenceClick(s); }}
+style={{
+cursor: "pointer",
+borderRadius: 4,
+padding: "2px 4px",
+margin: "0 1px",
+background: opt ? (opt.color + "22") : "transparent",
+borderBottom: opt ? "1.5px solid " + opt.color : "1px solid transparent",
+transition: "all 0.2s",
+}}
+onMouseEnter={function(e){ if(!fb) e.currentTarget.style.background="rgba(0,0,0,0.04)"; }}
+onMouseLeave={function(e){ if(!fb) e.currentTarget.style.background="transparent"; }}
+>
+{s}
+</span>
+{si < sentences.length - 1 ? " " : null}
+</span>
+);
+})}
+</div>
+);
+}
+var _bold = boldLead(p, wc);
 return (
 <div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85 }}>
 {_bold[0] ? <span style={{ fontWeight: fw, opacity: fw >= 600 ? 1 : 0.92 }}>{_bold[0]}</span> : null}{_bold[1]}
@@ -7622,7 +7715,9 @@ animation:"breathe 2s ease-in-out "+(i*0.2+j*0.08)+"s infinite alternate" }}/>
 })}
 </div>
 ) : _report ? (
-<div style={{ paddingTop:24 }}>
+<div style={{ paddingTop:24, position: "relative" }}
+onMouseEnter={function(){ _setPourHover(true); }}
+onMouseLeave={function(){ _setPourHover(false); }}>
 
 {_report.generationFailed ? (
 <div style={{ marginBottom:32, padding:"28px 24px", background:"rgba(0,0,0,0.02)", borderRadius:12, border:"1px solid rgba(0,0,0,0.08)" }}>
@@ -7655,6 +7750,33 @@ background:"rgba(107,184,255,0.06)" }}>
 fontFamily:FD, lineHeight:1.6, fontStyle:"italic" }}>
 {_report.whatMightWantToHappen}
 </div>
+</div>
+)}
+
+{(_pourHover || _pourOpen) && (
+<div style={{ position: "absolute", top: 12, right: 30, zIndex: 10 }}>
+{!_pourOpen ? (
+<button onClick={function(){ _setPourOpen(true); }} style={{ fontSize: 10, letterSpacing: "0.35em", fontFamily: FB, padding: "8px 16px", borderRadius: 20, border: "1px solid " + _accent + "66", background: _accent + "12", color: _accent, cursor: "pointer", transition: "all 0.2s" }}>
+POUR NOW
+</button>
+) : (
+<div style={{ position: "absolute", right: 0, top: 0, width: 280, background: "#fff", borderRadius: 12, padding: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.3em", color: _accent, fontFamily: FB, marginBottom: 8 }}>What's coming up for you now?</div>
+<textarea value={_pourText} onChange={function(e){ _setPourText(e.target.value); }} placeholder="Let it flow…" style={{ width: "100%", minHeight: 72, padding: 12, fontSize: 14, fontFamily: FD, fontStyle: "italic", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, resize: "vertical", outline: "none", boxSizing: "border-box" }}/>
+<div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+<button onClick={function(){
+if (!_pourText.trim()) return;
+var pour = { text: _pourText.trim().slice(0, 800), ts: new Date().toISOString() };
+var next = _sessionPours.concat([pour]);
+_setSessionPours(next);
+updateLastSession({ sessionPours: next });
+_setPourText("");
+_setPourOpen(false);
+}} style={{ padding: "8px 16px", fontSize: 11, fontFamily: FB, background: _accent, color: "#fff", border: "none", borderRadius: 8, cursor: "pointer" }}>Save</button>
+<button onClick={function(){ _setPourOpen(false); _setPourText(""); }} style={{ padding: "8px 16px", fontSize: 11, fontFamily: FB, background: "transparent", color: "rgba(0,0,0,0.5)", border: "none", cursor: "pointer" }}>Cancel</button>
+</div>
+</div>
+)}
 </div>
 )}
 
@@ -7702,13 +7824,39 @@ color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConcl
 
 <div style={{ fontSize: isConclusion ? 20 : 17, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
 fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal" }}>
-{renderBody(sec.body, isConclusion)}
+{renderBody(sec.body, isConclusion, function(s){ _setSelectedSentence(s); }, _sentenceFeedback)}
 </div>
 
 </div>
 );
 })}
 </>
+)}
+
+{_selectedSentence && (
+<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)", animation: "riseUp 0.2s ease both" }}
+onClick={function(){ _setSelectedSentence(null); }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.45)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
+<div style={{ fontSize: 13, color: "rgba(0,0,0,0.6)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{_selectedSentence.length > 80 ? _selectedSentence.slice(0,77)+"…" : _selectedSentence}"</div>
+<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+{SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
+return (
+<button key={o.id} onClick={function(){
+var key = _selectedSentence.slice(0, 100);
+var next = Object.assign({}, _sentenceFeedback, { [key]: o.id });
+_setSentenceFeedback(next);
+updateLastSession({ sentenceFeedback: next });
+_setSelectedSentence(null);
+}} style={{ padding: "8px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "1px solid " + (o.color.indexOf("rgba")>=0 ? "rgba(0,0,0,0.2)" : o.color + "66"), background: o.color.indexOf("rgba")>=0 ? "rgba(0,0,0,0.06)" : o.color + "15", color: o.color.indexOf("rgba")>=0 ? "rgba(0,0,0,0.6)" : o.color, cursor: "pointer", transition: "all 0.2s" }}>
+{o.label}
+</button>
+);
+})}
+</div>
+<button onClick={function(){ _setSelectedSentence(null); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+</div>
+</div>
 )}
 
 <div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
@@ -7745,6 +7893,11 @@ allSessions.forEach(function(s) {
 if (s.corrections) Object.values(s.corrections).forEach(function(c){ if (typeof c==="string"&&c.trim()) userWords.push("\""+c.trim().slice(0,150)+"\""); });
 if (s.mapResponses) Object.keys(s.mapResponses).forEach(function(k){ var mr=s.mapResponses[k]; if (mr&&mr.comment&&String(mr.comment).trim()) userWords.push("\""+String(mr.comment).trim().slice(0,150)+"\""); });
 });
+_sessionPours.forEach(function(p){ if (p&&p.text&&p.text.trim()) userWords.push("\"Pour (during report): "+String(p.text).trim().slice(0,130)+"\""); });
+if (Object.keys(_sentenceFeedback||{}).length > 0) {
+userWords.push("SENTENCE FEEDBACK (how report lines landed):");
+Object.keys(_sentenceFeedback).forEach(function(k){ var v=_sentenceFeedback[k]; var lab=(SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===v;})||{}).label||v; userWords.push("  \""+k.slice(0,60)+(k.length>60?"…":"")+"\" → "+lab); });
+}
 var reportExcerpt = "";
 if (_report) {
 reportExcerpt = "REPORT ONE-LINE: \"" + (_report.oneLineVerdict || "") + "\"\n";
@@ -8009,6 +8162,7 @@ revisedSynthesis: revisedSynthesis || null,
 descent: sData.descent,
 clarity: (sData.clarity || sd.sessionClarity || ""),
 signals: sData.signals || null,
+sessionPours: sData.sessionPours || [],
 cardFeedback: (function() {
 var fb = {};
 Object.keys(sliderValues).forEach(function(k) {
