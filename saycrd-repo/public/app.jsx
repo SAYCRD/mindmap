@@ -7469,7 +7469,6 @@ var rr = await callClaudeClient(prompt, "field_report", 950);
 if (cancelled) return;
 var dd = parseJSON(rr);
 if (dd && dd.sections && dd.sections.length >= 3) {
-if (dd.sections.length === 3) dd.sections.push({ title: "CONCLUSION", body: "The thread that runs through this report is yours to carry forward.\n\nWhat you do with it is the work." });
 for (var i = 0; i < dd.sections.length; i++) {
 var b = dd.sections[i].body || "";
 for (var j = 0; j < underList.length; j++) {
@@ -7492,19 +7491,10 @@ reportHistory = reportHistory.slice(-10);
 localStorage.setItem(historyKey, JSON.stringify(reportHistory));
 } catch(e2) {}
 } else {
-_setReport({
-sections:[
-{title:"WHAT OCCURRED", body:"The sessions are on record.\n\nThe patterns are clear."},
-{title:"WHAT SHIFTED", body:"Something changed between the early and recent sessions.\n\nThe evidence is in the arc."},
-{title:"WHAT KEEPS RETURNING", body:"Some things have not moved.\n\nThey are still present."},
-{title:"CONCLUSION", body:"The work continues.\n\nWhat you take from this is yours."}
-],
-dateRange: firstDate && lastDate ? firstDate+" to "+lastDate : "",
-oneLineVerdict:"The subject has done sustained inner work that has not yet fully resolved."
-});
+_setReport({ generationFailed: true, sections: [], dateRange: firstDate && lastDate ? firstDate+" to "+lastDate : "", oneLineVerdict: "" });
 }
 } catch(e) {
-_setReport({ sections: [{ title: "Report unavailable", body: ("Error: " + (e && (e.stack || e.message || e) ? String(e.stack || e.message || e) : "Unknown error")).slice(0, 420) }], oneLineVerdict: "", dateRange: "" });
+_setReport({ generationFailed: true, sections: [], oneLineVerdict: "", dateRange: "" });
 } finally {
 if (!cancelled) _setReady(true);
 }
@@ -7624,6 +7614,17 @@ animation:"breathe 2s ease-in-out "+(i*0.2+j*0.08)+"s infinite alternate" }}/>
 ) : _report ? (
 <div style={{ paddingTop:24 }}>
 
+{_report.generationFailed ? (
+<div style={{ marginBottom:32, padding:"28px 24px", background:"rgba(0,0,0,0.02)", borderRadius:12, border:"1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize:15, color:"rgba(0,0,0,0.7)", fontFamily:FD, lineHeight:1.7 }}>
+The report couldn't be generated. Your session is recorded — the patterns are yours to notice.
+</div>
+<div style={{ marginTop:16, fontSize:14, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic" }}>
+Add your notes below. What stands out? What are you hearing yourself say?
+</div>
+</div>
+) : (
+<>
 {_report.oneLineVerdict && (
 <div style={{ marginBottom:26, padding:"16px 18px",
 borderLeft:"3px solid "+_accent,
@@ -7697,6 +7698,8 @@ fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ?
 </div>
 );
 })}
+</>
+)}
 
 <div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
 <div style={{ fontSize:10, letterSpacing:"0.4em", color:"rgba(0,0,0,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:12 }}>Your notes</div>
@@ -7769,7 +7772,7 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 </div>
 </>
 )}
-{_report && (
+{_report && !_report.generationFailed && (_report.sections||[]).length > 0 && (
 <button
 onClick={function(){
 var thList = (themes || []).map(function(t,i){ return { label: t.label||t, color: getThemeColor(t,i) }; });
