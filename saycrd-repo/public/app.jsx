@@ -619,13 +619,16 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- Write as a witness who was paying close attention, not someone revealing hidden truths.\n" +
 "- BANNED: navigating, intentional, sacred, container, grounding, healing, inner work, your journey, meaningful way, deeper sense, space where, emerging, integration, cultivating.\n" +
 "- NEVER EVER say: 'you are not ready', 'you resist', 'you avoid', 'you cannot', 'you're not open', 'you're closed', 'you refuse', 'you struggle with', 'you haven't', 'not yet ready'. These are projections from a position of superiority. You do not know what the user is ready for. \n" +
-"- If you see a pattern that LOOKS like resistance — ASK about it. Never declare it.\n" +
-"- Example wrong: 'You're not ready to partner.' Example right: 'Something about partnership keeps showing up — what does that word actually mean to you?'\n\n" +
+"- BANNED: defensiveness, defensive. Be curious, not diagnostic. Never pathologize.\n" +
+"- If you see a pattern that LOOKS like resistance — ASK about it in descent_cards. Never declare it in synthesis, blind_spot, or field_cards.\n" +
+"- Example wrong: 'You're not ready to partner.' Example right: 'Something about partnership keeps showing up — what does that word actually mean to you?'\n" +
+"- Do NOT assume what is 'the main thing' in someone's life based on time or frequency. Unless they say it, don't conclude it. Their life has many parts — work, relationships, projects, inner life. Don't collapse it into one focus.\n" +
+"- If they talk about revenue, a project, or X — don't assume they're 'focused on' only that. Don't assume motivations (e.g. 'putting revenue first to avoid launch'). If you have a question like that, put it in descent_cards as a prompt they can answer — not in synthesis or cards as an assertion.\n\n" +
 "1. THEMES: Extract 5-7 core themes. Prefer 2-word labels (e.g. 'digital tasks' not 'email' and 'website' separately). When multiple items are instances of the same category (email+website, calls+meetings), consolidate into ONE node (e.g. 'digital tasks', 'people contact'). Weight 1-5. For each theme add 'why' (brief phrase from user's words) and 'short_desc' (4-8 words, factual, the area of life the user shared — e.g. 'tasks involving screens and inboxes').\n" +
 "2. CONNECTIONS: 3-5 connections. Not every theme needs a connection — isolated nodes create interesting negative space. 1-word label, one-sentence insight (punchy, not generic).\n" +
 "3. GUIDE: 3-5 items. Types: act, notice, deepen, release. Max 12 words.\n" +
 "4. MAP_TITLE: 3-6 words.\n" +
-"5. DESCENT_CARDS: 4 cards. Mix energy, binary, spectrum. Make prompts SHORT (under 8 words). Each must be immediately clear.\n" +
+"5. DESCENT_CARDS: 4 cards. Mix energy, binary, spectrum. Make prompts SHORT (under 8 words). Each must be immediately clear. This is where you ASK — if you have a question about motives, priorities, or what's going on (e.g. 'Is X before Y?' 'What would it mean to...?'), put it here as a prompt they can answer. Do NOT put such questions in synthesis, blind_spot, or field_cards as assertions.\n" +
 "6. ARCHETYPE: Generate ONE archetype that captures who this person IS BEING right now — not a label, a specific character.\\n" +
 " Could be anyone: Disney, myth, fairy tale, film, history, a mother, a son, a completely invented role. The test: reading it feels like \'oh — that IS them\'.\\n" +
 " Examples: The Mother Who Stays, Sisyphus at the Summit, Moana Before the Horizon, The Reluctant King, The Child Who Grew Up Too Fast, The Architect of Beautiful Ruins, Inanna Mid-Descent.\\n" +
@@ -7323,7 +7326,7 @@ else display = String(ans);
 var prompt = card.phrase || card.prompt || "";
 if (prompt) lines.push("\""+prompt.slice(0,80)+"\" → "+display);
 });
-if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\nDESCENT CITATION: When you cite descent data in the report (e.g. a percentage, a choice, an intensity), ALWAYS include the question so the subject can trace it. Write: \"When asked '[the question]', you said...\" or \"In the descent, [question] — you answered...\" Never mention \"50% toward X\" or similar without naming the question. The subject must be able to recognize when and where they said it.\n\n";
+if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\nDESCENT CITATION: When you cite descent data in the report, ALWAYS include the question so the subject can trace it. Write: \"When asked '[the question]', you said...\" or \"In the descent, [question] — you answered...\" Use WORDS, not percentages: \"you leaned toward X\" or \"you chose Y\" — never \"50% toward X\" or \"51%.\" If the subject selected a spectrum value, describe it in words (slightly, moderately, strongly) with the question named. The subject must recognize when and where they said it.\n\n";
 }
 
 var clarityBlurb = "";
@@ -7337,7 +7340,7 @@ var cardFeedbackBlurb = "";
 var cfKeys = Object.keys(sliderValues).filter(function(k){ return sliderValues[k] !== undefined && SLIDER_LABELS[k]; });
 if (cfKeys.length > 0) {
 var cfLines = cfKeys.map(function(k){ return k + ": " + sliderValues[k] + " (scale: " + SLIDER_LABELS[k] + ")"; });
-cardFeedbackBlurb = "CARD SLIDERS (subject's rating on each; 0=left pole, 100=right pole. When citing, ALWAYS name the scale so the subject knows what they chose):\n" + cfLines.join("\n") + "\n\nCITATION: Never write bare percentages like \"51%\" without context. Write: \"On the Mirror (doesn't land → lands big time), you marked 51\" or \"The synthesis landed at 72 (doesn't fit → exactly this).\" The subject must recognize what they chose.\n\n";
+cardFeedbackBlurb = "CARD SLIDERS (subject's rating on each; 0=left pole, 100=right pole. When citing, ALWAYS name the scale so the subject knows what they chose):\n" + cfLines.join("\n") + "\n\nPERCENTAGE RULE: Do NOT use percentages (e.g. 51%, 72%) in the report unless the subject explicitly selected that value AND you name the scale. If you cite a slider, write: \"On the Mirror (doesn't land → lands big time), you marked toward the right\" or \"The synthesis landed strongly (doesn't fit → exactly this).\" Use WORDS — slightly, moderately, strongly, toward the left, toward the right — not numbers. The subject must recognize what they chose; bare numbers without scale context are meaningless and confusing.\n\n";
 }
 
 var mapValuesBlurb = "";
@@ -7412,6 +7415,9 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
 + "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. Every claim about the subject's actions must be traceable to the source data. When in doubt, omit.\n\n"
 + "TENSE AWARENESS (past / present / future): Be mindful of when the subject said something. If they said they are going to do something, or plan to, or will — that is a PLAN, not an action. Do NOT conclude they did it. If they said they did it — that is past action. If they said they are doing it — that is present. Never collapse future intention into past accomplishment. \"I'm going to try\" is not \"they tried.\" \"I plan to stop\" is not \"they stopped.\" Honor the tense.\n\n"
++ "CURIOUS, NOT DIAGNOSTIC: NEVER use defensiveness, defensive, or similar labels. The report is curious and honoring — not pathologizing. If something seems to warrant that kind of read, ASK it as a question (and that belongs in Descent, not here). Stay curious.\n\n"
++ "NO ASSUMPTIONS ABOUT \"THE MAIN THING\": Do NOT assume what is most important in someone's life based on time, frequency, or what shows up most in sessions. Unless the subject explicitly says \"this is my main focus\" or \"the most important thing,\" do not conclude it. You may observe: \"After X sessions, this keeps coming up — an interesting question is why it's in the background\" — but never \"this is the main thing.\" The subject's life has many parts; don't collapse it into one.\n\n"
++ "DON'T ASSERT — ASK IN DESCENT: If you have a question about what's going on (e.g. \"Are you putting X before Y?\" \"Is revenue a way of delaying launch?\"), that belongs in Descent as a question the subject can answer — NOT in the report as an assertion. Never assume motivations (e.g. \"not wanting to launch because putting revenue first\") and state them as fact. If the data suggests a tension, name the tension; don't invent the motive. When in doubt, frame as curiosity, not conclusion.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
 + "GROUNDING: For each major insight, anchor it in evidence the reader can trace (e.g. \"the map showed control↔trust confirmed in 5 of the last 6 sessions\" or \"you corrected the blind spot twice, refining it from X to Y\"). Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, you tended to Y\" — interpretation, not certainty. Prefer \"you showed up with\" over \"the subject exhibited.\" Where a pattern is not absolute, add light nuance: \"with exceptions at S9 and S16\" or \"though not in every session.\" Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
@@ -7769,44 +7775,39 @@ var esc = function(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").
 var verdict = _report && _report.oneLineVerdict ? String(_report.oneLineVerdict).trim() : "";
 var dateRange = _report && _report.dateRange ? String(_report.dateRange).trim() : "";
 var nextEdge = _report && _report.whatMightWantToHappen ? String(_report.whatMightWantToHappen).trim() : "";
-var sectionCards = (_report && _report.sections || []).slice(0,3).map(function(sec){
-var firstPara = (sec.body||"").split(/\n\n+/)[0] || (sec.body||"").split("\n")[0] || "";
-var punch = firstPara.trim().slice(0, 120) + (firstPara.length > 120 ? "…" : "");
-return { title: sec.title||"", punch: punch };
+var sections = (_report && _report.sections || []).slice(0,3);
+var proseBlocks = sections.map(function(sec){
+var full = (sec.body||"").trim();
+return { body: full };
 });
 var accent = (_accent||"#111").replace(/"/g,"");
-var cardHtml = sectionCards.map(function(c){ return '<div class="card"><div class="card-title">'+esc(c.title)+'</div><div class="card-punch">'+esc(c.punch)+'</div></div>'; }).join("");
-var nextHtml = nextEdge ? '<div class="next-edge"><div class="next-label">WHAT MIGHT WANT TO HAPPEN</div><div class="next-text">'+esc(nextEdge)+'</div></div>' : "";
-var notesHtml = _notesSummary ? '<div class="notes-block"><div class="notes-label">YOUR REFLECTION</div><div class="notes-text">'+esc(_notesSummary)+'</div></div>' : "";
+function paraToHtml(txt) {
+var paras = (txt||"").split(/\n\n+/).filter(function(p){ return p.trim(); });
+if (paras.length === 0) return "";
+return paras.map(function(p){ return '<p class="prose-body">'+esc(p)+'</p>'; }).join("");
+}
+var proseHtml = proseBlocks.map(function(b){ return '<div class="prose-block">'+paraToHtml(b.body)+'</div>'; }).join("");
+var nextHtml = nextEdge ? '<div class="prose-block prose-close"><p class="prose-body">'+esc(nextEdge)+'</p></div>' : "";
+var notesHtml = _notesSummary ? '<div class="prose-block prose-notes"><p class="prose-body">'+esc(_notesSummary)+'</p></div>' : "";
+var metaLine = [sessionCount + " session" + (sessionCount !== 1 ? "s" : ""), dateRange].filter(Boolean).join(" · ");
 var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Field Report · SAYCRD</title><style>'
-+'*{box-sizing:border-box} body{margin:0;padding:0;font-family:"DM Serif Display",Georgia,serif;background:#FAFAF8;color:#1a1a1a;line-height:1.4}'
-+'.page{max-width:700px;margin:0 auto;padding:48px 40px 64px}'
-+'.brand{font-size:11px;letter-spacing:0.5em;color:rgba(0,0,0,0.35);font-family:sans-serif;margin-bottom:32px;font-weight:600}'
-+'.hero{font-size:clamp(28px,5vw,42px);font-weight:700;line-height:1.25;letter-spacing:-0.02em;margin-bottom:40px;color:#0a0a0a}'
-+'.meta{display:flex;gap:32px;margin-bottom:40px;flex-wrap:wrap}'
-+'.meta-item{display:flex;flex-direction:column;gap:4px} .meta-num{font-size:36px;font-weight:800;color:'+accent+';line-height:1} .meta-label{font-size:11px;letter-spacing:0.35em;color:rgba(0,0,0,0.4);font-family:sans-serif}'
-+'.map-wrap{text-align:center;margin:32px 0 48px} .map-wrap .map-label{font-size:10px;letter-spacing:0.4em;color:rgba(0,0,0,0.3);margin-top:12px}'
-+'.cards{display:grid;gap:24px;margin-bottom:40px}'
-+'.card{background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:12px;padding:28px 32px;border-left:4px solid '+accent+'}'
-+'.card-title{font-size:11px;letter-spacing:0.4em;color:'+accent+';font-family:sans-serif;font-weight:700;margin-bottom:12px}'
-+'.card-punch{font-size:20px;line-height:1.5;color:#2a2a2a;font-weight:400}'
-+'.next-edge{background:linear-gradient(135deg,rgba(0,0,0,0.02),rgba(0,0,0,0.04));border-radius:12px;padding:28px 32px;margin-bottom:32px;border:1px solid rgba(0,0,0,0.06)}'
-+'.next-label{font-size:10px;letter-spacing:0.4em;color:rgba(0,0,0,0.4);font-family:sans-serif;font-weight:600;margin-bottom:10px}'
-+'.next-text{font-size:22px;line-height:1.45;color:#1a1a1a;font-style:italic}'
-+'.notes-block{margin-bottom:32px;padding:24px 28px;background:rgba(92,74,58,0.04);border-left:4px solid '+accent+';border-radius:8px}'
-+'.notes-label{font-size:10px;letter-spacing:0.35em;color:rgba(0,0,0,0.4);margin-bottom:8px}'
-+'.notes-text{font-size:18px;line-height:1.6;color:#3a3a3a;font-style:italic}'
-+'.disclaimer{font-size:11px;color:rgba(0,0,0,0.35);line-height:1.6;margin-top:48px;padding-top:24px;border-top:1px solid rgba(0,0,0,0.08)}'
-+'@media print{.page{padding:32px 24px} .hero{font-size:36px} .meta-num{font-size:32px} body{background:#fff}}'
++'*{box-sizing:border-box} body{margin:0;padding:0;font-family:"DM Serif Display",Georgia,serif;background:#fff;color:#1a1a1a;line-height:1.5}'
++'.page{max-width:580px;margin:0 auto;padding:56px 36px 72px}'
++'.meta-line{font-size:12px;color:rgba(0,0,0,0.4);font-family:sans-serif;margin-bottom:40px;letter-spacing:0.08em}'
++'.hero{font-size:clamp(26px,4.5vw,38px);font-weight:700;line-height:1.3;letter-spacing:-0.02em;margin-bottom:48px;color:#0a0a0a}'
++'.prose-block{margin-bottom:36px}'
++'.prose-body{font-size:19px;line-height:1.7;color:#2a2a2a;margin:0 0 1em;font-weight:400}'
++'.prose-body:last-child{margin-bottom:0}'
++'.prose-close .prose-body{font-style:italic;color:#333}'
++'.prose-notes .prose-body{color:#444;font-style:italic}'
++'.map-wrap{text-align:center;margin:40px 0 48px} .map-wrap svg{opacity:0.85} .map-wrap .map-label{font-size:11px;letter-spacing:0.25em;color:rgba(0,0,0,0.35);margin-top:16px}'
++'.disclaimer{font-size:11px;color:rgba(0,0,0,0.35);line-height:1.6;margin-top:56px;padding-top:28px;border-top:1px solid rgba(0,0,0,0.08)}'
++'@media print{.page{padding:40px 28px 56px} .hero{font-size:34px} .prose-body{font-size:17px} body{background:#fff}}'
 +'</style></head><body><div class="page">'
-+'<div class="brand">SAYCRD · FIELD REPORT</div>'
++(metaLine ? '<div class="meta-line">'+esc(metaLine)+'</div>' : '')
 +(verdict ? '<div class="hero">'+esc(verdict)+'</div>' : '')
-+'<div class="meta">'
-+'<div class="meta-item"><span class="meta-num">'+sessionCount+'</span><span class="meta-label">SESSION'+(sessionCount!==1?'S':'')+'</span></div>'
-+(dateRange ? '<div class="meta-item"><span class="meta-num" style="font-size:24px;color:#333">'+esc(dateRange)+'</span><span class="meta-label">DATE RANGE</span></div>' : '')
-+'</div>'
-+(svg ? '<div class="map-wrap">'+svg+'<div class="map-label">YOUR MAP</div></div>' : '')
-+(cardHtml ? '<div class="cards">'+cardHtml+'</div>' : '')
++(svg ? '<div class="map-wrap">'+svg+'<div class="map-label">Your map</div></div>' : '')
++proseHtml
 +nextHtml
 +notesHtml
 +'<div class="disclaimer">This report is for personal insight and reflection only. Not a clinical assessment, medical advice, or psychological diagnosis.</div>'
@@ -8093,6 +8094,7 @@ var prevArchName = prevArch ? prevArch.name : "";
 var p = "You are the most perceptive analyst this person has ever encountered.\n"
 + "You have access to their complete inner biography. You are going to generate\n"
 + "a rich portrait that will feed every card in their personal field.\n\n"
++ "BANNED: defensiveness, defensive. Be curious, not diagnostic. Do NOT assume what is 'the main thing' in their life based on frequency. Their life has many parts. Do NOT assume motivations (e.g. putting X before Y to avoid Z).\n\n"
 + "TOTAL SESSIONS: " + sessCount + "\n"
 + "PREVIOUS ARCHETYPE: " + (prevArchName||"none") + "\n\n"
 + "=== CURRENT SESSION ===\n" + currBrief + "\n"
