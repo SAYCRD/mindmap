@@ -5661,6 +5661,7 @@ animation:"breathe 1.5s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 
 <div style={{ animation:"riseUp 0.6s ease 0.4s both" }}>
+<>
 <div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, marginBottom:16 }}>Before and after</div>
 {(() => {
 var _tTxt = (_thenWords || []).join(" ");
@@ -5776,11 +5777,11 @@ Same archetype, deeper work — you're staying with it.
 </div>
 );
 })()}
+</>
 </div>
 </div>
 )}
 </div>
-
 
 <div style={{ padding:"0 28px 36px", flexShrink:0,
 display:"flex", justifyContent:"space-between", alignItems:"center" }}>
