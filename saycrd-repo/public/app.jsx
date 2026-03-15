@@ -7315,6 +7315,15 @@ var [_reportNotes, _setReportNotes] = useState("");
 var [_notesSummary, _setNotesSummary] = useState("");
 var [_notesSummarizing, _setNotesSummarizing] = useState(false);
 var [_sentenceFeedback, _setSentenceFeedback] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sentenceFeedback ? l.sentenceFeedback : {}; } catch(e){ return {}; } });
+var [_editingSentence, _setEditingSentence] = useState(null);
+var _mergedReportFb = Object.assign({}, propSentenceFeedback || {}, _sentenceFeedback || {});
+function _handleReportSentenceClick(s) { _setEditingSentence(s); }
+function _handleReportSentenceFeedback(text, optionId) {
+var key = (text || "").slice(0, 100);
+_setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
+onSentenceFeedback && onSentenceFeedback(text, optionId);
+_setEditingSentence(null);
+}
 useEffect(function() {
 try {
 var n = localStorage.getItem(_notesKey) || "";
@@ -7687,7 +7696,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + (sentFbBlurb || "")
 + (tensionsBlindSpotsBlurb || "")
 + underBlurb
-+ "STRUCTURE: The current session is the CORE — anchor the report there. The value is what has accumulated over time. The report's power is how themes, patterns, and blind spots across sessions surface in this moment. Use descent answers and map feedback as the backbone of what landed. Weave the past into the current. When 20+ sessions, the pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
++ "STRUCTURE: The current session is the CORE — anchor the report there. The value is what has accumulated over time. The report's power is how themes, patterns, and blind spots across sessions surface in this moment. Field analysis over sessions (when focus is on one area but they bring up another — see FIELD OF LIFE INTELLIGENCE above) is one of the key insights to surface when the data shows it. Use descent answers and map feedback as the backbone of what landed. Weave the past into the current. When 20+ sessions, the pattern that only becomes visible over time is the report's deepest gift. 3 short paragraphs per section.\n\n"
 + "NO DRIFT: The conclusion must tie to the heart of what this report established. Use prior-session material to bring the Y-axis (value over time) into the current moment — not to drift into unrelated history. Stay on topic.\n\n"
 + "Write 4 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
 + "SECTION TITLES: Section 1: WHAT SHOWED UP or THIS SESSION. Section 2: WHAT CHANGED (the Y-axis — the journey). Section 3: WHAT KEEPS RETURNING or WHAT'S STILL HERE. Section 4: CONCLUSION.\n"
@@ -7839,7 +7848,27 @@ return (
 style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"#F9F9F7", display:"flex", flexDirection:"column",
 fontFamily:FB }}>
-
+{_editingSentence && (
+<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", animation: "riseUp 0.2s ease both" }}
+onClick={function(){ _setEditingSentence(null); }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.5)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
+<div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{_editingSentence.length > 80 ? _editingSentence.slice(0,77)+"…" : _editingSentence}"</div>
+<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+{SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
+var isRgba = o.color.indexOf("rgba") >= 0;
+return (
+<button key={o.id} onClick={function(){ _handleReportSentenceFeedback(_editingSentence, o.id); }}
+style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
+{o.label}
+</button>
+);
+})}
+</div>
+<button onClick={function(){ _setEditingSentence(null); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+</div>
+</div>
+)}
 <div style={{ height:3, flexShrink:0,
 background:"linear-gradient(90deg, "+_accent+", "+_accent+"44)" }}/>
 
@@ -7976,7 +8005,7 @@ color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConcl
 
 <div style={{ fontSize: isConclusion ? 20 : 17, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
 fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal" }}>
-{renderBody(sec.body, isConclusion, null, null)}
+{renderBody(sec.body, isConclusion, _handleReportSentenceClick, _mergedReportFb)}
 </div>
 
 </div>
@@ -10228,9 +10257,9 @@ setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 return (
 <div style={{width:"100%",height:"100vh",minHeight:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
-<div key={phase} style={{width:"100%",height:"100%",animation:"phaseIn 0.25s ease-out"}}>
+<div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
 {cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(2);}} onBack={function(){setPhase(0);}}/>}
 {cp==="synthesize"&&<SynthesizePhase rawText={rawText} onComplete={function(){setPhase(3);}} onSynthesis={setSynthesisData}/>}
