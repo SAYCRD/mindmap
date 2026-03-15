@@ -4162,6 +4162,37 @@ var imbalance = maxD.avgFocus > 0.5 ? { domain: maxD.domain, pct: Math.round(max
 return { byDomain: result, imbalance: imbalance, totalSessions: n };
 }
 
+function computeLifeFieldGap(sessions, fot) {
+if (!fot || !fot.imbalance || sessions.length < 2) return null;
+var dominant = fot.imbalance.domain;
+var domains = ["work","relationship","self","creativity","money"];
+var byDomain = {};
+domains.forEach(function(d){ byDomain[d] = []; });
+sessions.forEach(function(s, si) {
+var fa = s.focusAreas || computeFocusAreas(s.themes);
+var raw = (s.rawText || "").toLowerCase();
+domains.forEach(function(d) {
+if (d === dominant) return;
+var fromThemes = (fa[d] || 0) > 0.05;
+var fromRaw = LIFE_DOMAINS[d] && LIFE_DOMAINS[d].some(function(w){ return raw.indexOf(w) >= 0; });
+if (fromThemes || fromRaw) byDomain[d].push(si);
+});
+});
+var undermentioned = [];
+domains.forEach(function(d) {
+if (d === dominant || byDomain[d].length === 0) return;
+undermentioned.push({
+domain: d,
+label: LIFE_DOMAIN_LABELS[d] || d,
+firstSession: byDomain[d][0] + 1,
+sessionIndices: byDomain[d],
+count: byDomain[d].length
+});
+});
+if (undermentioned.length === 0) return null;
+return { dominant: dominant, dominantLabel: LIFE_DOMAIN_LABELS[dominant] || dominant, pct: fot.imbalance.pct, undermentioned: undermentioned, totalSessions: sessions.length };
+}
+
 function alchemyToMetamorphosisStage(alch) {
 if (!alch) return "forming";
 if (alch === "nigredo") return "eating";
@@ -5706,10 +5737,16 @@ var cancelled = false;
 try {
 var prevThemes = _prev ? (_prev.themes||[]).slice(0,3).map(function(t){return t.label;}).join(",") : "";
 var currThemes = themes.slice(0,3).map(function(t){return t.label;}).join(",");
-var ctx = "Previous session: arch="+_prevArch+" themes="+prevThemes;
-ctx += " | This session: arch="+_currArch+" themes="+currThemes;
+var prevOpening = _prev && typeof _prev.opening === "string" ? _prev.opening.trim().slice(0,100) : "";
+var currOpening = sd && typeof sd.opening === "string" ? sd.opening.trim().slice(0,100) : "";
+var prevClarity = _prev && typeof _prev.clarity === "string" ? _prev.clarity.trim().slice(0,80) : "";
+var currClarity = sd && typeof sd.clarity === "string" ? sd.clarity.trim().slice(0,80) : "";
+var prevRaw = (_prev && _prev.rawText) ? String(_prev.rawText).slice(0,150) : "";
+var currRaw = rawText ? String(rawText).slice(0,150) : ((sd && sd.rawText) ? String(sd.rawText).slice(0,150) : "");
+var ctx = "Previous: themes="+prevThemes+(prevOpening?" opening=\""+prevOpening+"\"":"")+(prevClarity?" clarity=\""+prevClarity+"\"":"")+(prevRaw?" raw=\""+prevRaw.replace(/"/g,"'")+"\"":"");
+ctx += " | This: themes="+currThemes+(currOpening?" opening=\""+currOpening+"\"":"")+(currClarity?" clarity=\""+currClarity+"\"":"")+(currRaw?" raw=\""+currRaw.replace(/"/g,"'")+"\"":"");
 if (sd.blind_spot) ctx += " blind_spot="+String(sd.blind_spot).slice(0,60);
-var p = "One sentence (10-15 words): what specifically shifted internally between these two sessions? Plain, direct, third person.\n"+ctx+"\nJSON: {\"shift\":\"...\"}";
+var p = "One sentence (10-15 words): what specifically shifted in what they shared — their words, themes, what they named — between these two sessions? Focus on CONTENT (what they said), not archetype labels. Plain, direct, third person.\n"+ctx+"\nJSON: {\"shift\":\"...\"}";
 var rr = await callClaudeClient(p, "mirror", 80);
 if (!cancelled) {
 var dd = parseJSON(rr);
@@ -7347,7 +7384,11 @@ var lastTens = lastSession.tension && lastSession.tension.a ? lastSession.tensio
 var currTens = sd.tension && sd.tension.a ? sd.tension.a + " vs " + sd.tension.b : "";
 var newThemes = currThemeList.filter(function(t){ return t && lastThemeList.indexOf(t) < 0; });
 var returningThemes = currThemeList.filter(function(t){ return t && lastThemeList.indexOf(t) >= 0; });
-whatsNewBlurb = "WHAT'S NEW THIS TIME (compare to last session): Last session themes: " + (lastThemes || "—") + ". Last tension: " + (lastTens || "—") + ". This session themes: " + (currThemes || "—") + ". This tension: " + (currTens || "—") + ". New this time: " + (newThemes.length ? newThemes.join(", ") : "none") + ". Returning: " + (returningThemes.length ? returningThemes.join(", ") : "none") + ". Lead with what's different about THIS moment — why now? What shifted?\n\n";
+var lastOpening = lastSession && typeof lastSession.opening === "string" ? lastSession.opening.trim().slice(0,80) : "";
+var currOpening = sd && typeof sd.opening === "string" ? sd.opening.trim().slice(0,80) : (currSession && typeof currSession.opening === "string" ? currSession.opening.trim().slice(0,80) : "");
+var lastClarity = lastSession && typeof lastSession.clarity === "string" ? lastSession.clarity.trim().slice(0,80) : "";
+var currClarity = sd && typeof sd.clarity === "string" ? sd.clarity.trim().slice(0,80) : (currSession && typeof currSession.clarity === "string" ? currSession.clarity.trim().slice(0,80) : "");
+whatsNewBlurb = "WHAT'S NEW THIS TIME (compare to last session — focus on CONTENT, not archetypes): Last: themes " + (lastThemes || "—") + ", tension " + (lastTens || "—") + (lastOpening ? ", opening \"" + lastOpening + "\"" : "") + (lastClarity ? ", clarity \"" + lastClarity + "\"" : "") + ". This: themes " + (currThemes || "—") + ", tension " + (currTens || "—") + (currOpening ? ", opening \"" + currOpening + "\"" : "") + (currClarity ? ", clarity \"" + currClarity + "\"" : "") + ". New themes: " + (newThemes.length ? newThemes.join(", ") : "none") + ". Returning: " + (returningThemes.length ? returningThemes.join(", ") : "none") + ". Lead with what's different in what they actually said — why now? What shifted in their words?\n\n";
 }
 
 var allCorrections = [];
@@ -7426,7 +7467,6 @@ var lastDate = allSessions.length>0 && allSessions[allSessions.length-1].date
 : "";
 
 var stats = total+" sessions. Intensity trend: "+intensityDir+". Peak: S"+maxIntense.si+".";
-if (uniqueArchs.length) stats += " Archetype progression: "+uniqueArchs.join(" > ")+".";
 if (allCorrections.length) stats += " Subject said in their own words: "+allCorrections.slice(0,3).map(function(c){return '"'+c+'"';}).join(", ")+".";
 if (topResist.length) stats += " Kept pushing back on: "+topResist.join("; ")+".";
 
@@ -7586,6 +7626,11 @@ var fotLines = fot.byDomain.filter(function(d){ return d.avgFocus > 0.02; }).map
 if (fotLines.length) peLines.push("Focus areas over time: " + fotLines.join("; "));
 if (fot.imbalance) peLines.push("Focus imbalance: " + (LIFE_DOMAIN_LABELS[fot.imbalance.domain] || fot.imbalance.domain) + " dominates at " + fot.imbalance.pct + "%");
 }
+var lifeFieldGap = computeLifeFieldGap(allSessions, pe.focus_over_time);
+if (lifeFieldGap) {
+var gapLines = ["FIELD OF LIFE INTELLIGENCE: Focus (where energy goes) is " + lifeFieldGap.dominantLabel + " at " + lifeFieldGap.pct + "%. But they brought up: " + lifeFieldGap.undermentioned.map(function(u){ return u.label + " (S" + u.firstSession + (u.count > 1 ? ", " + u.count + "x total" : "") + ")"; }).join("; ") + ". When focus is on one area and they mention another — especially briefly or in passing — that may be what wants attention or what they're avoiding. Surface it: 'Your focus has been on " + lifeFieldGap.dominantLabel.toLowerCase() + ". You brought up " + (lifeFieldGap.undermentioned[0] ? lifeFieldGap.undermentioned[0].label.toLowerCase() : "other areas") + " in passing. What\'s there?' Frame as curiosity, not accusation."];
+peLines.push(gapLines.join(" "));
+}
 if (pe.regression_context && pe.regression_context.length) peLines.push("Regressions (when themes/map values dropped — prior context): " + pe.regression_context.map(function(r){ return "S" + (r.sessionIndex + 1) + " " + r.type + " " + r.key + (r.priorContext ? " — prior: " + r.priorContext.slice(0, 60) : ""); }).join("; "));
 if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' — never state as fact.\n\n";
 }
@@ -7634,7 +7679,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "CURIOUS, NOT DIAGNOSTIC: NEVER use defensiveness, defensive, or similar labels. The report is curious and honoring — not pathologizing. If something seems to warrant that kind of read, ASK it as a question (and that belongs in Descent, not here). Stay curious.\n\n"
 + "NO ASSUMPTIONS ABOUT \"THE MAIN THING\": Do NOT assume what is most important in someone's life based on time, frequency, or what shows up most in sessions. Unless the subject explicitly says \"this is my main focus\" or \"the most important thing,\" do not conclude it. You may observe: \"After X sessions, this keeps coming up — an interesting question is why it's in the background\" — but never \"this is the main thing.\" The subject's life has many parts; don't collapse it into one.\n\n"
 + "DON'T ASSERT — ASK IN DESCENT: If you have a question about what's going on (e.g. \"Are you putting X before Y?\" \"Is revenue a way of delaying launch?\"), that belongs in Descent as a question the subject can answer — NOT in the report as an assertion. Never assume motivations (e.g. \"not wanting to launch because putting revenue first\") and state them as fact. If the data suggests a tension, name the tension; don't invent the motive. When in doubt, frame as curiosity, not conclusion.\n\n"
-+ "LIFE AREA FOCUS: When you have focus-over-time data (which areas of life they focus on — work, relationships, self, creativity, money — and how much per session), weave it into the report where it matters: imbalance (one area dominating), concentration (really focused in one area), or shift (focus moving from one area to another over time). Do NOT be obvious or mechanical — e.g. don't say 'You focused 60% on work.' Instead: 'The record shows work has been the dominant ground.' or 'Something has shifted — what was once all relationship is now making room for self.' Weave naturally into the prose.\n\n"
++ "LIFE AREA FOCUS — FIELD OF LIFE INTELLIGENCE: Focus is where their energy goes. When there's imbalance (one area dominates — e.g. business, work), look at what they actually brought up. If they focus on business every session but complain about or briefly mention personal life, relationships, physical health, or self — that's a signal. 'Your focus has been on business. You brought up your personal life in passing. What's there?' Focus is where energy goes; what they mention in passing may be what wants attention or what they're hiding from. When imbalance exists, invite them to look at the gap. Do NOT be mechanical — weave naturally. Do NOT pathologize. Frame as curiosity.\n\n"
 + "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report. The report should read as one coherent piece with intelligence and feeling — not facts strung together. NO NODE LANGUAGE: Never use 'The map offered,' node labels (X↔Y), or quote connector insights verbatim. Rewrite into plain human sentences.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
 + "GROUNDING: For each major insight, anchor it in evidence the reader can trace. Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, the subject tended to Y.\" Never use node labels (X↔Y), connector jargon, or comparison language. Where a pattern is not absolute, add light nuance. Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
@@ -7665,7 +7710,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "SECTION TITLES: Section 1: WHAT SHOWED UP or THIS SESSION. Section 2: WHAT CHANGED (the Y-axis — the journey). Section 3: WHAT KEEPS RETURNING or WHAT'S STILL HERE. Section 4: CONCLUSION.\n"
 + "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use \"You said: \\\"...\\\"\" with their exact phrasing. Do not paraphrase into something they didn't say. In the third section, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
 + "SECTION 1 (WHAT SHOWED UP / THIS SESSION): What dominated in THIS session. When citing map connections: do NOT say 'The map offered:' or quote node language verbatim. Instead, describe the tension or insight that arose in the session in plain sentences — e.g. 'A tension arose: [what it was about, in human language]. You confirmed it strongly.' Rewrite connector insights into flowing prose the reader can grasp. Lead with the meaning, then how they responded. 3 short paragraphs.\n"
-+ "SECTION 2 (WHAT CHANGED): The Y-axis — the user's JOURNEY. The arc from previous sessions all the way to the beginning, if relevant to this session. What changed over time. This is the longitudinal arc and is super valuable. Not 'what changed in this session' narrowly — the journey across sessions. How themes, archetypes, blind spots, tensions have evolved. 3 short paragraphs.\n"
++ "SECTION 2 (WHAT CHANGED): The Y-axis — the journey across sessions. Do NOT lead with archetype progression. Lead with the CONTENT of what they actually said — their themes, their words, what they're willing to say now that they might not have before. Each session, find what's different from the past. If they're truly stuck (same themes, same content session after session), name that. Otherwise, go into the substance: what has shifted in their actual words, what they've named, what they've let in. What has happened over time in what they shared — not the archetype label, but the real content. 3 short paragraphs.\n"
 + "SECTION 3 (WHAT KEEPS RETURNING / WHAT'S STILL HERE): Still unresolved. Still returning. Refer to the 'what's underneath' phrases above — repetition, structure, blind spots the subject may not see. Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction. 2 short paragraphs.\n\n"
 + "SECTION 4 (CONCLUSION): A powerful closing. The one thread that runs through everything. The single most honest thing to take away. Written for the subject — use \"you\" when it fits. 2-3 sentences max. No summary of what came before — a landing, an invitation, a truth that ties the report together. Make it memorable. Make it land.\n\n"
 + "Also: oneLineVerdict — one plain sentence (12-16 words). The single most honest thing about this person right now, tied to the heart of this report. You may use \"you\" here. Written like a pencil note at the bottom of a file. Make it fresh — not a formula.\n"
@@ -8525,7 +8570,6 @@ c.push({ type: "depths_field", bg: "#010810" });
 if (sessionCount >= 2) {
 c.push({ type: "whats_growing", bg: "#010A04" });
 c.push({ type: "the_mirror", bg: "#08080C" });
-c.push({ type: "inner_wrapped", bg: "#0A0618" });
 }
 c.push({ type: "year_review", bg: "#060606" });
 c.push({ type: "field_report", bg: "#FAFAF8" });
@@ -8540,7 +8584,6 @@ if (current < CARDS.length - 1) { setCurrent(function(c) { return c + 1; }); set
 };
 var goBack = function() { if (current > 0) { setCurrent(function(c) { return c - 1; }); setClicked(false); } };
 var handleClick = function(e) {
-if (card && card.type === "inner_wrapped") return;
 if (e.target.closest && (e.target.closest("button") || e.target.closest("[data-noadvance]") || e.target.tagName === "circle" || e.target.tagName === "svg")) return;
 var rect = containerRef.current ? containerRef.current.getBoundingClientRect() : null;
 if (!rect) return;
@@ -8549,7 +8592,6 @@ x < rect.width * 0.25 ? goBack() : advance();
 };
 useEffect(function() {
 var handler = function(e) {
-if (card && card.type === "inner_wrapped") return;
 if (e.key === "ArrowRight" || e.key === " ") advance(); else if (e.key === "ArrowLeft") goBack();
 };
 window.addEventListener("keydown", handler);
@@ -8580,9 +8622,6 @@ return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={
 }
 case "the_realm": {
 return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
-}
-case "inner_wrapped": {
-return <InnerWrappedCard themes={themes} sd={sd} sessionCount={sessionCount} goNext={advance}/>;
 }
 case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
