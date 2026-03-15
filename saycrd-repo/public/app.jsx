@@ -5779,6 +5779,7 @@ color:"rgba(220,235,255,0.8)", fontFamily:FD, lineHeight:1.5 }}>
 Same archetype, deeper work — you're staying with it.
 </div>
 )}
+</div>
 </div>)}
 </div>
 
