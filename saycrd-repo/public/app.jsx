@@ -33,9 +33,9 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 {text}
 </span>
 {open && (
-<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", animation: "riseUp 0.2s ease both" }}
+<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ setOpen(false); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.15)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 20, padding: "28px 32px", maxWidth: 360, boxShadow: "0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08) inset", border: "none" }}>
 <button onClick={function(){ setOpen(false); }} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
 <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
 <div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
@@ -5670,78 +5670,62 @@ fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break
 );
 }
 
-function MirrorCard({ themes, sd, sessionCount, rawText, portrait, portraitReady, goNext, setSlider, sliderValues }) {
+function MirrorCard({ themes, sd, sessionCount, rawText, allSessions, portrait, portraitReady, goNext, setSlider, sliderValues }) {
 themes = themes || [];
+allSessions = allSessions || [];
 var _landVal = (sliderValues && sliderValues.the_mirror !== undefined) ? sliderValues.the_mirror : 50;
 var _setLand = setSlider ? function(v) { setSlider("the_mirror", v); } : function() {};
 
-var _allSessions = (function() {
-try { return loadSessions(); } catch(e) { return []; }
-})();
-var _prev = _allSessions.length >= 2 ? _allSessions[_allSessions.length - 2] : null;
-
-var _prevArch = (_prev && _prev.archetypes && _prev.archetypes[0] && _prev.archetypes[0].name) || "";
-var _prevDate = _prev && _prev.date
-? new Date(_prev.date).toLocaleDateString("en-US",{month:"long",day:"numeric"})
-: "";
-var _currArch = (sd && sd.archetypes && sd.archetypes[0] && sd.archetypes[0].name) || "";
-var _archShifted = _prevArch && _currArch && _prevArch !== _currArch;
-var _isFirst = !_prev;
-
-var _prevThemes = _prev ? (_prev.themes||[]).slice(0,3).map(function(t){ return t.label||""; }).filter(Boolean) : [];
-var _currThemes = themes.slice(0,3).map(function(t){ return t.label||""; }).filter(Boolean);
-var _newThemes = _currThemes.filter(function(t){ return _prevThemes.indexOf(t) < 0; });
-var _goneThemes = _prevThemes.filter(function(t){ return _currThemes.indexOf(t) < 0; });
-var _stayed = _currThemes.filter(function(t){ return _prevThemes.indexOf(t) >= 0; });
-
-
-var _sameContent = !_isFirst && _newThemes.length === 0 && _goneThemes.length === 0;
-var _openingFull = (sd && typeof sd.opening === "string" && sd.opening.trim()) ? sd.opening.trim() : "";
-var _blindFull = (sd && typeof sd.blind_spot === "string" && sd.blind_spot.trim()) ? sd.blind_spot.trim() : "";
-var _thenLabel = _sameContent ? "BROUGHT IN" : ("THEN" + (_prevDate ? " · "+_prevDate : ""));
-var _nowLabel = _sameContent ? "SURFACED" : "NOW";
-var _thenWords = _sameContent ? _prevThemes : (_prevThemes.length ? _prevThemes : (_openingFull ? [_openingFull.slice(0,80)] : []));
-var _nowWords = _currThemes;
-var _prevTension = (_prev && _prev.tension && _prev.tension.a) ? _prev.tension.a+" vs "+_prev.tension.b : "";
-var _currTension = (sd && sd.tension && sd.tension.a) ? sd.tension.a+" vs "+sd.tension.b : "";
+var _allSessions = allSessions.length > 0 ? allSessions : (function() { try { return loadSessions(); } catch(e) { return []; } })();
+var _isFirst = _allSessions.length < 1;
 
 var _currColor = themes[0] ? themes[0].color : "#E8B87C";
 
-var [_shift, _setShift] = useState(null);
+var [_mirrorData, _setMirrorData] = useState(null);
 var [_ready, _setReady] = useState(false);
 
 useEffect(function() {
-if (portrait && portrait.mirrorShift) {
-_setShift(portrait.mirrorShift);
-_setReady(true);
-return;
-}
-if (portraitReady && !portrait) {
+if (_isFirst) { _setReady(true); return; }
 var cancelled = false;
 (async function() {
 try {
-var prevThemes = _prev ? (_prev.themes||[]).slice(0,3).map(function(t){return t.label;}).join(",") : "";
-var currThemes = themes.slice(0,3).map(function(t){return t.label;}).join(",");
-var prevOpening = _prev && typeof _prev.opening === "string" ? _prev.opening.trim().slice(0,100) : "";
-var currOpening = sd && typeof sd.opening === "string" ? sd.opening.trim().slice(0,100) : "";
-var prevClarity = _prev && typeof _prev.clarity === "string" ? _prev.clarity.trim().slice(0,80) : "";
-var currClarity = sd && typeof sd.clarity === "string" ? sd.clarity.trim().slice(0,80) : "";
-var prevRaw = (_prev && _prev.rawText) ? String(_prev.rawText).slice(0,150) : "";
-var currRaw = rawText ? String(rawText).slice(0,150) : ((sd && sd.rawText) ? String(sd.rawText).slice(0,150) : "");
-var ctx = "Previous: themes="+prevThemes+(prevOpening?" opening=\""+prevOpening+"\"":"")+(prevClarity?" clarity=\""+prevClarity+"\"":"")+(prevRaw?" raw=\""+prevRaw.replace(/"/g,"'")+"\"":"");
-ctx += " | This: themes="+currThemes+(currOpening?" opening=\""+currOpening+"\"":"")+(currClarity?" clarity=\""+currClarity+"\"":"")+(currRaw?" raw=\""+currRaw.replace(/"/g,"'")+"\"":"");
-if (sd.blind_spot) ctx += " blind_spot="+String(sd.blind_spot).slice(0,60);
-var p = "One sentence (10-15 words): what specifically shifted in what they shared — their words, themes, what they named — between these two sessions? Focus on CONTENT (what they said), not archetype labels. Plain, direct, third person.\n"+ctx+"\nJSON: {\"shift\":\"...\"}";
-var rr = await callClaudeClient(p, "mirror", 80);
+var sessNotes = _allSessions.map(function(s, si) {
+var parts = [];
+if (s.themes && s.themes.length) parts.push("themes:"+s.themes.slice(0,4).map(function(t){return t.label;}).join(","));
+if (s.tension && s.tension.a) parts.push("tension:"+s.tension.a+" vs "+s.tension.b);
+if (typeof s.blind_spot==="string"&&s.blind_spot) parts.push("blind_spot:"+s.blind_spot.slice(0,100));
+if (typeof s.opening==="string"&&s.opening) parts.push("opening:"+s.opening.slice(0,120));
+if (s.synthesis) parts.push("synthesis:"+s.synthesis.slice(0,150));
+if (s.rawText) parts.push("raw:"+String(s.rawText).slice(0,200).replace(/"/g,"'"));
+var corr = s.corrections ? Object.values(s.corrections).filter(function(c){return typeof c==="string"&&c.length>4;}):[];
+if (corr.length) parts.push("said:"+corr.slice(0,2).join("; ").slice(0,120));
+return "S"+(si+1)+": "+parts.join(" | ");
+}).join("\n\n");
+var currParts = [];
+if (themes.length) currParts.push("themes:"+themes.slice(0,4).map(function(t){return t.label;}).join(","));
+if (sd.tension && sd.tension.a) currParts.push("tension:"+sd.tension.a+" vs "+sd.tension.b);
+if (sd.blind_spot) currParts.push("blind_spot:"+String(sd.blind_spot).slice(0,100));
+if (sd.opening) currParts.push("opening:"+String(sd.opening).slice(0,120));
+if (sd.synthesis) currParts.push("synthesis:"+(sd.synthesis||"").slice(0,150));
+if (rawText) currParts.push("raw:"+String(rawText).slice(0,200).replace(/"/g,"'"));
+var currNote = "S"+(_allSessions.length+1)+" (CURRENT): "+currParts.join(" | ");
+var p = "You are THE MIRROR. Imagine Freud, Jung, the father of cognitive psychology, quantum physicists, and imaginal scientists gathered to look at ALL of this person's session notes. They are not reflecting what the person wants to see. They are CLEANING THE MIRROR — showing what the person is actually sharing when analyzed deeply.\n\n"
++ "The Y-axis is their journey over time. Aha moments. Realizations. What is difficult for humans to identify. The heart of the matter.\n\n"
++ "SESSION NOTES:\n"+sessNotes+"\n\n"+currNote+"\n\n"
++ "Generate three fields. Be specific to THIS person. Nothing generic.\n\n"
++ "before: 1-2 sentences. What APPEARS on the surface. What they've been bringing. The pattern that was present. Plain, direct, third person.\n"
++ "after: 1-2 sentences. What's BEING REVEALED. What's surfacing. The aha, the realization, what wants to be seen. Plain, direct, third person.\n"
++ "heart: 1 sentence, 10-18 words. The HEART OF THE MATTER for this person. The one thing that ties it together. Bold. Direct.\n\n"
++ 'JSON only: {"before":"...","after":"...","heart":"..."}';
+var rr = await callClaudeClient(p, "mirror", 220);
 if (!cancelled) {
 var dd = parseJSON(rr);
-if (dd && dd.shift) _setShift(dd.shift);
+if (dd && (dd.before || dd.after || dd.heart)) _setMirrorData(dd);
 }
 } catch(e) {} finally { if (!cancelled) _setReady(true); }
 })();
 return function(){ cancelled = true; };
-}
-}, [portrait, portraitReady]);
+}, [_isFirst]);
 
 return (
 <div style={{ position:"absolute", inset:0, overflow:"hidden",
@@ -5761,7 +5745,7 @@ color:"rgba(220,235,255,0.7)", fontFamily:FB, fontWeight:600 }}>
 THE MIRROR
 </div>
 <div style={{ fontSize:13, color:"rgba(200,220,255,0.6)", fontFamily:FD, marginTop:8, lineHeight:1.5 }}>
-Comparing your last session to this one
+The Y-axis of your journey — what appears, what's being revealed
 </div>
 </div>
 
@@ -5778,149 +5762,92 @@ This is your first session.
 </div>
 <div style={{ fontSize:16, color:"rgba(220,235,255,0.65)",
 fontFamily:FD, lineHeight:1.7 }}>
-The mirror needs two sessions to show you what moved. Come back.
+The mirror needs your journey over time. Come back after another session.
 </div>
 </div>
 ) : (
 <div>
-<div style={{ marginBottom:32, animation:"riseUp 0.7s ease 0.1s both" }}>
-<div style={{ fontSize:11, letterSpacing:"0.2em",
-color:"rgba(200,220,255,0.6)", fontFamily:FB, marginBottom:12 }}>
-In one sentence, what shifted:
+{_ready && _mirrorData ? (
+<>
+{_mirrorData.heart && (
+<div style={{ marginBottom:28, animation:"riseUp 0.6s ease 0.1s both" }}>
+<div style={{ fontSize:10, letterSpacing:"0.35em",
+color:"rgba(200,220,255,0.5)", fontFamily:FB, marginBottom:10, textTransform:"uppercase" }}>
+The heart of the matter
+</div>
+<div style={{ fontSize:22, fontWeight:700,
+color:"rgba(255,255,255,0.98)", fontFamily:FD,
+lineHeight:1.45, wordBreak:"break-word",
+overflowWrap:"break-word" }}>
+{_mirrorData.heart}
+</div>
+</div>
+)}
+
+<div style={{ display:"flex", flexDirection:"column", gap:20, animation:"riseUp 0.6s ease 0.3s both" }}>
+<div style={{ flex:1, minWidth:0 }}>
+<div style={{ fontSize:10, fontWeight:600, letterSpacing:"0.2em",
+color:"rgba(140,170,230,0.9)", fontFamily:FB, marginBottom:10, textTransform:"uppercase" }}>
+What appears
+</div>
+<div style={{
+padding:"20px 20px",
+borderRadius:18,
+background:"linear-gradient(180deg, rgba(140,170,230,0.14), rgba(140,170,230,0.06))",
+border:"1px solid rgba(140,170,230,0.3)",
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+}}>
+<div style={{ fontSize:16, color:"rgba(220,235,255,0.92)", fontFamily:FD,
+lineHeight:1.6, wordBreak:"break-word", overflowWrap:"break-word" }}>
+{_mirrorData.before || "—"}
+</div>
+</div>
 </div>
 
-{_ready && _shift ? (
-<div style={{ fontSize:22, fontWeight:600,
-color:"rgba(255,255,255,0.98)", fontFamily:FD,
-lineHeight:1.5, wordBreak:"break-word",
-overflowWrap:"break-word" }}>
-{_shift}
+<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize:18, flexShrink:0 }}>↓</div>
+
+<div style={{ flex:1, minWidth:0 }}>
+<div style={{ fontSize:10, fontWeight:600, letterSpacing:"0.2em",
+color:_currColor, fontFamily:FB, marginBottom:10, textTransform:"uppercase" }}>
+What's being revealed
 </div>
+<div style={{
+padding:"20px 20px",
+borderRadius:18,
+background:"linear-gradient(180deg, "+_currColor+"22, "+_currColor+"08)",
+border:"1px solid "+_currColor+"44",
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+}}>
+<div style={{ fontSize:16, color:"rgba(255,255,255,0.95)", fontFamily:FD,
+lineHeight:1.6, wordBreak:"break-word", overflowWrap:"break-word" }}>
+{_mirrorData.after || "—"}
+</div>
+</div>
+</div>
+</div>
+
+<div style={{ marginTop:24 }} data-noadvance>
+<AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
+</div>
+</>
 ) : (
 <div>
-<div style={{ width:"90%", height:22, borderRadius:3,
+<div style={{ width:"90%", height:20, borderRadius:3,
 background:"rgba(255,255,255,0.06)",
 animation:"breathe 1.5s ease-in-out infinite alternate",
-marginBottom:10 }}/>
-<div style={{ width:"65%", height:22, borderRadius:3,
+marginBottom:16 }}/>
+<div style={{ width:"100%", height:60, borderRadius:12,
 background:"rgba(255,255,255,0.04)",
-animation:"breathe 1.5s ease-in-out 0.3s infinite alternate" }}/>
-</div>
-)}
-</div>
-
-<div style={{ animation:"riseUp 0.6s ease 0.4s both" }}>
-<div style={{ fontSize:12, fontWeight:600, color:"rgba(255,255,255,0.9)", fontFamily:FB, marginBottom:16 }}>Before and after</div>
-{(() => {
-var _tTxt = (_thenWords || []).join(" ");
-var _nTxt = (_nowWords || []).join(" ");
-var stackCols = (_tTxt.length > 22 || _nTxt.length > 22);
-return (
-<div style={{ display:"flex", flexDirection: stackCols ? "column" : "row", alignItems:"stretch", gap:16 }}>
-
-<div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:11, fontWeight:600, letterSpacing:"0.15em",
-color:"rgba(140,170,230,0.9)", fontFamily:FB, marginBottom:10 }}>
-LAST SESSION{_prevDate ? " · " + _prevDate : ""}
-</div>
-<div style={{
-padding:"18px 18px",
-borderRadius:18,
-background:"linear-gradient(180deg, rgba(140,170,230,0.18), rgba(140,170,230,0.08))",
-border:"1px solid rgba(140,170,230,0.35)",
-boxShadow:"0 4px 20px rgba(0,0,0,0.15)"
-}}>
-<div style={{ fontSize:17, fontWeight:800,
-color: _archShifted ? "rgba(140,170,230,0.6)" : "rgba(200,220,255,0.95)",
-fontFamily:FB, lineHeight:1.25,
-textDecoration: _archShifted ? "line-through" : "none",
-textDecorationColor:"rgba(140,170,230,0.4)",
-wordBreak:"break-word", overflowWrap:"anywhere" }}>
-{_sameContent ? (_openingFull || _prevArch || "—") : (_prevArch || "—")}
-</div>
-{_thenWords && _thenWords.length > 0 && (
-<div style={{ marginTop:12, display:"flex", flexWrap:"wrap", gap:8 }}>
-{_thenWords.slice(0,4).map(function(w, wi) {
-return <div key={wi} style={{
-fontSize:11, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
-padding:"6px 12px", borderRadius:999,
-border:"1px solid rgba(140,170,230,0.3)",
-background:"rgba(255,255,255,0.06)",
-color:"rgba(220,235,255,0.8)",
-maxWidth:"100%",
-whiteSpace:"normal",
-wordBreak:"break-word",
-overflowWrap:"anywhere",
-lineHeight:1.25
-}}>{w}</div>;
-})}
-</div>
-)}
-</div>
-</div>
-
-<div style={{
-paddingTop: stackCols ? 2 : 22,
-textAlign:"center",
-color:"rgba(200,220,255,0.5)",
-fontSize:22,
-flexShrink:0,
-fontWeight:600
-}}>
-{stackCols ? "↓" : "→"}
-</div>
-
-<div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:11, fontWeight:600, letterSpacing:"0.15em",
-color:_currColor, fontFamily:FB, marginBottom:10 }}>
-THIS SESSION
-</div>
-<div style={{
-padding:"18px 18px",
-borderRadius:18,
-background:"linear-gradient(180deg, "+_currColor+"28, "+_currColor+"12)",
-border:"1px solid "+_currColor+"55",
-boxShadow:"0 4px 20px rgba(0,0,0,0.15)"
-}}>
-<div style={{ fontSize:17, fontWeight:900,
-color:_currColor, fontFamily:FB, lineHeight:1.25,
-textShadow:"0 0 24px "+_currColor+"44",
-wordBreak:"break-word", overflowWrap:"anywhere" }}>
-{_sameContent ? (_blindFull || _currArch || "—") : (_currArch || "—")}
-</div>
-{_nowWords && _nowWords.length > 0 && (
-<div style={{ marginTop:12, display:"flex", flexWrap:"wrap", gap:8 }}>
-{_nowWords.slice(0,4).map(function(w, wi) {
-return <div key={wi} style={{
-fontSize:11, fontFamily:FB, letterSpacing:"0.08em", textTransform:"uppercase",
-padding:"6px 12px", borderRadius:999,
-border:"1px solid "+_currColor+"44",
-background:"rgba(255,255,255,0.06)",
-color:_currColor+"ee",
-maxWidth:"100%",
-whiteSpace:"normal",
-wordBreak:"break-word",
-overflowWrap:"anywhere",
-lineHeight:1.25
-}}>{w}</div>;
-})}
-</div>
-)}
-</div>
-</div>
-</div>
-);
-})()}
-{!_archShifted && _prevArch && (
-<div style={{ marginTop:16, padding:"12px 16px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", fontSize:13,
-color:"rgba(220,235,255,0.8)", fontFamily:FD, lineHeight:1.5 }}>
-Same archetype, deeper work — you're staying with it.
-</div>
-)}
-<div style={{ marginTop:20 }} data-noadvance>
+animation:"breathe 1.5s ease-in-out 0.2s infinite alternate",
+marginBottom:20 }/>
+<div style={{ width:"100%", height:60, borderRadius:12,
+background:"rgba(255,255,255,0.04)",
+animation:"breathe 1.5s ease-in-out 0.4s infinite alternate" }}/>
+<div style={{ marginTop:24 }} data-noadvance>
 <AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
 </div>
 </div>
+)}
 </div>
 )}
 </div>
@@ -7850,9 +7777,9 @@ style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"#F9F9F7", display:"flex", flexDirection:"column",
 fontFamily:FB }}>
 {_editingSentence && (
-<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", animation: "riseUp 0.2s ease both" }}
+<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ _setEditingSentence(null); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.15)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 20, padding: "28px 32px", maxWidth: 360, boxShadow: "0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08) inset", border: "none" }}>
 <button onClick={function(){ _setEditingSentence(null); }} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
 <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
 <div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{_editingSentence.length > 80 ? _editingSentence.slice(0,77)+"…" : _editingSentence}"</div>
@@ -8607,7 +8534,7 @@ return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} por
 }
 
 case "the_mirror": {
-return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} portrait={portrait} portraitReady={portraitReady} goNext={advance} setSlider={setSlider} sliderValues={sliderValues}/>;
+return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} allSessions={allSessions} portrait={portrait} portraitReady={portraitReady} goNext={advance} setSlider={setSlider} sliderValues={sliderValues}/>;
 }
 case "the_realm": {
 return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
