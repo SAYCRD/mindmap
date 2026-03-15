@@ -5769,17 +5769,15 @@ lineHeight:1.25
 <div style={{ marginTop:20 }} data-noadvance>
 <AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
 </div>
-</div>
-);
-})()}
-</div>
-
 {!_archShifted && _prevArch && (
 <div style={{ marginTop:16, padding:"12px 16px", borderRadius:12, background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", fontSize:13,
 color:"rgba(220,235,255,0.8)", fontFamily:FD, lineHeight:1.5 }}>
 Same archetype, deeper work — you're staying with it.
 </div>
 )}
+</div>
+);
+})()}
 </div>
 )}
 </div>
