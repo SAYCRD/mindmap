@@ -1,12 +1,12 @@
 const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = React;
 
 var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: "#059669" },
-{ id: "truth_revealed", label: "Truth Revealed", color: "#2563EB" },
-{ id: "something_to_consider", label: "Something to Consider", color: "#D97706" },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#7C3AED" },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#B45309" },
-{ id: "not_feeling", label: "Not Feeling That", color: "#64748B" },
+{ id: "lands_hard", label: "Lands Hard", color: "#6BFFB8" },
+{ id: "truth_revealed", label: "Truth Revealed", color: "#6BB8FF" },
+{ id: "something_to_consider", label: "Something to Consider", color: "#FFB86B" },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#B86BFF" },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#D6B264" },
+{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.4)" },
 ];
 
 function HighlightableText({ text, feedback, onFeedback, dark }) {
@@ -33,9 +33,9 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 {text}
 </span>
 {open && (
-<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", animation: "riseUp 0.2s ease both" }}
+<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ setOpen(false); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.15)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.15)", border: "1px solid rgba(0,0,0,0.08)" }}>
 <button onClick={function(){ setOpen(false); }} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
 <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
 <div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
@@ -46,13 +46,13 @@ return (
 <button key={o.id} onClick={function(){
 onFeedback && onFeedback(text, o.id);
 setOpen(false);
-}} style={{ padding: "14px 20px", fontSize: 15, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
+}} style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
 {o.label}
 </button>
 );
 })}
 </div>
-<button onClick={function(){ setOpen(false); }} style={{ marginTop: 16, fontSize: 13, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+<button onClick={function(){ setOpen(false); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
 </div>
 </div>
 )}
@@ -7750,12 +7750,12 @@ return function(){ cancelled = true; };
 
 var _accent = (themes[0] && themes[0].color) || "#111";
 var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: "#059669" },
-{ id: "truth_revealed", label: "Truth Revealed", color: "#2563EB" },
-{ id: "something_to_consider", label: "Something to Consider", color: "#D97706" },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#7C3AED" },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#B45309" },
-{ id: "not_feeling", label: "Not Feeling That", color: "#64748B" },
+{ id: "lands_hard", label: "Lands Hard", color: "#6BFFB8" },
+{ id: "truth_revealed", label: "Truth Revealed", color: "#6BB8FF" },
+{ id: "something_to_consider", label: "Something to Consider", color: "#FFB86B" },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#B86BFF" },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#D6B264" },
+{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.4)" },
 ];
 
 function renderBody(text, emphasizeFirst, onSentenceClick, sentenceFeedback) {
@@ -7850,9 +7850,9 @@ style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"#F9F9F7", display:"flex", flexDirection:"column",
 fontFamily:FB }}>
 {_editingSentence && (
-<div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", animation: "riseUp 0.2s ease both" }}
+<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ _setEditingSentence(null); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.15)", border: "1px solid rgba(0,0,0,0.08)" }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.15)", border: "1px solid rgba(0,0,0,0.08)" }}>
 <button onClick={function(){ _setEditingSentence(null); }} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
 <div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
 <div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{_editingSentence.length > 80 ? _editingSentence.slice(0,77)+"…" : _editingSentence}"</div>
@@ -7861,13 +7861,13 @@ onClick={function(){ _setEditingSentence(null); }}>
 var isRgba = o.color.indexOf("rgba") >= 0;
 return (
 <button key={o.id} onClick={function(){ _handleReportSentenceFeedback(_editingSentence, o.id); }}
-style={{ padding: "14px 20px", fontSize: 15, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
+style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : o.color, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + o.color + "44" }}>
 {o.label}
 </button>
 );
 })}
 </div>
-<button onClick={function(){ _setEditingSentence(null); }} style={{ marginTop: 16, fontSize: 13, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+<button onClick={function(){ _setEditingSentence(null); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
 </div>
 </div>
 )}
