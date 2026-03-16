@@ -3,12 +3,12 @@ const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = R
 var PICKER_ACCENT = "#E84393";
 var PICKER_TRACK_INACTIVE = "#D0D0D0";
 var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: "#C9A9B8" },
-{ id: "truth_revealed", label: "Truth Revealed", color: "#7BA8A8" },
-{ id: "something_to_consider", label: "Something to Consider", color: "#A8A8C8" },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#9BB89B" },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "rgba(0,0,0,0.12)" },
-{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.12)" },
+{ id: "lands_hard", label: "Lands Hard", color: "#A85A7A" },
+{ id: "truth_revealed", label: "Truth Revealed", color: "#4A8A8A" },
+{ id: "something_to_consider", label: "Something to Consider", color: "#6A6A9E" },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#5A8A5A" },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#6B6B6B" },
+{ id: "not_feeling", label: "Not Feeling That", color: "#4A4A4A" },
 ];
 
 function SentenceFeedbackButtons({ text, onFeedback, onClose }) {
@@ -190,6 +190,7 @@ return c.slice(0, 20);
 }, [bubbles]);
 return (
 <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+<div style={{ position: "absolute", inset: 0, background: "rgba(0,4,12,0.6)" }}/>
 <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }} viewBox="0 0 100 100" preserveAspectRatio="none">
 {conns.map(function(pair, ci) {
 var a = bubbles[pair[0]], b = bubbles[pair[1]];
@@ -206,13 +207,15 @@ return (
 </svg>
 {words.map(function(w, i) {
 var b = bubbles[i % bubbles.length];
+var coolColors = ["#7FD4FF","#A8C8FF","#6BFFFF","#B8E0FF","#88D8F0","#9EC8FF"];
+var wordColor = coolColors[i % coolColors.length];
 return (
-<div key={i} style={{ position: "absolute", left: (b ? b.x : 20 + (i % 5) * 15) + "%", top: (b ? b.y : 30 + Math.floor(i / 5) * 20) + "%", transform: "translate(-50%, -50%)", fontSize: b && b.r > 18 ? 12 : b && b.r > 10 ? 10 : 8, color: (bubbles[i % bubbles.length] || {}).color || "#6BB8FF", fontFamily: FD, fontStyle: "italic", opacity: 0.55 + (i % 5) * 0.08, animation: "floatWord 5s ease-in-out infinite", animationDelay: -(i * 0.4) + "s", whiteSpace: "nowrap", textShadow: "0 0 24px rgba(0,0,0,0.9), 0 0 8px currentColor" }}>
+<div key={i} style={{ position: "absolute", left: (b ? b.x : 20 + (i % 5) * 15) + "%", top: (b ? b.y : 30 + Math.floor(i / 5) * 20) + "%", transform: "translate(-50%, -50%)", fontSize: b && b.r > 18 ? 13 : b && b.r > 10 ? 11 : 9, color: wordColor, fontFamily: FD, fontStyle: "italic", opacity: 0.88 + (i % 4) * 0.04, animation: "floatWord 5s ease-in-out infinite", animationDelay: -(i * 0.4) + "s", whiteSpace: "nowrap", textShadow: "0 0 20px rgba(0,0,0,0.7), 0 0 6px " + wordColor + "88" }}>
 {w}
 </div>
 );
 })}
-<div style={{ position: "absolute", bottom: "32%", left: "50%", transform: "translateX(-50%)", fontSize: 10, letterSpacing: "0.35em", color: "rgba(107,184,255,0.65)", fontFamily: FB, textTransform: "uppercase", animation: "pulse 2s ease infinite" }}>Analyzing your words</div>
+<div style={{ position: "absolute", bottom: "32%", left: "50%", transform: "translateX(-50%)", fontSize: 10, letterSpacing: "0.35em", color: "rgba(127,212,255,0.9)", fontFamily: FB, textTransform: "uppercase", animation: "pulse 2s ease infinite" }}>Analyzing your words</div>
 </div>
 );
 }
@@ -262,46 +265,20 @@ return (
 <div style={{ fontSize: 26, fontWeight: 700, color: "rgba(200,235,255,0.92)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 50px rgba(107,184,255,0.2)", animation: "riseUp 0.6s ease both" }}>{label}</div>
 {sublabel && <div style={{ marginTop: 12, fontSize: 14, color: "rgba(150,200,255,0.55)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both" }}>{sublabel}</div>}
 </div>
-<div style={{ position: "absolute", bottom: "4%", left: 0, right: 0, maxHeight: "48%", overflowY: "auto", overflowX: "hidden", zIndex: 2, display: "flex", justifyContent: "center", alignItems: "flex-start" }}>{stage}</div>
+<div style={{ position: "absolute", bottom: "4%", left: 0, right: 0, maxHeight: "48%", overflowY: stepKey === 2 ? "hidden" : "auto", overflowX: "hidden", scrollbarWidth: stepKey === 2 ? "none" : undefined, zIndex: 2, display: "flex", justifyContent: "center", alignItems: "flex-start" }}>{stage}</div>
 </div>
 );
 }
 
 function ReportWritingScreen({ label, sublabel }) {
 var palette = ["#D6B26D","#B86BFF","#6BB8FF","#E84393","#4EC9B8"];
-var ribbons = useMemo(function() {
-return [
-{ color: "#B86BFF", h: 20, top: "8%", dur: 18, delay: 0 },
-{ color: "#6BB8FF", h: 16, top: "22%", dur: 14, delay: -3 },
-{ color: "#E84393", h: 24, top: "38%", dur: 20, delay: -6 },
-{ color: "#4EC9B8", h: 18, top: "54%", dur: 15, delay: -2 },
-{ color: "#D6B26D", h: 14, top: "68%", dur: 16, delay: -4 },
-{ color: "#B86BFF", h: 12, top: "82%", dur: 19, delay: -7 },
-];
-}, []);
 var bars = useMemo(function() {
 return palette.map(function(c, i) { return { color: c, dur: 2.4 + i * 0.35, delay: -i * 0.5 }; });
 }, []);
 return (
-<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(165deg, #0D0618 0%, #1A0F2E 22%, #151530 45%, #0F1528 70%, #080C18 100%)" }}>
-<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 60% at 50% 25%, rgba(184,107,255,0.15) 0%, transparent 55%)" }}/>
-<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 75% 75%, rgba(78,201,184,0.12) 0%, transparent 55%)" }}/>
-<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 70% at 15% 55%, rgba(232,67,147,0.1) 0%, transparent 55%)" }}/>
-<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 50% 40% at 50% 50%, rgba(214,182,109,0.06) 0%, transparent 60%)" }}/>
-{ribbons.map(function(r, i) {
-return (
-<div key={i} style={{ position: "absolute", left: "-15%", right: "-15%", top: r.top, height: r.h, background: "linear-gradient(105deg, transparent 0%, " + r.color + "33 20%, " + r.color + "99 50%, " + r.color + "33 80%, transparent 100%)", transform: "skewX(-12deg)", opacity: 0.3, animation: "reportRibbon " + r.dur + "s ease-in-out " + r.delay + "s infinite", pointerEvents: "none" }}/>
-);
-})}
-<svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible", pointerEvents: "none" }} viewBox="0 0 100 100" preserveAspectRatio="none">
-{Array.from({ length: 20 }).map(function(_, i) {
-var c = palette[i % palette.length];
-var y = 10 + (i * 4.2);
-return (
-<ellipse key={i} cx="50" cy={y} rx="55" ry="6" fill={c} opacity={0.08 + (i % 4) * 0.04} style={{ animation: "reportAurora " + (9 + i % 5) + "s ease-in-out " + (-i * 0.6) + "s infinite" }}/>
-);
-})}
-</svg>
+<div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #0A0812 0%, #0E0C1A 15%, #0F0E1E 40%, #0C0A18 75%, #080610 100%)", zIndex: 10 }}>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 40% at 50% 30%, rgba(184,107,255,0.06) 0%, transparent 60%)" }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 50% 50% at 80% 70%, rgba(78,201,184,0.04) 0%, transparent 55%)" }}/>
 <div style={{ position: "absolute", top: "28%", left: 0, right: 0, textAlign: "center", padding: "0 28px", zIndex: 2 }}>
 <div style={{ fontSize: 9, letterSpacing: "0.55em", color: "rgba(184,107,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: 16 }}>FIELD REPORT</div>
 <div style={{ fontSize: 26, fontWeight: 700, color: "rgba(240,235,255,0.96)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 80px rgba(184,107,255,0.3)", animation: "riseUp 0.6s ease both" }}>{label}</div>
@@ -346,28 +323,28 @@ var fromIdx = themes.findIndex(function(t){ return t.label === conn.from; });
 var toIdx = themes.findIndex(function(t){ return t.label === conn.to; });
 if (fromIdx < 0 || toIdx < 0) return null;
 var p1 = positions[fromIdx]; var p2 = positions[toIdx];
-var midDelay = Math.max(fromIdx, toIdx) * 0.55 + 1.2;
+var midDelay = Math.max(fromIdx, toIdx) * 0.85 + 2;
 return (
 <g key={ci}>
-<line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={(themes[fromIdx] && themes[fromIdx].color) || "#6BB8FF"} strokeWidth="2" opacity="0.65" fill="none" strokeDasharray="300" strokeDashoffset="300" style={{ animation: "connectionReveal 1.2s ease-out forwards", animationDelay: midDelay + "s" }}/>
+<line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={(themes[fromIdx] && themes[fromIdx].color) || "#6BB8FF"} strokeWidth="2" opacity="0.65" fill="none" strokeDasharray="300" strokeDashoffset="300" style={{ animation: "connectionReveal 1.8s ease-out forwards", animationDelay: midDelay + "s" }}/>
 </g>
 );
 })}
 {themes.map(function(t, i) {
 var p = positions[i];
 var col = t.color || "#6BB8FF";
-var delay = (i * 0.55) + 0.3;
+var delay = (i * 0.85) + 0.6;
 return (
-<g key={i} filter="url(#nodeGlow)" style={{ animation: "themeReveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards", animationDelay: delay + "s", opacity: 0 }}>
+<g key={i} filter="url(#nodeGlow)" style={{ animation: "themeReveal 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards", animationDelay: delay + "s", opacity: 0 }}>
 <circle cx={p.x} cy={p.y} r="24" fill={col + "35"} stroke={col} strokeWidth="2.5" opacity="0.95"/>
 <text x={p.x} y={p.y + 5} textAnchor="middle" fontSize="11" fontFamily={FB} fontWeight="600" fill="rgba(255,255,255,0.98)" style={{ pointerEvents: "none" }}>{(t.label || "").slice(0, 14)}{(t.label || "").length > 14 ? "…" : ""}</text>
 </g>
 );
 })}
 </svg>
-<div style={{ marginTop: 16, padding: "0 12px", maxHeight: 200, overflowY: "auto" }}>
+<div style={{ marginTop: 16, padding: "0 12px", maxHeight: 200, overflow: "hidden" }}>
 {themes.slice(0, 5).map(function(t, i) {
-var delay = (i * 0.6) + 2.2;
+var delay = (i * 0.95) + 3.2;
 var col = t.color || "#6BB8FF";
 return (
 <div key={i} style={{ animation: "mapTitleReveal 0.8s ease-out " + delay + "s forwards", opacity: 0, marginBottom: 10, padding: "10px 14px", background: "rgba(0,0,0,0.25)", borderRadius: 10, borderLeft: "3px solid " + col }}>
@@ -377,7 +354,7 @@ return (
 );
 })}
 {connections.slice(0, 4).map(function(conn, ci) {
-var delay = 5.2 + (ci * 0.5);
+var delay = 7.2 + (ci * 0.8);
 var col = (themes.find(function(t){ return t.label === conn.from; }) || {}).color || "#6BB8FF";
 var insight = conn.insight || conn.mechanism || "";
 if (!insight.trim()) return null;
@@ -389,7 +366,7 @@ return (
 );
 })}
 </div>
-<div style={{ textAlign: "center", marginTop: 16, animation: "mapTitleReveal 0.9s ease-out 6.5s forwards", opacity: 0 }}>
+<div style={{ textAlign: "center", marginTop: 16, animation: "mapTitleReveal 1.1s ease-out 9.5s forwards", opacity: 0 }}>
 <div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 4 }}>YOUR MAP</div>
 <div style={{ fontSize: 14, color: "rgba(200,235,255,0.9)", fontFamily: FD, fontStyle: "italic" }}>{(mapTitle && String(mapTitle).trim()) ? mapTitle : (themes.length ? themes.length + " themes from your words" : "Ready")}</div>
 </div>
@@ -802,7 +779,7 @@ return (
 );
 }
 
-var REVEAL_DURATION_MS = 7800;
+var REVEAL_DURATION_MS = 10500;
 var MIN_FINDING_MS = 4000;
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
@@ -1133,7 +1110,7 @@ var waitMore = Math.max(0, MIN_FINDING_MS - elapsed);
 setTimeout(function() {
 setStep(2);
 setRevealData(data);
-setTimeout(function(){ setRevealFadeOut(true); }, REVEAL_DURATION_MS - 700);
+setTimeout(function(){ setRevealFadeOut(true); }, REVEAL_DURATION_MS - 1800);
 setTimeout(onComplete, REVEAL_DURATION_MS);
 }, waitMore);
 } else { throw new Error("No themes parsed from AI response"); }
@@ -1202,7 +1179,7 @@ Continue
 </div>
 ) : (
 <ProcessingScreen
-wrapStyle={revealFadeOut ? { animation: "revealFadeOut 0.7s ease-out forwards" } : {}}
+wrapStyle={revealFadeOut ? { animation: "revealFadeOut 1.8s ease-in-out forwards" } : {}}
 stepKey={step}
 rawText={rawText}
 label={step===0?"Reading your words":step===1?"Finding what's underneath":(revealData && revealData.themes ? "Your map" : "Building your map")}
@@ -8343,13 +8320,12 @@ var currSd = currentSessionData || lastSd || sd;
 var underneath = (currSd.underneath && Array.isArray(currSd.underneath) ? currSd.underneath : (sd.underneath && Array.isArray(sd.underneath) ? sd.underneath : [])).filter(function(u){ return typeof u==="string"&&u.trim(); }).slice(0,3);
 var blindSpot = (currSd.blind_spot || sd.blind_spot || "").trim();
 var synthesis = (currSd.synthesis || sd.synthesis || "").trim();
-if (synthesis && synthesis.length > 220) synthesis = synthesis.slice(0,217)+"…";
 var clarity = (currSd.clarity || "").trim();
 var userQuote = clarity;
 if (!userQuote && currSd.mapResponses) {
 for (var k in currSd.mapResponses) {
 var mr = currSd.mapResponses[k];
-if (mr && mr.comment && String(mr.comment).trim()) { userQuote = String(mr.comment).trim().slice(0,120); if (userQuote.length>=120) userQuote+="…"; break; }
+if (mr && mr.comment && String(mr.comment).trim()) { userQuote = String(mr.comment).trim(); break; }
 }
 }
 if (!userQuote && allSessions.length > 0) {
@@ -8357,7 +8333,7 @@ for (var si = allSessions.length-1; si >= 0; si--) {
 var s = allSessions[si];
 if (s && s.mapResponses) for (var k2 in s.mapResponses) {
 var mr2 = s.mapResponses[k2];
-if (mr2 && mr2.comment && String(mr2.comment).trim()) { userQuote = String(mr2.comment).trim().slice(0,120); if (userQuote.length>=120) userQuote+="…"; break; }
+if (mr2 && mr2.comment && String(mr2.comment).trim()) { userQuote = String(mr2.comment).trim(); break; }
 }
 if (userQuote) break;
 }
@@ -10522,7 +10498,7 @@ return (
 @keyframes themeReveal{0%{opacity:0;transform:translateY(8px) scale(0.85)}70%{opacity:1;transform:translateY(0) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes connectionReveal{0%{stroke-dashoffset:300}100%{stroke-dashoffset:0}}
 @keyframes mapTitleReveal{0%{opacity:0;transform:scale(0.9);filter:blur(4px)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
-@keyframes revealFadeOut{0%{opacity:1}100%{opacity:0}}
+@keyframes revealFadeOut{0%{opacity:1}15%{opacity:1}100%{opacity:0}}
 @keyframes reportRibbon{0%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}50%{transform:translateX(10%) skewX(-8deg);opacity:0.35}100%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}}
 @keyframes reportStreamBar{0%,100%{transform:scaleX(0.4)}50%{transform:scaleX(0.95)}}
 @keyframes reportAurora{0%,100%{opacity:0.2;transform:translateY(0) scale(1)}50%{opacity:0.5;transform:translateY(-8%) scale(1.1)}}
