@@ -11,12 +11,12 @@ var r = parseInt(h.slice(0,2), 16), g = parseInt(h.slice(2,4), 16), b = parseInt
 return (0.299*r + 0.587*g + 0.114*b) < 140;
 }
 var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: "#A85A7A" },
-{ id: "truth_revealed", label: "Truth Revealed", color: "#4A8A8A" },
-{ id: "something_to_consider", label: "Something to Consider", color: "#6A6A9E" },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#5A8A5A" },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#6B6B6B" },
-{ id: "not_feeling", label: "Not Feeling That", color: "#4A4A4A" },
+{ id: "lands_hard", label: "Lands Hard", color: "#C97B8E" },
+{ id: "truth_revealed", label: "Truth Revealed", color: "#5BA3A3" },
+{ id: "something_to_consider", label: "Something to Consider", color: "#8B7CC7" },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#6BBF7A" },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#94A3B8" },
+{ id: "not_feeling", label: "Not Feeling That", color: "#64748B" },
 ];
 
 function SentenceFeedbackButtons({ text, onFeedback, onClose }) {
@@ -80,10 +80,10 @@ var key = normalizeSentKey(text);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var optColor = opt && (opt.color || PICKER_ACCENT);
 var isRgba = optColor && typeof optColor === "string" && optColor.indexOf("rgba") >= 0;
-var darkColorOnDark = dark && optColor && !isRgba && isDarkHex(optColor);
-var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : (darkColorOnDark ? "rgba(255,255,255,0.1)" : (dark ? optColor + "44" : optColor + "28"))) : "transparent";
-var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : (darkColorOnDark ? "1.5px solid rgba(255,255,255,0.25)" : "1.5px solid " + optColor)) : "1px solid transparent";
-var txtColor = optColor ? (isRgba ? (dark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.72)") : (darkColorOnDark ? "rgba(255,255,255,0.95)" : optColor)) : "inherit";
+var darkColorNeedsLightText = dark && optColor && !isRgba && isDarkHex(optColor);
+var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : (dark ? optColor + "55" : optColor + "28")) : "transparent";
+var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optColor) : "1px solid transparent";
+var txtColor = optColor ? (isRgba ? (dark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.72)") : (darkColorNeedsLightText ? "rgba(255,255,255,0.95)" : optColor)) : "inherit";
 return (
 <>
 <span
