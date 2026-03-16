@@ -310,13 +310,13 @@ function ProgressiveLoadingOverlay({ loading, label, sublabel, children }) {
 return (
 <div style={{ position: "relative", width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
 {children}
-{loading && (
+{loading ? (
 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(2,8,24,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", padding: "24px 20px", zIndex: 5, transition: "opacity 0.4s ease" }}>
 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6BB8FF", animation: "pulse 1.5s ease infinite", marginBottom: 20 }}/>
 <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.95)", fontFamily: FB, letterSpacing: "0.04em", textAlign: "center", marginBottom: 8 }}>{label}</div>
-{sublabel && <div style={{ fontSize: 13, color: "rgba(150,200,255,0.7)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5, maxWidth: 320 }}>{sublabel}</div>
+{sublabel ? <div style={{ fontSize: 13, color: "rgba(150,200,255,0.7)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5, maxWidth: 320 }}>{sublabel}</div> : null}
 </div>
-)}
+) : null}
 </div>
 );
 }
