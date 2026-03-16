@@ -840,6 +840,11 @@ return (
 <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: isMobile ? "20px 20px 32px" : "32px 24px 40px", paddingBottom: "calc(" + (isMobile ? "100px" : "40px") + " + env(safe-area-inset-bottom, 0px))" }}>
 {isMobile ? (
 <div style={{ display: "flex", flexDirection: "column", minHeight: "100%", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+<div style={{ flexShrink: 0, marginBottom: 24 }}>
+<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 16, fontWeight: 600 }}>SAYCRD</div>
+<h1 style={{ fontSize: "clamp(22px, 6vw, 28px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", zIndex: 1, fontWeight: 400, lineHeight: 1.2 }}>What's alive<br/>in you right now?</h1>
+<p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic", margin: 0, zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
+</div>
 <textarea className="pour-input" value={text} onChange={function(e){setText(e.target.value);}} placeholder="Let the words flow through you…" autoCorrect="on" autoCapitalize="sentences" spellCheck={true} autoComplete="off" style={{ width: "100%", minHeight: 280, flex: 1, background: "transparent", border: "none", outline: "none", resize: "none", color: "rgba(255,255,255,0.95)", fontSize: "clamp(17px, 4.5vw, 22px)", fontFamily: "'Lora', Georgia, 'Times New Roman', serif", fontWeight: 400, fontStyle: "normal", padding: "0 4px", margin: 0, lineHeight: 1.85, display: "block", letterSpacing: "0.01em", WebkitAppearance: "none", appearance: "none" }}/>
 <div style={{ marginTop: 24, padding: "20px 0", borderTop: "1px solid rgba(107,184,255,0.15)" }}>
 <button onClick={_handleComplete} disabled={!canContinue} style={{ width: "100%", background: canContinue ? "linear-gradient(135deg, #6BB8FF, #3D8BFF)" : "rgba(107,184,255,0.15)", border: canContinue ? "none" : "1px solid rgba(107,184,255,0.3)", borderRadius: 24, padding: "18px 28px", minHeight: 56, color: canContinue ? "white" : "rgba(255,255,255,0.5)", fontSize: 17, fontFamily: FB, fontWeight: 600, cursor: canContinue ? "pointer" : "default", touchAction: "manipulation", WebkitTapHighlightColor: "transparent", boxShadow: canContinue ? "0 4px 20px rgba(107,184,255,0.35)" : "none" }}>{canContinue ? "Synthesize →" : "20 words to continue"}</button>
@@ -9915,6 +9920,7 @@ var SG = "Space Grotesk, " + FB;
 
 useEffect(function() { setTimeout(function() { setShow(true); }, 100); }, []);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
+useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
 function guardedStart() {
 if (window.currentUser) { onStart(); return; }
