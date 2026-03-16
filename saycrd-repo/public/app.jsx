@@ -1379,14 +1379,19 @@ onRespond(mapped, userWord||null, value, userWord);
 const accent = connection.color || "#6BB8FF";
 const mobileSheet = isMobile && !dragPos;
 var _pad = 20;
-var _clampedDrag = dragPos && isMobile && typeof window !== "undefined" ? { x: Math.max(_pad, Math.min(window.innerWidth - 320 - _pad, dragPos.x)), y: Math.max(_pad, Math.min(window.innerHeight - 420 - _pad, dragPos.y)) } : dragPos;
-const s = _clampedDrag ? { left: _clampedDrag.x, top: _clampedDrag.y, transform: "none" }
-: mobileSheet
-  ? { position: "fixed", left: _pad, right: _pad, bottom: 0, transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
-  : { left: "50%", top: Math.max(10, Math.min(position.y - 60, 240)), transform: "translate(-50%, 0)", maxWidth: "min(320px, calc(100vw - " + (_pad * 2) + "px))" };
+var _vw = typeof window !== "undefined" ? window.innerWidth : 420;
+var _vh = typeof window !== "undefined" ? window.innerHeight : 600;
+var _drawerW = 320;
+var _drawerH = 420;
+var _clampedDrag = dragPos && isMobile ? { x: Math.max(_pad, Math.min(_vw - _drawerW - _pad, dragPos.x)), y: Math.max(_pad, Math.min(_vh - _drawerH - _pad, dragPos.y)) } : null;
+const s = _clampedDrag
+  ? { position: "fixed", left: _clampedDrag.x, top: _clampedDrag.y, transform: "none", maxWidth: _drawerW, maxHeight: "calc(100vh - " + (_pad * 2) + "px)" }
+  : mobileSheet
+    ? { position: "fixed", left: _pad, right: _pad, bottom: 0, transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
+    : { position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)", maxWidth: "min(320px, calc(100vw - " + (_pad * 2) + "px))", maxHeight: "calc(100vh - " + (_pad * 2) + "px)", overflow: "auto" };
 return (
 <div ref={ref} onPointerDown={handlePD} onClick={function(e){e.stopPropagation();}} style={{
-position: mobileSheet ? "fixed" : "absolute", ...s, width: mobileSheet ? undefined : 320, maxWidth: mobileSheet ? undefined : "min(320px, calc(100vw - " + (_pad * 2) + "px))",
+position: "fixed", ...s, width: mobileSheet ? undefined : 320, maxWidth: mobileSheet ? undefined : "min(320px, calc(100vw - " + (_pad * 2) + "px))",
 background: `linear-gradient(160deg, rgba(18,20,35,0.98), rgba(28,25,50,0.96))`,
 border: `1.5px solid ${accent}88`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
 zIndex: 30, cursor: dragOff?"grabbing":"grab",
@@ -1473,6 +1478,11 @@ return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: M
 });
 return [];
 }, [sd]);
+
+var _placeholders = useMemo(function() {
+return [{key:"_p1",display:"…",color:NC[0],w:0.5,shortDesc:"",domain:"life"},{key:"_p2",display:"…",color:NC[1],w:0.5,shortDesc:"",domain:"life"},{key:"_p3",display:"…",color:NC[2],w:0.5,shortDesc:"",domain:"life"},{key:"_p4",display:"…",color:NC[3],w:0.5,shortDesc:"",domain:"life"},{key:"_p5",display:"…",color:NC[4],w:0.5,shortDesc:"",domain:"life"}];
+}, []);
+const displayNodes = (nodes.length > 0 ? nodes : (needsSynthesis && synth.status === "loading" ? _placeholders : nodes));
 
 const conns = useMemo(() => {
 if (sd && sd.connections) return sd.connections.map(function(c) {
@@ -1640,16 +1650,16 @@ setFieldSize({ w: r.width, h: r.height }); fieldRef._fieldSizeSet = true;
 rafId = requestAnimationFrame(tryMeasure);
 }
 };
-rafId = requestAnimationFrame(tryMeasure);
+tryMeasure();
 
 return function() { if (rafId) cancelAnimationFrame(rafId); };
-}, [nodes.length]);
+}, [nodes.length, displayNodes.length]);
 
 useLayoutEffect(() => {
-if (nodes.length === 0 || !fieldSize) return;
+if (displayNodes.length === 0 || !fieldSize) return;
 if (fieldSize.w < 50 || fieldSize.h < 50) return; 
-if (Object.keys(pos).length >= nodes.length) return; 
-var n = nodes.length;
+if (Object.keys(pos).length >= displayNodes.length) return; 
+var n = displayNodes.length;
 var W = fieldSize.w;
 var H = fieldSize.h;
 var cx = W / 2;
@@ -1660,12 +1670,12 @@ var PAD_X = NODE_W / 2 + 10;
 var PAD_Y = NODE_H / 2 + 10;
 
 var adj = {};
-nodes.forEach(function(_, i) { adj[i] = []; });
+displayNodes.forEach(function(_, i) { adj[i] = []; });
 var edges = [];
 var allConns = (sd && sd.connections) ? sd.connections : [];
 allConns.forEach(function(c) {
 var ai = -1, bi = -1;
-nodes.forEach(function(nd, i) {
+displayNodes.forEach(function(nd, i) {
 if (nd.key === c.from) ai = i;
 if (nd.key === c.to) bi = i;
 });
@@ -1676,7 +1686,7 @@ adj[bi].push(ai);
 }
 });
 
-var degree = nodes.map(function(_, i) { return adj[i].length; });
+var degree = displayNodes.map(function(_, i) { return adj[i].length; });
 var maxDegree = Math.max.apply(null, degree.concat([1]));
 
 var order = [];
@@ -1691,7 +1701,7 @@ for (var i = 0; i < n; i++) { if (order.length >= n) break; visit(i); }
 for (var i = 0; i < n; i++) { if (order.indexOf(i) < 0) order.push(i); }
 var invOrder = order.map(function(_, i) { return order.indexOf(i); });
 
-var positions = nodes.map(function(nd, i) {
+var positions = displayNodes.map(function(nd, i) {
 var idx = invOrder[i];
 var angle = (idx / n) * 2 * Math.PI - Math.PI / 2;
 var radius = Math.min(W, H) * 0.32;
@@ -1711,7 +1721,7 @@ var K_DAMP = 0.72;
 var MARGIN_X = PAD_X + 20;
 var MARGIN_Y = PAD_Y + 20;
 
-var STEPS = 250;
+var STEPS = (nodes.length === 0 ? 60 : 250);
 for (var step = 0; step < STEPS; step++) {
 var cooling = 1 - (step / STEPS) * 0.85;
 
@@ -1795,11 +1805,11 @@ if (!moved) break;
 }
 
 var result = {};
-nodes.forEach(function(nd, i) {
+displayNodes.forEach(function(nd, i) {
 result[nd.key] = { x: positions[i].x, y: positions[i].y };
 });
 setPos(result);
-}, [nodes, fieldSize]);
+}, [displayNodes, fieldSize]);
 
 var hasConn = function(a,b){ return conns.some(function(c){ return (c.from===a&&c.to===b)||(c.from===b&&c.to===a); }); };
 var hasDiscovered = function(a,b){ return discoveredConns.some(function(c){ return (c.from===a&&c.to===b)||(c.from===b&&c.to===a); }); };
@@ -1829,6 +1839,7 @@ setTimeout(function() { setActiveConn(fb); }, 900);
 
 var handleNodeTap = function(key) {
 if (dragging) return;
+if (nodes.length === 0) return;
 if (!selectedNode) { setSelectedNode(key); return; }
 if (selectedNode === key) { setSelectedNode(null); return; }
 const a = selectedNode, b = key;
@@ -1841,7 +1852,7 @@ return;
 if (!anyConn(a, b)) makeConn(a, b);
 setSelectedNode(null);
 };
-var posReady = fieldSize && Object.keys(pos).length >= nodes.length;
+var posReady = fieldSize && Object.keys(pos).length >= displayNodes.length;
 var ctr = function(key) { var p=pos[key]; if(p) return { x: p.x+60, y: p.y+20 }; var fs=fieldSize; return fs ? {x:fs.w/2, y:fs.h/2} : {x:200,y:200}; };
 var mid = function(c) { var a=ctr(c.from),b=ctr(c.to); return {x:(a.x+b.x)/2,y:(a.y+b.y)/2}; };
 var edgePt = function(from, to) { var a=ctr(from),b=ctr(to); var dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||1; const r=40; return { x1: a.x+(dx/d)*r, y1: a.y+(dy/d)*r, x2: b.x-(dx/d)*r, y2: b.y-(dy/d)*r }; };
@@ -1875,6 +1886,7 @@ window.addEventListener("pointermove", m); window.addEventListener("pointerup", 
 return function(){ window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
 }, [pointerDownKey]);
 var startDrag = function(key, e) {
+if (nodes.length === 0) return;
 e.stopPropagation(); e.preventDefault();
 didDrag.current = false;
 var x = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
@@ -1905,7 +1917,7 @@ const newY = Math.max(0, Math.min(cy, r.height - 40));
 setPos(p => ({...p, [dragging.key]: {x: newX, y: newY}}));
 const dragCtr = { x: newX + 50, y: newY + 18 };
 let closest = null, closeDist = Infinity;
-nodes.forEach(n => {
+displayNodes.forEach(n => {
 if (n.key === dragging.key) return;
 const np = posRef.current[n.key]; if(!np) return;
 const nc = { x: np.x + 60, y: np.y + 20 };
@@ -2029,8 +2041,8 @@ const m=mid(c), k=K(c), resp=responses[k];
 if(!resp?.correction) return null;
 return <div key={"a-"+k} style={{ position:"absolute",left:m.x,top:m.y+16,transform:"translate(-50%,0)",fontSize:10,fontFamily:FD,fontStyle:"italic",color:"rgba(165,235,220,0.95)",maxWidth:140,textAlign:"center",lineHeight:1.3,animation:"riseUp 0.5s ease" }}>"{resp.correction.length>45?resp.correction.slice(0,43)+"…":resp.correction}"</div>;
 })}
-{nodes.map((n, ni) => {
-var _pi=nodes.indexOf(n); var _fbc=nodes.length; var _fbr=90; var p=pos[n.key]||{x:fieldSize?(fieldSize.w/2-55+Math.cos(2*Math.PI*_pi/_fbc)*_fbr):100, y:fieldSize?(fieldSize.h/2-18+Math.sin(2*Math.PI*_pi/_fbc)*_fbr):100}; const isDrag=dragging&&dragging.key===n.key;
+{displayNodes.map((n, ni) => {
+var _pi=displayNodes.indexOf(n); var _fbc=displayNodes.length; var _fbr=90; var p=pos[n.key]||{x:fieldSize?(fieldSize.w/2-55+Math.cos(2*Math.PI*_pi/_fbc)*_fbr):100, y:fieldSize?(fieldSize.h/2-18+Math.sin(2*Math.PI*_pi/_fbc)*_fbr):100}; const isDrag=dragging&&dragging.key===n.key;
 const isSel = selectedNode === n.key;
 const isSnap = snapTarget === n.key;
 const canLink = selectedNode && selectedNode !== n.key && !hasConn(selectedNode, n.key) && !hasDiscovered(selectedNode, n.key);
@@ -2160,7 +2172,8 @@ color:"#fff", cursor:"pointer"
 )}
 </div>
 )}
-{activeConn && <InsightDrawer
+{activeConn && ReactDOM.createPortal(
+<InsightDrawer
 connection={{nodeA:activeConn.from,nodeB:activeConn.to,label:activeConn.label,insight:activeConn.insight,color:activeConn.color,evidence_quote:activeConn.evidence_quote,whyFromShare:activeConn.whyFromShare,mechanism:activeConn.mechanism}}
 position={mid(activeConn)}
 isMobile={isMobile}
@@ -2187,7 +2200,9 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 })();
 }
 }}
-/>}
+/>,
+document.body
+)}
 </>
 </div>
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
