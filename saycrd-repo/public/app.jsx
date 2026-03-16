@@ -2,6 +2,7 @@ const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = R
 
 var PICKER_ACCENT = "#E84393";
 var PICKER_TRACK_INACTIVE = "#D0D0D0";
+function normalizeSentKey(t) { return (t || "").trim().replace(/\s+/g, " ").slice(0, 100); }
 var SENTENCE_FEEDBACK_OPTIONS = [
 { id: "lands_hard", label: "Lands Hard", color: "#A85A7A" },
 { id: "truth_revealed", label: "Truth Revealed", color: "#4A8A8A" },
@@ -13,6 +14,24 @@ var SENTENCE_FEEDBACK_OPTIONS = [
 
 function SentenceFeedbackButtons({ text, onFeedback, onClose }) {
 var [optionalNote, setOptionalNote] = useState("");
+var [showCommentBox, setShowCommentBox] = useState(false);
+var [pendingOption, setPendingOption] = useState(null);
+function handleChoice(o) {
+if (o.id === "doesnt_fit" || o.id === "not_feeling") {
+onFeedback && onFeedback(text, o.id, "");
+setPendingOption(o.id);
+setShowCommentBox(true);
+} else {
+onFeedback && onFeedback(text, o.id, "");
+onClose();
+}
+}
+function submitWithNote() {
+if (pendingOption) {
+onFeedback && onFeedback(text, pendingOption, optionalNote.trim());
+onClose();
+}
+}
 return (
 <div style={{ position: "relative", zIndex: 1, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)" }}>
 <button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(0,0,0,0.4)", fontFamily: FB }} aria-label="Close">×</button>
@@ -31,23 +50,26 @@ cursor: "pointer", transition: "all 0.2s",
 boxShadow: isRgba ? "none" : "0 1px 4px " + (c + "22")
 };
 return (
-<button key={o.id} onClick={function(){ onFeedback && onFeedback(text, o.id, optionalNote.trim()); onClose(); }} style={btnStyle}>
+<button key={o.id} onClick={function(){ handleChoice(o); }} style={btnStyle}>
 {o.label}
 </button>
 );
 })}
 </div>
-<div style={{ marginTop: 14 }}>
-<textarea placeholder="Optional: share what doesn't land or what you'd add" value={optionalNote} onChange={function(e){ setOptionalNote(e.target.value); }} style={{ width: "100%", minHeight: 56, padding: "10px 12px", fontSize: 12, fontFamily: FD, color: "rgba(0,0,0,0.72)", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, resize: "vertical", outline: "none", boxSizing: "border-box" }} rows={2} />
+{showCommentBox && (
+<div style={{ marginTop: 14, overflow: "hidden", animation: "slideDown 0.35s ease-out forwards" }}>
+<textarea placeholder="Share what doesn't land or what you'd add…" value={optionalNote} onChange={function(e){ setOptionalNote(e.target.value); }} style={{ width: "100%", minHeight: 80, padding: "14px 16px", fontSize: 17, fontFamily: FD, color: "rgba(0,0,0,0.82)", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }} rows={3} />
+<button onClick={submitWithNote} style={{ marginTop: 10, padding: "10px 20px", fontSize: 14, fontFamily: FB, fontWeight: 600, color: "#fff", background: "#4A8A8A", border: "none", borderRadius: 8, cursor: "pointer" }}>Save note</button>
 </div>
-<button onClick={onClose} style={{ marginTop: 10, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+)}
+<button onClick={function(){ if (pendingOption) { onFeedback && onFeedback(text, pendingOption, optionalNote.trim()); } onClose(); }} style={{ marginTop: 10, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>{showCommentBox ? "done" : "cancel"}</button>
 </div>
 );
 }
 
 function HighlightableText({ text, feedback, onFeedback, dark }) {
 var [open, setOpen] = useState(false);
-var key = (text || "").slice(0, 100);
+var key = normalizeSentKey(text);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var optColor = opt && (opt.color || PICKER_ACCENT);
 var isRgba = optColor && typeof optColor === "string" && optColor.indexOf("rgba") >= 0;
@@ -2576,12 +2598,12 @@ if (!text || text.trim().length === 0) return <span>{text}</span>;
 var sentences = text.match(/[^.!?]+[.!?]+[\u201D\u201C\u2019\u2018"']?\s*/g);
 if (!sentences || sentences.length === 0) {
 var t = text.trim();
-var key = t.slice(0, 100);
+var key = normalizeSentKey(t);
 return <HighlightableText text={t} feedback={feedbackMap ? feedbackMap[key] : null} onFeedback={onFeedback} dark={dark} />;
 }
 return <span>{sentences.map(function(s, i) {
 var t = s.trim();
-var key = t.slice(0, 100);
+var key = normalizeSentKey(t);
 return <HighlightableText key={i} text={t} feedback={feedbackMap ? feedbackMap[key] : null} onFeedback={onFeedback} dark={dark} />;
 })}</span>;
 }
@@ -2667,8 +2689,11 @@ return note.toLowerCase().replace(/[^a-z\s]/g,"").split(/\s+/).filter(function(w
 
 
 function handleSentenceFeedback(text, optionId, optionalComment) {
-var key = (text || "").slice(0, 100);
+var key = normalizeSentKey(text);
 setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
+if (optionalComment && optionalComment.trim()) {
+setCorrections(function(prev){ return Object.assign({}, prev, { [key]: optionalComment.trim() }); });
+}
 if (optionId === "not_feeling" || optionId === "doesnt_fit") {
 if (optionalComment && optionalComment.trim()) {
 fireRevision(optionalComment.trim(), text);
@@ -2825,7 +2850,7 @@ background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", 
 <div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#B86BFF", fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>what{"'"}s underneath</div>
 </div>
 {underneath.map(function(t, i) {
-var uKey = (t || "").slice(0, 100);
+var uKey = normalizeSentKey(t);
 var uFb = sentenceFeedback[uKey];
 var opt = uFb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === uFb; }) : null;
 var optC = opt && (opt.color || PICKER_ACCENT);
@@ -2853,11 +2878,11 @@ background: optC || "#B86BFF", opacity: 0.5 }} />
 </div>
 {(revisedSynthesis && revisedSynthesis.tension_text
 ? <p style={{ fontSize: 15, color: "rgba(255,255,255,0.72)", fontFamily: FD, lineHeight: 1.6, margin: "0 0 4px" }}>
-<HighlightableText text={revisedSynthesis.tension_text} feedback={sentenceFeedback[(revisedSynthesis.tension_text||"").slice(0,100)]} onFeedback={handleSentenceFeedback} dark />
+<HighlightableText text={revisedSynthesis.tension_text} feedback={sentenceFeedback[normalizeSentKey(revisedSynthesis.tension_text||"")]} onFeedback={handleSentenceFeedback} dark />
 <span style={{ fontSize: 9, color: "rgba(255,96,144,0.4)", fontFamily: FB, letterSpacing: "0.2em", marginLeft: 8 }}>revised</span>
 </p>
 : tension.text && <p style={{ fontSize: 15, color: "rgba(255,255,255,0.62)", fontFamily: FD, lineHeight: 1.6, margin: "0 0 12px" }}>
-<HighlightableText text={tension.text} feedback={sentenceFeedback[(tension.text||"").slice(0,100)]} onFeedback={handleSentenceFeedback} dark />
+<HighlightableText text={tension.text} feedback={sentenceFeedback[normalizeSentKey(tension.text||"")]} onFeedback={handleSentenceFeedback} dark />
 </p>
 )}
 {!reactions["tension"] && <div style={{ display: "flex", gap: 8 }}>
@@ -7574,7 +7599,7 @@ var [_editingSentence, _setEditingSentence] = useState(null);
 var _mergedReportFb = Object.assign({}, propSentenceFeedback || {}, _sentenceFeedback || {});
 function _handleReportSentenceClick(s) { _setEditingSentence(s); }
 function _handleReportSentenceFeedback(text, optionId, optionalComment) {
-var key = (text || "").slice(0, 100);
+var key = normalizeSentKey(text);
 _setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
 onSentenceFeedback && onSentenceFeedback(text, optionId, optionalComment);
 _setEditingSentence(null);
@@ -8053,13 +8078,14 @@ return (
 {sentences.map(function(sent, si) {
 var s = sent.trim();
 if (!s) return null;
-var key = s.slice(0, 100);
+var key = normalizeSentKey(s);
 var fb = sentenceFeedback && sentenceFeedback[key];
 var opt = fb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === fb; }) : null;
 var optC = opt && (opt.color || PICKER_ACCENT);
 var _isRgba = optC && typeof optC === "string" && optC.indexOf("rgba") >= 0;
 var _bg = optC ? (_isRgba ? "rgba(0,0,0,0.06)" : optC + "28") : "transparent";
 var _bord = optC ? (_isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optC) : "1px solid transparent";
+var _txtColor = optC ? (_isRgba ? "rgba(0,0,0,0.72)" : optC) : "inherit";
 return (
 <span key={si}>
 <span
@@ -8071,6 +8097,7 @@ padding: "2px 4px",
 margin: "0 1px",
 background: _bg,
 borderBottom: _bord,
+color: _txtColor,
 transition: "all 0.2s",
 }}
 onMouseEnter={function(e){ if(!fb) e.currentTarget.style.background="rgba(0,0,0,0.04)"; }}
@@ -8724,7 +8751,7 @@ var [cardComments, setCardComments] = useState({});
 function setCardComment(key, text) { setCardComments(function(prev) { return Object.assign({}, prev, {[key]: text}); }); }
 var [fieldCardSentenceFeedback, setFieldCardSentenceFeedback] = useState({});
 function handleFieldCardFeedback(text, optionId, optionalComment) {
-var key = (text || "").slice(0, 100);
+var key = normalizeSentKey(text);
 setFieldCardSentenceFeedback(function(prev) {
 var next = Object.assign({}, prev, { [key]: optionId });
 try {
@@ -10493,6 +10520,7 @@ return (
 @keyframes phaseIn{from{opacity:0.6}to{opacity:1}}
 @keyframes morphIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
 @keyframes riseUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideDown{from{opacity:0;max-height:0}to{opacity:1;max-height:200px}}
 @keyframes pulse{0%,100%{opacity:0.7}50%{opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes growWidth{from{width:0%}}
