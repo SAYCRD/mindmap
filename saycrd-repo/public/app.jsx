@@ -1455,6 +1455,46 @@ var synth = useSynthesis(rawText, {
 onSynthesis: onSynthesis,
 enabled: !!needsSynthesis
 });
+const [activeConn, setActiveConn] = useState(null);
+const [responses, setResponses] = useState({});
+const [dragging, setDragging] = useState(null);
+const [selectedNode, setSelectedNode] = useState(null);
+const [discoveredConns, setDiscoveredConns] = useState([]);
+const [snapTarget, setSnapTarget] = useState(null);
+const SNAP_DIST = 130;
+
+const sd = synthesisData;
+const nodes = useMemo(() => {
+if (sd && sd.themes) return sd.themes.map(function(t, i) {
+var label = t.label || "";
+var shortDesc = t.short_desc || t.why || "";
+var domain = inferLifeDomain(shortDesc, label);
+return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1), shortDesc: shortDesc, domain: domain };
+});
+return [];
+}, [sd]);
+
+const conns = useMemo(() => {
+if (sd && sd.connections) return sd.connections.map(function(c) {
+return {
+from: c.from,
+to: c.to,
+label: (c.label || c.operator || "linked").toUpperCase(),
+operator: c.operator || null,
+claim: c.claim || null,
+evidence_quote: c.evidence_quote || c.quote || null,
+mechanism: c.mechanism || null,
+cost: c.cost || null,
+unlock: c.unlock || null,
+question: c.question || null,
+voltage: c.voltage || null,
+insight: c.insight || "",
+color: c.color || NC[0]
+};
+});
+return [];
+}, [sd]);
+
 if (needsSynthesis) {
 if (synth.status === "crisis") {
 return (
@@ -1499,45 +1539,6 @@ return (
 </div>
 );
 }
-const [activeConn, setActiveConn] = useState(null);
-const [responses, setResponses] = useState({});
-const [dragging, setDragging] = useState(null);
-const [selectedNode, setSelectedNode] = useState(null);
-const [discoveredConns, setDiscoveredConns] = useState([]);
-const [snapTarget, setSnapTarget] = useState(null);
-const SNAP_DIST = 130;
-
-const sd = synthesisData;
-const nodes = useMemo(() => {
-if (sd && sd.themes) return sd.themes.map(function(t, i) {
-var label = t.label || "";
-var shortDesc = t.short_desc || t.why || "";
-var domain = inferLifeDomain(shortDesc, label);
-return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: Math.min(t.weight / 5, 1), shortDesc: shortDesc, domain: domain };
-});
-return [];
-}, [sd]);
-
-const conns = useMemo(() => {
-if (sd && sd.connections) return sd.connections.map(function(c) {
-return {
-from: c.from,
-to: c.to,
-label: (c.label || c.operator || "linked").toUpperCase(),
-operator: c.operator || null,
-claim: c.claim || null,
-evidence_quote: c.evidence_quote || c.quote || null,
-mechanism: c.mechanism || null,
-cost: c.cost || null,
-unlock: c.unlock || null,
-question: c.question || null,
-voltage: c.voltage || null,
-insight: c.insight || "",
-color: c.color || NC[0]
-};
-});
-return [];
-}, [sd]);
 
 function extractSnippet(txt, label) {
 try {
