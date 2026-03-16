@@ -19,37 +19,45 @@ var SENTENCE_FEEDBACK_OPTIONS = [
 { id: "not_feeling", label: "Not Feeling That", color: "#64748B" },
 ];
 
-function SentenceFeedbackButtons({ text, onFeedback, onClose }) {
+function SentenceFeedbackButtons({ text, onFeedback, onClose, onGreyFlowActive }) {
 var [optionalNote, setOptionalNote] = useState("");
 var [showCommentBox, setShowCommentBox] = useState(false);
 var [pendingOption, setPendingOption] = useState(null);
+var textareaRef = useRef(null);
+useEffect(function(){ if (showCommentBox && textareaRef.current) textareaRef.current.focus(); }, [showCommentBox]);
 function handleChoice(o) {
 if (o.id === "doesnt_fit" || o.id === "not_feeling") {
-onFeedback && onFeedback(text, o.id, "");
 setPendingOption(o.id);
 setShowCommentBox(true);
+onGreyFlowActive && onGreyFlowActive(true);
 } else {
 onFeedback && onFeedback(text, o.id, "");
 onClose();
 }
 }
-function submitWithNote() {
-if (pendingOption) {
-onFeedback && onFeedback(text, pendingOption, optionalNote.trim());
+function submit(includeNote) {
+if (!pendingOption) return;
+var note = includeNote ? optionalNote.trim() : "";
+onFeedback && onFeedback(text, pendingOption, note);
+onGreyFlowActive && onGreyFlowActive(false);
 onClose();
 }
+function handleKeyDown(e) {
+if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(true); }
 }
 return (
-<div style={{ position: "relative", zIndex: 1, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)" }}>
-<button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(0,0,0,0.4)", fontFamily: FB }} aria-label="Close">×</button>
-<div style={{ fontSize: 10, letterSpacing: "0.35em", color: "rgba(0,0,0,0.45)", fontFamily: FB, marginBottom: 10 }}>How did this land?</div>
-<div style={{ fontSize: 13, color: "rgba(0,0,0,0.72)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5, padding: "12px 14px", background: "rgba(0,0,0,0.02)", borderRadius: 10 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+<div style={{ position: "relative", zIndex: 1, background: "#fff", borderRadius: 20, padding: "28px 32px", maxWidth: 400, boxShadow: "0 32px 80px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+{!showCommentBox && (
+<button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.04)", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
+)}
+<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
+<div style={{ fontSize: 14, color: "rgba(0,0,0,0.75)", fontFamily: FD, fontStyle: "italic", marginBottom: 20, lineHeight: 1.5, padding: "14px 16px", background: "rgba(0,0,0,0.03)", borderRadius: 12 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
+<div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
 {SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
 var isRgba = (o.color && typeof o.color === "string" && o.color.indexOf("rgba") >= 0);
 var c = isRgba ? null : (o.color || PICKER_ACCENT);
 var btnStyle = {
-padding: "10px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.04em", borderRadius: 8,
+padding: "10px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.04em", borderRadius: 10,
 border: isRgba ? "1px solid rgba(0,0,0,0.1)" : "1px solid " + (c + "55"),
 background: isRgba ? "rgba(0,0,0,0.06)" : (c + "20"),
 color: isRgba ? "rgba(0,0,0,0.72)" : c,
@@ -64,18 +72,26 @@ return (
 })}
 </div>
 {showCommentBox && (
-<div style={{ marginTop: 14, overflow: "hidden", animation: "slideDown 0.35s ease-out forwards" }}>
-<textarea placeholder="Share what doesn't land or what you'd add…" value={optionalNote} onChange={function(e){ setOptionalNote(e.target.value); }} style={{ width: "100%", minHeight: 80, padding: "14px 16px", fontSize: 17, fontFamily: FD, color: "rgba(0,0,0,0.82)", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }} rows={3} />
-<button onClick={submitWithNote} style={{ marginTop: 10, padding: "10px 20px", fontSize: 14, fontFamily: FB, fontWeight: 600, color: "#fff", background: "#4A8A8A", border: "none", borderRadius: 8, cursor: "pointer" }}>Save note</button>
+<div style={{ marginTop: 20, overflow: "hidden", animation: "slideDown 0.35s ease-out forwards" }}>
+<div style={{ fontSize: 12, letterSpacing: "0.08em", color: "rgba(0,0,0,0.55)", fontFamily: FB, marginBottom: 10 }}>What would you add or change?</div>
+<textarea ref={textareaRef} placeholder="Share what doesn't land or what you'd say instead…" value={optionalNote} onChange={function(e){ setOptionalNote(e.target.value); }} onKeyDown={handleKeyDown} style={{ width: "100%", minHeight: 100, padding: "16px 18px", fontSize: 16, fontFamily: FD, color: "rgba(0,0,0,0.85)", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }} rows={3} />
+<div style={{ fontSize: 11, color: "rgba(0,0,0,0.4)", fontFamily: FB, marginTop: 8 }}>Press Enter to save</div>
+<div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+<button onClick={function(){ submit(true); }} style={{ padding: "12px 24px", fontSize: 14, fontFamily: FB, fontWeight: 600, color: "#fff", background: "#4A8A8A", border: "none", borderRadius: 12, cursor: "pointer", boxShadow: "0 2px 4px rgba(74,138,138,0.3)" }}>Save note</button>
+<button onClick={function(){ submit(false); }} style={{ padding: "12px 20px", fontSize: 13, fontFamily: FB, color: "rgba(0,0,0,0.5)", background: "none", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 12, cursor: "pointer" }}>Done without note</button>
+</div>
 </div>
 )}
-<button onClick={function(){ if (pendingOption) { onFeedback && onFeedback(text, pendingOption, optionalNote.trim()); } onClose(); }} style={{ marginTop: 10, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>{showCommentBox ? "done" : "cancel"}</button>
+{!showCommentBox && (
+<button onClick={onClose} style={{ marginTop: 14, fontSize: 12, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+)}
 </div>
 );
 }
 
 function HighlightableText({ text, feedback, onFeedback, dark }) {
 var [open, setOpen] = useState(false);
+var [greyFlowActive, setGreyFlowActive] = useState(false);
 var key = normalizeSentKey(text);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var optColor = opt && (opt.color || PICKER_ACCENT);
@@ -106,9 +122,9 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 </span>
 {open && ReactDOM.createPortal(
 <div style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
-onClick={function(){ setOpen(false); }}>
+onClick={function(){ if (!greyFlowActive) { setOpen(false); setGreyFlowActive(false); } }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackButtons text={text} onFeedback={function(_text, optionId, optionalComment){ onFeedback && onFeedback(text, optionId, optionalComment); setOpen(false); }} onClose={function(){ setOpen(false); }} />
+<SentenceFeedbackButtons text={text} onFeedback={function(_text, optionId, optionalComment){ onFeedback && onFeedback(text, optionId, optionalComment); setOpen(false); setGreyFlowActive(false); }} onClose={function(){ setOpen(false); setGreyFlowActive(false); }} onGreyFlowActive={setGreyFlowActive} />
 </div>
 </div>,
 document.body
@@ -2763,11 +2779,6 @@ setCorrections(function(prev){ return Object.assign({}, prev, { [key]: optionalC
 if (optionId === "not_feeling" || optionId === "doesnt_fit") {
 if (optionalComment && optionalComment.trim()) {
 fireRevision(optionalComment.trim(), text);
-} else {
-setTimeout(function(){ if (window.confirm && window.confirm("Add a note about what's different?")) {
-var note = window.prompt("What would you say instead?");
-if (note && note.trim()) fireRevision(note.trim(), text);
-}}, 100);
 }
 }
 }
@@ -7664,6 +7675,7 @@ var [_notesSummary, _setNotesSummary] = useState("");
 var [_notesSummarizing, _setNotesSummarizing] = useState(false);
 var [_sentenceFeedback, _setSentenceFeedback] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sentenceFeedback ? l.sentenceFeedback : {}; } catch(e){ return {}; } });
 var [_editingSentence, _setEditingSentence] = useState(null);
+var [_greyFlowActive, _setGreyFlowActive] = useState(false);
 var _mergedReportFb = Object.assign({}, propSentenceFeedback || {}, _sentenceFeedback || {});
 function _handleReportSentenceClick(s) { _setEditingSentence(s); }
 function _handleReportSentenceFeedback(text, optionId, optionalComment) {
@@ -8206,9 +8218,9 @@ background:"#F9F9F7", display:"flex", flexDirection:"column",
 fontFamily:FB }}>
 {_editingSentence && ReactDOM.createPortal(
 <div style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
-onClick={function(){ _setEditingSentence(null); }}>
+onClick={function(){ if (!_greyFlowActive) { _setEditingSentence(null); _setGreyFlowActive(false); } }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackButtons text={_editingSentence} onFeedback={function(text, id, comment){ _handleReportSentenceFeedback(text, id, comment); _setEditingSentence(null); }} onClose={function(){ _setEditingSentence(null); }} />
+<SentenceFeedbackButtons text={_editingSentence} onFeedback={function(text, id, comment){ _handleReportSentenceFeedback(text, id, comment); _setEditingSentence(null); _setGreyFlowActive(false); }} onClose={function(){ _setEditingSentence(null); _setGreyFlowActive(false); }} onGreyFlowActive={_setGreyFlowActive} />
 </div>
 </div>,
 document.body
