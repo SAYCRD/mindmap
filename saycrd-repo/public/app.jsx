@@ -10,8 +10,65 @@ var SENTENCE_FEEDBACK_OPTIONS = [
 { id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#8B8B8B" },
 { id: "not_feeling", label: "Not Feeling That", color: "#6B6B6B" },
 ];
+var SENTENCE_FEEDBACK_SLIDER_ORDER = ["not_feeling", "doesnt_fit", "something_to_consider", "hadnt_thought", "truth_revealed", "lands_hard"];
 
-function HighlightableText({ text, feedback, onFeedback, dark }) {
+function SentenceFeedbackModal({ text, feedback, onFeedback, onClose }) {
+var sliderOrder = SENTENCE_FEEDBACK_SLIDER_ORDER;
+var initialIdx = feedback ? sliderOrder.indexOf(feedback) : 2;
+if (initialIdx < 0) initialIdx = 2;
+var [sliderVal, setSliderVal] = useState(initialIdx * 20);
+var [note, setNote] = useState("");
+var trackRef = useRef(null);
+var [dragging, setDragging] = useState(false);
+function valueToIdx(v) { return Math.round(Math.max(0, Math.min(100, v)) / 20); }
+function idxToValue(i) { return Math.max(0, Math.min(5, i)) * 20; }
+function handleSlide(clientX) {
+var r = trackRef.current ? trackRef.current.getBoundingClientRect() : null;
+if (!r) return;
+var pct = (clientX - r.left) / r.width * 100;
+var idx = valueToIdx(pct);
+setSliderVal(idxToValue(idx));
+}
+function handleSend() {
+var idx = valueToIdx(sliderVal);
+var optId = sliderOrder[idx];
+onFeedback && onFeedback(text, optId);
+onClose();
+}
+useEffect(function() {
+if (!dragging) return;
+function m(e){ handleSlide(e.clientX); }
+function u(){ setDragging(false); }
+window.addEventListener("pointermove", m);
+window.addEventListener("pointerup", u);
+return function(){ window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
+}, [dragging]);
+return (
+<div style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 20, padding: "28px 32px", maxWidth: 360, boxShadow: "0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08) inset", border: "none" }}>
+<button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
+<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
+<div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 20, lineHeight: 1.5, padding: "14px 16px", background: "rgba(0,0,0,0.03)", borderRadius: 12 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
+<div style={{ fontSize: 12, color: "rgba(0,0,0,0.6)", fontFamily: FB, marginBottom: 12 }}>Slide to match how it felt.</div>
+<div ref={trackRef} onPointerDown={function(e){ e.preventDefault(); setDragging(true); handleSlide(e.clientX); }} style={{ position: "relative", height: 28, display: "flex", alignItems: "center", cursor: "pointer", touchAction: "none" }}>
+<div style={{ position: "absolute", left: 0, right: 0, height: 6, borderRadius: 3, background: PICKER_TRACK_INACTIVE }} />
+<div style={{ position: "absolute", left: 0, height: 6, width: sliderVal + "%", borderRadius: 3, background: PICKER_ACCENT, transition: dragging ? "none" : "width 0.15s ease" }} />
+<div style={{ position: "absolute", left: sliderVal + "%", transform: "translateX(-50%)", width: 22, height: 22, borderRadius: "50%", background: PICKER_ACCENT, boxShadow: "0 2px 8px rgba(232,67,147,0.4)", cursor: "grab", transition: dragging ? "none" : "left 0.15s ease" }} />
+</div>
+<div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, padding: "0 2px" }}>
+{sliderOrder.map(function(id, i) {
+var opt = SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === id; });
+return <div key={id} style={{ width: "16.66%", textAlign: "center", fontSize: 9, color: "rgba(0,0,0,0.5)", fontFamily: FB, lineHeight: 1.3 }}>{opt ? opt.label : id}</div>;
+})}
+</div>
+<div style={{ marginTop: 20, fontSize: 11, color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 8 }}>Optional: add a note...</div>
+<textarea value={note} onChange={function(e){ setNote(e.target.value); }} placeholder="" style={{ width: "100%", minHeight: 64, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", background: "rgba(0,0,0,0.02)", fontSize: 13, fontFamily: FD, resize: "none", outline: "none", boxSizing: "border-box" }} />
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
+<button onClick={onClose} style={{ fontSize: 12, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
+<button onClick={handleSend} style={{ padding: "12px 28px", borderRadius: 20, border: "none", background: PICKER_ACCENT, color: "#fff", fontSize: 13, fontFamily: FB, fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 12px rgba(232,67,147,0.35)" }}>Send</button>
+</div>
+</div>
+);
+}
 var [open, setOpen] = useState(false);
 var key = (text || "").slice(0, 100);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
@@ -38,25 +95,8 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 {open && (
 <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ setOpen(false); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 20, padding: "28px 32px", maxWidth: 360, boxShadow: "0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08) inset", border: "none" }}>
-<button onClick={function(){ setOpen(false); }} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
-<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
-<div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-{SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
-var c = o.color || PICKER_ACCENT;
-var isRgba = (c && typeof c === "string" && c.indexOf("rgba") >= 0);
-return (
-<button key={o.id} onClick={function(){
-onFeedback && onFeedback(text, o.id);
-setOpen(false);
-}} style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : c, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + c + "44" }}>
-{o.label}
-</button>
-);
-})}
-</div>
-<button onClick={function(){ setOpen(false); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+<div onClick={function(e){ e.stopPropagation(); }}>
+<SentenceFeedbackModal text={text} onFeedback={function(id){ onFeedback && onFeedback(text, id); setOpen(false); }} onClose={function(){ setOpen(false); }} />
 </div>
 </div>
 )}
@@ -144,7 +184,7 @@ return <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointer
 </div>;
 }
 
-function ProcessingScreen({ stage, label, sublabel, palette }) {
+function ProcessingScreen({ stage, label, sublabel, palette, wrapStyle }) {
 var colors = palette || ["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"];
 var shafts = [{ x: 18, w: 6, dur: 8, delay: 0, opacity: 0.05 }, { x: 42, w: 10, dur: 11, delay: -3, opacity: 0.07 }, { x: 67, w: 7, dur: 9, delay: -5.5, opacity: 0.06 }, { x: 82, w: 5, dur: 13, delay: -1.5, opacity: 0.04 }];
 var particles = useMemo(function() {
@@ -156,7 +196,7 @@ pts.push({ x: ((seed * 7.3) % 100), y: ((seed * 3.1) % 100), size: 1 + (pi % 3) 
 return pts;
 }, [colors]);
 return (
-<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)" }}>
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)", ...(wrapStyle || {}) }}>
 <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "22%", background: "linear-gradient(180deg, #0A3A4A44 0%, transparent 100%)" }}/>
 <div style={{ position: "absolute", top: "25%", left: 0, right: 0, height: "35%", background: "linear-gradient(180deg, transparent, #050A3022 50%, transparent)" }}/>
@@ -184,6 +224,52 @@ return (
 {sublabel && <div style={{ marginTop: 12, fontSize: 14, color: "rgba(150,200,255,0.55)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both" }}>{sublabel}</div>}
 </div>
 <div style={{ position: "absolute", bottom: "18%", left: 0, right: 0, zIndex: 2 }}>{stage}</div>
+</div>
+);
+}
+
+function MapRevealCinematic({ themes, connections, mapTitle }) {
+themes = themes || [];
+connections = connections || [];
+var n = themes.length;
+var cx = 150; var cy = 100; var r = 72;
+var positions = themes.map(function(_, i) {
+var angle = (Math.PI * 2 * i / Math.max(n, 1)) - Math.PI / 2;
+return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+});
+var labelByKey = {};
+themes.forEach(function(t) { labelByKey[t.label] = t; });
+return (
+<div style={{ width: "100%", maxWidth: 320, margin: "0 auto" }}>
+<svg viewBox="0 0 300 200" style={{ width: "100%", height: 140 }}>
+<defs>
+<filter id="nodeGlow"><feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+{connections.slice(0, 6).map(function(conn, ci) {
+var fromIdx = themes.findIndex(function(t){ return t.label === conn.from; });
+var toIdx = themes.findIndex(function(t){ return t.label === conn.to; });
+if (fromIdx < 0 || toIdx < 0) return null;
+var p1 = positions[fromIdx]; var p2 = positions[toIdx];
+var midDelay = Math.max(fromIdx, toIdx) * 0.4 + 0.5;
+return (
+<line key={ci} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={(themes[fromIdx] && themes[fromIdx].color) || "#6BB8FF"} strokeWidth="1.5" opacity="0.6" fill="none" strokeDasharray="200" strokeDashoffset="200" style={{ animation: "connectionReveal 0.8s ease-out forwards", animationDelay: midDelay + "s" }}/>
+);
+})}
+{themes.map(function(t, i) {
+var p = positions[i];
+var col = t.color || "#6BB8FF";
+return (
+<g key={i} filter="url(#nodeGlow)" style={{ animation: "themeReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards", animationDelay: (i * 0.38) + "s", opacity: 0 }}>
+<circle cx={p.x} cy={p.y} r="18" fill={col + "30"} stroke={col} strokeWidth="2" opacity="0.9"/>
+<text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="9" fontFamily={FB} fontWeight="600" fill="rgba(255,255,255,0.95)" style={{ pointerEvents: "none" }}>{(t.label || "").slice(0, 12)}{(t.label || "").length > 12 ? "…" : ""}</text>
+</g>
+);
+})}
+</svg>
+<div style={{ textAlign: "center", marginTop: 12, animation: "mapTitleReveal 0.9s ease-out 2.2s forwards", opacity: 0 }}>
+<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 4 }}>YOUR MAP</div>
+<div style={{ fontSize: 13, color: "rgba(200,235,255,0.85)", fontFamily: FD, fontStyle: "italic" }}>{(mapTitle && String(mapTitle).trim()) ? mapTitle : (themes.length ? themes.length + " themes from your words" : "Ready")}</div>
+</div>
 </div>
 );
 }
@@ -593,10 +679,13 @@ return (
 );
 }
 
+var REVEAL_DURATION_MS = 4200;
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
 const [err, setErr] = useState(null);
 const [crisisState, setCrisisState] = useState(null);
+const [revealData, setRevealData] = useState(null);
+const [revealFadeOut, setRevealFadeOut] = useState(false);
 const ran = useRef(false);
 useEffect(function crisisCheck() {
   if (!rawText) { setCrisisState("cleared"); return; }
@@ -914,8 +1003,10 @@ if (data.connections) data.connections = data.connections.map(function(c) {
 var ft = (data.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
+setRevealData(data);
 onSynthesis(data);
-setTimeout(onComplete, 1200);
+setTimeout(function(){ setRevealFadeOut(true); }, REVEAL_DURATION_MS - 700);
+setTimeout(onComplete, REVEAL_DURATION_MS);
 } else { throw new Error("No themes parsed from AI response"); }
 } catch (e) {
 console.error("[SAYCRD] Synthesis error:", e);
@@ -982,8 +1073,9 @@ Continue
 </div>
 ) : (
 <ProcessingScreen
-label={step===0?"Reading your words":step===1?"Finding what's underneath":"Building your map"}
-sublabel={step===0?"Your words are being absorbed - the AI is matching patterns in what you wrote":(step===1?"Extracting themes, connections, and the structure beneath":"Themes, connections, and archetype are forming into your map")}
+wrapStyle={revealFadeOut ? { animation: "revealFadeOut 0.7s ease-out forwards" } : {}}
+label={step===0?"Reading your words":step===1?"Finding what's underneath":(revealData && revealData.themes ? "Your map" : "Building your map")}
+sublabel={step===0?"Your words are being absorbed - the AI is matching patterns in what you wrote":(step===1?"Extracting themes, connections, and the structure beneath":(revealData && revealData.themes ? "What the AI found in your words" : "Themes, connections, and archetype are forming"))}
 palette={["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"]}
 stage={
 step===0 ? (
@@ -994,6 +1086,8 @@ return <span key={i} style={{ fontSize: 11, color: "rgba(107,184,255,"+(0.25+i*0
 </div>
 ) : step===1 ? (
 <svg viewBox="0 0 200 80" style={{ width: "100%", maxWidth: 280, height: 70 }}><g fill="none" stroke="rgba(107,184,255,0.4)" strokeWidth="1.2"><circle cx="50" cy="35" r="12" style={{ animation: "ringPulse 2.5s ease infinite" }}/><circle cx="110" cy="25" r="10" style={{ animation: "ringPulse 2.5s ease 0.3s infinite" }}/><circle cx="150" cy="45" r="8" style={{ animation: "ringPulse 2.5s ease 0.6s infinite" }}/><circle cx="85" cy="55" r="9" style={{ animation: "ringPulse 2.5s ease 0.9s infinite" }}/><line x1="62" y1="35" x2="100" y2="28" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear infinite" }}/><line x1="120" y1="28" x2="142" y2="42" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear 0.5s infinite" }}/><line x1="95" y1="52" x2="58" y2="42" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear 1s infinite" }}/></g></svg>
+) : revealData && revealData.themes && revealData.themes.length > 0 ? (
+<MapRevealCinematic themes={revealData.themes} connections={revealData.connections || []} mapTitle={revealData.map_title || revealData.mapTitle} />
 ) : (
 <svg viewBox="0 0 200 90" style={{ width: "100%", maxWidth: 280, height: 75 }}><g fill="none"><circle cx="60" cy="35" r="14" fill="rgba(78,201,184,0.25)" stroke="#4EC9B8" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease infinite" }}/><circle cx="140" cy="30" r="12" fill="rgba(107,184,255,0.25)" stroke="#6BB8FF" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.2s infinite" }}/><circle cx="100" cy="60" r="10" fill="rgba(167,139,250,0.25)" stroke="#A78BFA" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.4s infinite" }}/><path d="M 74 35 Q 100 20 126 30" stroke="#6BB8FF" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear infinite" }}/><path d="M 68 45 Q 85 55 92 58" stroke="#A78BFA" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.3s infinite" }}/><path d="M 128 38 Q 125 50 108 56" stroke="#4EC9B8" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.6s infinite" }}/></g></svg>
 )
@@ -7902,23 +7996,8 @@ fontFamily:FB }}>
 {_editingSentence && (
 <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ _setEditingSentence(null); }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 20, padding: "28px 32px", maxWidth: 360, boxShadow: "0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08) inset", border: "none" }}>
-<button onClick={function(){ _setEditingSentence(null); }} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
-<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
-<div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5 }}>"{_editingSentence.length > 80 ? _editingSentence.slice(0,77)+"…" : _editingSentence}"</div>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-{SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
-var c = o.color || PICKER_ACCENT;
-var isRgba = (c && typeof c === "string" && c.indexOf("rgba") >= 0);
-return (
-<button key={o.id} onClick={function(){ _handleReportSentenceFeedback(_editingSentence, o.id); }}
-style={{ padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 20, border: "none", background: isRgba ? "rgba(0,0,0,0.12)" : c, color: isRgba ? "rgba(0,0,0,0.85)" : "#fff", cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 2px 8px " + c + "44" }}>
-{o.label}
-</button>
-);
-})}
-</div>
-<button onClick={function(){ _setEditingSentence(null); }} style={{ marginTop: 16, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+<div onClick={function(e){ e.stopPropagation(); }}>
+<SentenceFeedbackModal text={_editingSentence} onFeedback={function(id){ _handleReportSentenceFeedback(_editingSentence, id); _setEditingSentence(null); }} onClose={function(){ _setEditingSentence(null); }} />
 </div>
 </div>
 )}
@@ -10315,6 +10394,10 @@ return (
 @keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
 @keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes themeReveal{0%{opacity:0;transform:translateY(8px) scale(0.85)}70%{opacity:1;transform:translateY(0) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes connectionReveal{0%{stroke-dashoffset:200}100%{stroke-dashoffset:0}}
+@keyframes mapTitleReveal{0%{opacity:0;transform:scale(0.9);filter:blur(4px)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
+@keyframes revealFadeOut{0%{opacity:1}100%{opacity:0}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
