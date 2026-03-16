@@ -911,141 +911,8 @@ return (
 
 var REVEAL_DURATION_MS = 20000;
 var MIN_FINDING_MS = 6000;
-function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
-const [step, setStep] = useState(0);
-const [err, setErr] = useState(null);
-const [crisisState, setCrisisState] = useState(null);
-const [revealData, setRevealData] = useState(null);
-const [revealFadeOut, setRevealFadeOut] = useState(false);
-const [findingPhase, setFindingPhase] = useState(null);
-const [findingDetail, setFindingDetail] = useState("");
-const ran = useRef(false);
-const step1Start = useRef(null);
-useEffect(function crisisCheck() {
-  if (!rawText) { setCrisisState("cleared"); return; }
-  if (crisisState !== null) return;
-  setCrisisState(checkCrisisText(rawText) ? "detected" : "cleared");
-}, [rawText, crisisState]);
-useEffect(() => {
-if (crisisState !== "cleared") return;
-if (ran.current) return; ran.current = true;
-var t1 = setTimeout(function() { step1Start.current = Date.now(); setStep(1); }, 800);
 
-var prevSessions = [];
-try { prevSessions = loadSessions(); } catch(e) {}
-var temporalContext = "";
-if (prevSessions.length > 0) {
-var now = Date.now();
-temporalContext = "\n\nPREVIOUS SESSIONS (for temporal awareness — respect time gaps):\n";
-prevSessions.slice(-6).forEach(function(s) {
-var d = new Date(s.date);
-var daysAgo = Math.round((now - d.getTime()) / 86400000);
-var when = daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : daysAgo < 7 ? daysAgo + " days ago" : daysAgo < 30 ? Math.round(daysAgo / 7) + " weeks ago" : Math.round(daysAgo / 30) + " months ago";
-var themes = (s.themes || []).map(function(t) { return t.label; }).join(", ");
-var archs = (s.archetypes || []).map(function(a) {
-var key = typeof a === "string" ? a : a.key;
-var phase = a.phase || "";
-var resp = s.archetypeResponse && s.archetypeResponse.key === key ? s.archetypeResponse.response : "";
-return key + (phase ? "@" + phase : "") + (resp ? "(" + resp + ")" : "");
-}).join(", ");
-var line = "- " + when + ": themes=[" + themes + "]";
-if (archs) line += " archetypes=[" + archs + "]";
-if (s.alchemy) line += " alchemy=" + s.alchemy.stage;
-if (s.synthesis) line += " insight: " + s.synthesis;
-if (s.tension) line += " tension: " + s.tension.a + " vs " + s.tension.b;
-var pastRejections = [];
-var pastCorrections = [];
-if (s.mapResponses) {
-Object.keys(s.mapResponses).forEach(function(connKey) {
-var mr = s.mapResponses[connKey];
-if (!mr) return;
-var parts = connKey.split("::");
-var connLabel = (parts[0]||"") + " ↔ " + (parts[1]||"");
-if (mr.value === "no") {
-if (mr.comment && mr.comment.trim()) {
-pastCorrections.push("[" + connLabel + "]: user said \"" + mr.comment.trim() + "\"");
-} else {
-pastRejections.push(connLabel);
-}
-}
-});
-}
-if (s.reactions) {
-Object.keys(s.reactions).forEach(function(rk) {
-if (s.reactions[rk] === "resisted") pastRejections.push("reading: \"" + rk.slice(0,60) + "\"");
-});
-}
-if (s.corrections) {
-Object.keys(s.corrections).forEach(function(ck) {
-if (s.corrections[ck] && s.corrections[ck].trim()) {
-pastCorrections.push("on \"" + ck.slice(0,40) + "\": user said \"" + s.corrections[ck].trim().slice(0,80) + "\"");
-}
-});
-}
-if (pastRejections.length > 0) line += " | USER REJECTED: " + pastRejections.join("; ");
-if (pastCorrections.length > 0) line += " | USER CORRECTIONS (their words ARE the truth): " + pastCorrections.join("; ");
-temporalContext += line + "\n";
-});
-var archCounts = {};
-prevSessions.forEach(function(s) {
-(s.archetypes || []).forEach(function(a) {
-var key = typeof a === "string" ? a : (a.name || a.key || "");
-if (!archCounts[key]) archCounts[key] = { count: 0, names: [], lastResponse: "" };
-archCounts[key].count++;
-if (a.name) archCounts[key].names.push(a.name);
-if (s.archetypeResponse && (s.archetypeResponse.key === key || s.archetypeResponse.key === a.key)) archCounts[key].lastResponse = s.archetypeResponse.response;
-});
-});
-var allArchNames = [];
-prevSessions.forEach(function(s) {
-(s.archetypes || []).forEach(function(a) {
-if (a.name) allArchNames.push(a.name);
-});
-});
-if (allArchNames.length > 0) {
-temporalContext += "\nPREVIOUS ARCHETYPE NAMES (for evolution tracking — generate evolution_from if pattern evolved):\n";
-temporalContext += allArchNames.join(" → ") + "\n";
-}
-var recurring = Object.keys(archCounts).filter(function(k) { return archCounts[k].count >= 2; });
-if (recurring.length > 0) {
-temporalContext += "\nRECURRING PATTERNS:\n";
-recurring.forEach(function(k) {
-var a = archCounts[k];
-temporalContext += "- " + k + ": appeared " + a.count + "x";
-if (a.lastResponse) temporalContext += " (user " + a.lastResponse + " it last time)";
-temporalContext += "\n";
-});
-}
-}
-
-var fieldState = computeFieldState();
-if (fieldState && fieldState.sessionCount >= 2) {
-temporalContext += "\nFIELD STATE (living signals — use these to deepen your reading):\n";
-if (fieldState.rising.length > 0) temporalContext += "RISING themes (getting louder): " + fieldState.rising.map(function(r){return r.label + " (+" + r.delta + ")";}).join(", ") + "\n";
-if (fieldState.fading.length > 0) temporalContext += "FADING themes (loosening grip): " + fieldState.fading.map(function(f){return f.label + " (" + f.delta + ")";}).join(", ") + "\n";
-if (fieldState.absent.length > 0) temporalContext += "ABSENT themes (disappeared — avoidance or completion?): " + fieldState.absent.join(", ") + "\n";
-if (fieldState.chronic.length > 0) temporalContext += "CHRONIC themes (always present): " + fieldState.chronic.join(", ") + "\n";
-if (fieldState.anchor) {
-var sig = fieldState.archSignals[fieldState.anchor] || {};
-var userRejectedAnchor = sig.lastResponse === "resisted" || sig.lastResponse === "pushed back" || sig.lastResponse === "no";
-if (userRejectedAnchor) {
-temporalContext += "PATTERN ALERT: \"" + fieldState.anchor + "\" appeared " + fieldState.anchorCount + "x BUT USER REJECTED IT last time. Do NOT repeat this archetype or its themes. Evolve past it.\n";
-} else {
-temporalContext += "ANCHOR archetype: " + fieldState.anchor + " (appeared " + fieldState.anchorCount + "x";
-if (sig.velocity && sig.velocity !== "stable") temporalContext += ", " + sig.velocity;
-if (sig.currentPhase) temporalContext += ", currently @" + sig.currentPhase;
-temporalContext += ")\n";
-if (sig.phaseHistory) temporalContext += " Phase journey: " + sig.phaseHistory + "\n";
-}
-}
-if (fieldState.tensionShape && fieldState.tensionAge >= 2) temporalContext += "RECURRING TENSION: " + fieldState.tensionShape + " (present " + fieldState.tensionAge + " sessions)\n";
-if (fieldState.energies.length >= 2) temporalContext += "ENERGY PATTERN: " + fieldState.energies.join(" → ") + " (trend: " + fieldState.energyTrend + ")\n";
-if (fieldState.alchemyStage) temporalContext += "ALCHEMY: " + fieldState.alchemyStage + " (" + fieldState.alchemyVelocity + ")\n";
-if (fieldState.lastBlindSpot) temporalContext += "LAST BLIND SPOT: " + fieldState.lastBlindSpot.slice(0, 100) + "\n";
-if (fieldState.constellations.length > 0) temporalContext += "CONSTELLATIONS: " + fieldState.constellations.map(function(c){return c.pair + " (" + c.count + "x)";}).join(", ") + "\n";
-}
-
-var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool, not a diagnosis tool.\n" +
+var SYNTHESIS_PROMPT = "You are the reflective engine behind SAYCRD — a co-creation tool, not a diagnosis tool.\n" +
 "Your role is WITNESS, not analyst. COMPANION, not judge. MIRROR, not authority.\n\n" +
 "UNDERLYING ORIENTATION (subtle, never stated):\n" +
 "- Everyone has a beautiful, innocent soul. What they're stuck with is blocking their light — not who they are.\n" +
@@ -1127,27 +994,141 @@ var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool
 "- sub_text = a sentence that names ALL themes: 'alongside [theme2], [theme3], and [theme4]'\n" +
 "- This is the 'your top genre' moment. Make it feel like a reveal.\n\n" +
 "CRITICAL: FROM and TO in connections must EXACTLY match a theme label. Optionally add evidence_quote (brief phrase from user's words) or mechanism (one-line explanation) so the user sees why this connection emerged.\n" +
-`Respond with ONLY valid JSON, no markdown:\n{"themes":[{"label":"...","weight":1,"why":"...","short_desc":"4-8 words factual area of life"}],"connections":[{"from":"exact label","to":"exact label","label":"...","insight":"..."}],"guide":[{"type":"act","text":"..."}],"map_title":"...","descent_cards":[{"type":"energy","phrase":"wanting to be seen but not watched","color":"#FFB86B"},{"type":"binary","prompt":"lately you seem drawn to","option_a":"building slowly","option_b":"leaping first","color":"#FF6B9D"},{"type":"spectrum","prompt":"where does this live?","pole_a":"still forming","pole_b":"ready to move","color":"#6BFFB8"}],"archetype":{"name":"The Attuned Builder","line":"Builds through listening, not force.","source_nodes":["rest","creativity"],"classical_resonance":"hermit","evolution_from":null},"synthesis":"You\'re not building a product. You\'re building proof you\'re allowed to take up space.",
-"underneath":["Proof and worthiness collapsed into the same word","The thing you\'re building is the question you keep circling","Rest appears as something you\'re rationing"],
-"tension":{"a":"Control","b":"Trust","text":"You\'re trying to engineer outcomes that only surrender can reach."},
-"blind_spot":"You think the audience is watching. It\'s a mirror.",
-"opening":"What would you make if no one would ever know?",
-"noticing":"You use \'I want\' four times and \'I should\' seven. The gap is the work.",
-"alchemy":{"stage":"nigredo","evidence":"..."},"field_cards":[{"type":"energy","hero_text":"TENDER","sub_text":"You arrived softer than last time.","color":"#c070f0","user_fragment":"i feel like something cracked open today","whisper":"session 4"},{"type":"themes_reveal","hero_text":"SURRENDER","sub_text":"alongside control, trust, and making","color":"#B86BFF","user_fragment":"i keep coming back to letting go","whisper":"what surfaced"},{"type":"insight","hero_text":"Your best ideas come when you stop pushing.","sub_text":"You arrived tender — and that tenderness is the source.","color":"#6BFFB8","user_fragment":"when i stop trying it flows","whisper":null},{"type":"tension","hero_text":"control vs trust","sub_text":"You keep choosing control. Trust keeps winning anyway.","color":"#6BB8FF","user_fragment":"i want to let go but i keep gripping","whisper":null},{"type":"blind_spot","hero_text":"You are performing strength.","sub_text":"The control vs trust war has a third player: the audience you imagine watching.","color":"#888890","user_fragment":"i need to show them i can do this","whisper":"what you cannot see"},{"type":"identity","hero_text":"The Reluctant Opener","sub_text":"Opens doors but stands in the frame.","color":"#E84393","user_fragment":"i opened the door but didnt walk through","whisper":"your pattern"}]}`;
+"Respond with ONLY valid JSON, no markdown:\n{\"themes\":[{\"label\":\"...\",\"weight\":1,\"why\":\"...\",\"short_desc\":\"4-8 words factual area of life\"}],\"connections\":[{\"from\":\"exact label\",\"to\":\"exact label\",\"label\":\"...\",\"insight\":\"...\"}],\"guide\":[{\"type\":\"act\",\"text\":\"...\"}],\"map_title\":\"...\",\"descent_cards\":[{\"type\":\"energy\",\"phrase\":\"wanting to be seen but not watched\",\"color\":\"#FFB86B\"},{\"type\":\"binary\",\"prompt\":\"lately you seem drawn to\",\"option_a\":\"building slowly\",\"option_b\":\"leaping first\",\"color\":\"#FF6B9D\"},{\"type\":\"spectrum\",\"prompt\":\"where does this live?\",\"pole_a\":\"still forming\",\"pole_b\":\"ready to move\",\"color\":\"#6BFFB8\"}],\"archetype\":{\"name\":\"The Attuned Builder\",\"line\":\"Builds through listening, not force.\",\"source_nodes\":[\"rest\",\"creativity\"],\"classical_resonance\":\"hermit\",\"evolution_from\":null},\"synthesis\":\"You're not building a product. You're building proof you're allowed to take up space.\",\"underneath\":[\"Proof and worthiness collapsed into the same word\",\"The thing you're building is the question you keep circling\",\"Rest appears as something you're rationing\"],\"tension\":{\"a\":\"Control\",\"b\":\"Trust\",\"text\":\"You're trying to engineer outcomes that only surrender can reach.\"},\"blind_spot\":\"You think the audience is watching. It's a mirror.\",\"opening\":\"What would you make if no one would ever know?\",\"noticing\":\"You use 'I want' four times and 'I should' seven. The gap is the work.\",\"alchemy\":{\"stage\":\"nigredo\",\"evidence\":\"...\"},\"field_cards\":[{\"type\":\"energy\",\"hero_text\":\"TENDER\",\"sub_text\":\"You arrived softer than last time.\",\"color\":\"#c070f0\",\"user_fragment\":\"i feel like something cracked open today\",\"whisper\":\"session 4\"},{\"type\":\"themes_reveal\",\"hero_text\":\"SURRENDER\",\"sub_text\":\"alongside control, trust, and making\",\"color\":\"#B86BFF\",\"user_fragment\":\"i keep coming back to letting go\",\"whisper\":\"what surfaced\"},{\"type\":\"insight\",\"hero_text\":\"Your best ideas come when you stop pushing.\",\"sub_text\":\"You arrived tender — and that tenderness is the source.\",\"color\":\"#6BFFB8\",\"user_fragment\":\"when i stop trying it flows\",\"whisper\":null},{\"type\":\"tension\",\"hero_text\":\"control vs trust\",\"sub_text\":\"You keep choosing control. Trust keeps winning anyway.\",\"color\":\"#6BB8FF\",\"user_fragment\":\"i want to let go but i keep gripping\",\"whisper\":null},{\"type\":\"blind_spot\",\"hero_text\":\"You are performing strength.\",\"sub_text\":\"The control vs trust war has a third player: the audience you imagine watching.\",\"color\":\"#888890\",\"user_fragment\":\"i need to show them i can do this\",\"whisper\":\"what you cannot see\"},{\"type\":\"identity\",\"hero_text\":\"The Reluctant Opener\",\"sub_text\":\"Opens doors but stands in the frame.\",\"color\":\"#E84393\",\"user_fragment\":\"i opened the door but didnt walk through\",\"whisper\":\"your pattern\"}]}";
+
+function useSynthesis(rawText, opts) {
+var onSynthesis = opts && opts.onSynthesis;
+var enabled = (opts && opts.enabled) !== false;
+var [status, setStatus] = useState("idle");
+var [data, setData] = useState(null);
+var [error, setError] = useState(null);
+var [findingPhase, setFindingPhase] = useState(null);
+var [findingDetail, setFindingDetail] = useState("");
+var [crisisState, setCrisisState] = useState(null);
+var ran = useRef(false);
+useEffect(function crisisCheck() {
+if (!rawText) { setCrisisState("cleared"); return; }
+if (crisisState !== null) return;
+setCrisisState(checkCrisisText(rawText) ? "detected" : "cleared");
+}, [rawText, crisisState]);
+useEffect(function runSynthesis() {
+if (!enabled || !rawText) return;
+if (crisisState !== "cleared") return;
+if (ran.current) return;
+ran.current = true;
 var _looksLikeLog = (rawText||"").match(/^(Supabase|LOCAL BYPASS|\[SAYCRD\]|console\.log)/);
 if (_looksLikeLog) {
-console.warn("[SAYCRD] rawText looks like console output — aborting synthesis");
-setErr("It looks like console output was pasted instead of your writing. Please go back and write your pour.");
-setStep(2);
+setError("It looks like console output was pasted instead of your writing. Please go back and write your pour.");
+setStatus("error");
 return;
 }
 console.log("[SAYCRD] Synthesizing dump:", (rawText||"").slice(0,80) + "...");
-(async function() {
-try {
-setFindingPhase("preparing");
-setFindingDetail(prevSessions.length > 0 ? "Loaded " + prevSessions.length + " past sessions — incorporating your corrections & preferences..." : "Building context from your words...");
-var userSignals = "";
-var mapR = {}; 
+setStatus("loading");
+var prevSessions = [];
+try { prevSessions = loadSessions(); } catch(e) {}
+var temporalContext = "";
+if (prevSessions.length > 0) {
+var now = Date.now();
+temporalContext = "\n\nPREVIOUS SESSIONS (for temporal awareness — respect time gaps):\n";
+prevSessions.slice(-6).forEach(function(s) {
+var d = new Date(s.date);
+var daysAgo = Math.round((now - d.getTime()) / 86400000);
+var when = daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : daysAgo < 7 ? daysAgo + " days ago" : daysAgo < 30 ? Math.round(daysAgo / 7) + " weeks ago" : Math.round(daysAgo / 30) + " months ago";
+var themes = (s.themes || []).map(function(t) { return t.label; }).join(", ");
+var archs = (s.archetypes || []).map(function(a) {
+var key = typeof a === "string" ? a : a.key;
+var phase = a.phase || "";
+var resp = s.archetypeResponse && s.archetypeResponse.key === key ? s.archetypeResponse.response : "";
+return key + (phase ? "@" + phase : "") + (resp ? "(" + resp + ")" : "");
+}).join(", ");
+var line = "- " + when + ": themes=[" + themes + "]";
+if (archs) line += " archetypes=[" + archs + "]";
+if (s.alchemy) line += " alchemy=" + s.alchemy.stage;
+if (s.synthesis) line += " insight: " + s.synthesis;
+if (s.tension) line += " tension: " + s.tension.a + " vs " + s.tension.b;
+var pastRejections = [], pastCorrections = [];
+if (s.mapResponses) {
+Object.keys(s.mapResponses).forEach(function(connKey) {
+var mr = s.mapResponses[connKey];
+if (!mr) return;
+var parts = connKey.split("::");
+var connLabel = (parts[0]||"") + " \u2194 " + (parts[1]||"");
+if (mr.value === "no") {
+if (mr.comment && mr.comment.trim()) pastCorrections.push("[" + connLabel + "]: user said \"" + mr.comment.trim() + "\"");
+else pastRejections.push(connLabel);
+}
+});
+}
+if (s.reactions) {
+Object.keys(s.reactions).forEach(function(rk) {
+if (s.reactions[rk] === "resisted") pastRejections.push("reading: \"" + rk.slice(0,60) + "\"");
+});
+}
+if (s.corrections) {
+Object.keys(s.corrections).forEach(function(ck) {
+if (s.corrections[ck] && s.corrections[ck].trim()) pastCorrections.push("on \"" + ck.slice(0,40) + "\": user said \"" + s.corrections[ck].trim().slice(0,80) + "\"");
+});
+}
+if (pastRejections.length > 0) line += " | USER REJECTED: " + pastRejections.join("; ");
+if (pastCorrections.length > 0) line += " | USER CORRECTIONS (their words ARE the truth): " + pastCorrections.join("; ");
+temporalContext += line + "\n";
+});
+var archCounts = {};
+prevSessions.forEach(function(s) {
+(s.archetypes || []).forEach(function(a) {
+var key = typeof a === "string" ? a : (a.name || a.key || "");
+if (!archCounts[key]) archCounts[key] = { count: 0, names: [], lastResponse: "" };
+archCounts[key].count++;
+if (a.name) archCounts[key].names.push(a.name);
+if (s.archetypeResponse && (s.archetypeResponse.key === key || s.archetypeResponse.key === a.key)) archCounts[key].lastResponse = s.archetypeResponse.response;
+});
+});
+var allArchNames = [];
+prevSessions.forEach(function(s) {
+(s.archetypes || []).forEach(function(a) {
+if (a.name) allArchNames.push(a.name);
+});
+});
+if (allArchNames.length > 0) {
+temporalContext += "\nPREVIOUS ARCHETYPE NAMES (for evolution tracking — generate evolution_from if pattern evolved):\n" + allArchNames.join(" \u2192 ") + "\n";
+}
+var recurring = Object.keys(archCounts).filter(function(k) { return archCounts[k].count >= 2; });
+if (recurring.length > 0) {
+temporalContext += "\nRECURRING PATTERNS:\n";
+recurring.forEach(function(k) {
+var a = archCounts[k];
+temporalContext += "- " + k + ": appeared " + a.count + "x";
+if (a.lastResponse) temporalContext += " (user " + a.lastResponse + " it last time)";
+temporalContext += "\n";
+});
+}
+}
+var fieldState = computeFieldState();
+if (fieldState && fieldState.sessionCount >= 2) {
+temporalContext += "\nFIELD STATE (living signals — use these to deepen your reading):\n";
+if (fieldState.rising && fieldState.rising.length > 0) temporalContext += "RISING themes (getting louder): " + fieldState.rising.map(function(r){return r.label + " (+" + r.delta + ")";}).join(", ") + "\n";
+if (fieldState.fading && fieldState.fading.length > 0) temporalContext += "FADING themes (loosening grip): " + fieldState.fading.map(function(f){return f.label + " (" + f.delta + ")";}).join(", ") + "\n";
+if (fieldState.absent && fieldState.absent.length > 0) temporalContext += "ABSENT themes (disappeared — avoidance or completion?): " + fieldState.absent.join(", ") + "\n";
+if (fieldState.chronic && fieldState.chronic.length > 0) temporalContext += "CHRONIC themes (always present): " + fieldState.chronic.join(", ") + "\n";
+if (fieldState.anchor) {
+var sig = fieldState.archSignals && fieldState.archSignals[fieldState.anchor] || {};
+var userRejectedAnchor = sig.lastResponse === "resisted" || sig.lastResponse === "pushed back" || sig.lastResponse === "no";
+if (userRejectedAnchor) temporalContext += "PATTERN ALERT: \"" + fieldState.anchor + "\" appeared " + fieldState.anchorCount + "x BUT USER REJECTED IT last time. Do NOT repeat this archetype or its themes. Evolve past it.\n";
+else {
+temporalContext += "ANCHOR archetype: " + fieldState.anchor + " (appeared " + fieldState.anchorCount + "x";
+if (sig.velocity && sig.velocity !== "stable") temporalContext += ", " + sig.velocity;
+if (sig.currentPhase) temporalContext += ", currently @" + sig.currentPhase;
+temporalContext += ")\n";
+if (sig.phaseHistory) temporalContext += " Phase journey: " + sig.phaseHistory + "\n";
+}
+}
+if (fieldState.tensionShape && fieldState.tensionAge >= 2) temporalContext += "RECURRING TENSION: " + fieldState.tensionShape + " (present " + fieldState.tensionAge + " sessions)\n";
+if (fieldState.energies && fieldState.energies.length >= 2) temporalContext += "ENERGY PATTERN: " + fieldState.energies.join(" \u2192 ") + " (trend: " + fieldState.energyTrend + ")\n";
+if (fieldState.alchemyStage) temporalContext += "ALCHEMY: " + fieldState.alchemyStage + " (" + fieldState.alchemyVelocity + ")\n";
+if (fieldState.lastBlindSpot) temporalContext += "LAST BLIND SPOT: " + fieldState.lastBlindSpot.slice(0, 100) + "\n";
+if (fieldState.constellations && fieldState.constellations.length > 0) temporalContext += "CONSTELLATIONS: " + fieldState.constellations.map(function(c){return c.pair + " (" + c.count + "x)";}).join(", ") + "\n";
+}
+var mapR = opts && opts.mapResponses || {};
 var signalLines = [];
 Object.keys(mapR).forEach(function(k) {
 var r = mapR[k];
@@ -1155,28 +1136,19 @@ if (!r) return;
 var parts = k.split("::");
 var from = parts[0] || "", to = parts[1] || "";
 var resonance = r.value === "yes" ? "confirmed" : r.value === "partly" ? "partial" : "pushed back";
-var line = "Connection [" + from + " ↔ " + to + "]: " + resonance;
-if (r.comment && r.comment.trim()) {
-line += " — USER SAID: \"" + r.comment.trim() + "\"";
-}
-if (r.correction && r.correction.trim() && r.correction !== r.comment) {
-line += " (USER CORRECTION: \"" + r.correction.trim() + "\")";
-}
+var line = "Connection [" + from + " \u2194 " + to + "]: " + resonance;
+if (r.comment && r.comment.trim()) line += " — USER SAID: \"" + r.comment.trim() + "\"";
+if (r.correction && r.correction.trim() && r.correction !== r.comment) line += " (USER CORRECTION: \"" + r.correction.trim() + "\")";
 signalLines.push(line);
 });
-var bannedReadings = [];
-var pastUserWords = [];
+var bannedReadings = [], pastUserWords = [];
 try {
 var pastSessions = loadSessions();
-
-
 pastSessions.forEach(function(ps) {
 if (ps.mapResponses) {
 Object.keys(ps.mapResponses).forEach(function(ck) {
 var mr = ps.mapResponses[ck];
-if (mr && mr.value === "no" && mr.comment && mr.comment.trim()) {
-pastUserWords.push(mr.comment.trim());
-}
+if (mr && mr.value === "no" && mr.comment && mr.comment.trim()) pastUserWords.push(mr.comment.trim());
 if (mr && mr.value === "no" && !mr.comment) {
 var pts = ck.split("::");
 bannedReadings.push("the connection between " + (pts[0]||"") + " and " + (pts[1]||""));
@@ -1202,74 +1174,52 @@ if (fb.slider !== undefined) {
 var pushThresh = (cardKey === "connection") ? 40 : 32;
 if (fb.slider <= pushThresh) bannedReadings.push("the " + cardKey + " reading (user pushed this away)");
 }
-if (fb.comment && fb.comment.trim()) {
-pastUserWords.push(fb.comment.trim());
-}
+if (fb.comment && fb.comment.trim()) pastUserWords.push(fb.comment.trim());
 });
 }
 });
 } catch(e) {}
-
 var userSignalParts = [];
-if (signalLines.length > 0) {
-userSignalParts.push("══ CURRENT SESSION USER SIGNALS (HIGHEST AUTHORITY) ══\n" +
-"These are the user's direct words RIGHT NOW. They override everything — past sessions, AI patterns, recurring themes.\n" +
-signalLines.join("\n"));
-}
-if (bannedReadings.length > 0) {
-userSignalParts.push("══ BANNED READINGS (user rejected these — permanently retired) ══\n" +
-bannedReadings.slice(-10).map(function(b){return "- " + b;}).join("\n"));
-}
-if (pastUserWords.length > 0) {
-userSignalParts.push("══ USER'S OWN WORDS FROM PAST SESSIONS (carry forward) ══\n" +
-"These are corrections the user gave. They are more accurate than any AI read.\n" +
-pastUserWords.slice(-8).map(function(w){return "\"" + w + "\"";}).join("\n"));
-}
-
-if (userSignalParts.length > 0) {
-userSignals = "\n\n" + userSignalParts.join("\n\n") + "\n══ END USER AUTHORITY ══";
-}
+if (signalLines.length > 0) userSignalParts.push("══ CURRENT SESSION USER SIGNALS (HIGHEST AUTHORITY) ══\nThese are the user's direct words RIGHT NOW. They override everything — past sessions, AI patterns, recurring themes.\n" + signalLines.join("\n"));
+if (bannedReadings.length > 0) userSignalParts.push("══ BANNED READINGS (user rejected these — permanently retired) ══\n" + bannedReadings.slice(-10).map(function(b){return "- " + b;}).join("\n"));
+if (pastUserWords.length > 0) userSignalParts.push("══ USER'S OWN WORDS FROM PAST SESSIONS (carry forward) ══\nThese are corrections the user gave. They are more accurate than any AI read.\n" + pastUserWords.slice(-8).map(function(w){return "\"" + w + "\"";}).join("\n"));
+var userSignals = userSignalParts.length > 0 ? "\n\n" + userSignalParts.join("\n\n") + "\n══ END USER AUTHORITY ══" : "";
+(async function() {
+try {
+setFindingPhase("preparing");
+setFindingDetail(prevSessions.length > 0 ? "Loaded " + prevSessions.length + " past sessions — incorporating your corrections & preferences..." : "Building context from your words...");
 setFindingPhase("sending");
 setFindingDetail("Sending your words to Claude — analyzing themes, connections, archetype...");
 console.log("[SAYCRD] Sending to Claude, awaiting response...");
-var raw = await callClaudeClient(prompt, (rawText || "") + temporalContext + userSignals, 3500);
+var raw = await callClaudeClient(SYNTHESIS_PROMPT, (rawText || "") + temporalContext + userSignals, 3500);
 setFindingPhase("parsing");
 setFindingDetail("Received response — parsing themes, connections, archetype...");
 console.log("[SAYCRD] AI raw response:", (raw||"").slice(0, 200));
-var data = parseJSON(raw);
-console.log("[SAYCRD] Parsed data:", data ? "OK - " + (data.themes||[]).length + " themes" : "FAILED");
-if (data && data.themes && data.themes.length > 0) {
-var connCount = (data.connections || []).length;
-setFindingDetail("Found " + data.themes.length + " themes, " + connCount + " connections — building your map...");
-data.themes = data.themes.map(function(t, i) { return Object.assign({}, t, { color: NC[i % NC.length] }); });
-if (data.archetype && !data.archetypes) {
-data.archetypes = [data.archetype];
-}
-if (!data.archetypes) data.archetypes = [];
-if (data.connections) data.connections = data.connections.map(function(c) {
-var ft = (data.themes || []).find(function(t) { return t.label === c.from; });
+var parsed = parseJSON(raw);
+console.log("[SAYCRD] Parsed data:", parsed ? "OK - " + (parsed.themes||[]).length + " themes" : "FAILED");
+if (parsed && parsed.themes && parsed.themes.length > 0) {
+var connCount = (parsed.connections || []).length;
+setFindingDetail("Found " + parsed.themes.length + " themes, " + connCount + " connections — building your map...");
+parsed.themes = parsed.themes.map(function(t, i) { return Object.assign({}, t, { color: NC[i % NC.length] }); });
+if (parsed.archetype && !parsed.archetypes) parsed.archetypes = [parsed.archetype];
+if (!parsed.archetypes) parsed.archetypes = [];
+if (parsed.connections) parsed.connections = parsed.connections.map(function(c) {
+var ft = (parsed.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
-onSynthesis(data);
-var elapsed = step1Start.current ? Date.now() - step1Start.current : 0;
-var waitMore = Math.max(0, MIN_FINDING_MS - elapsed);
-setTimeout(function() {
-setStep(2);
-setRevealData(data);
-setTimeout(function(){ setRevealFadeOut(true); }, REVEAL_DURATION_MS - 1800);
-setTimeout(onComplete, REVEAL_DURATION_MS);
-}, waitMore);
+setData(parsed);
+setStatus("ready");
+if (onSynthesis) onSynthesis(parsed);
 } else { throw new Error("No themes parsed from AI response"); }
 } catch (e) {
 console.error("[SAYCRD] Synthesis error:", e);
-if (e.message && (e.message.includes("empty response") || e.message.includes("timed out") || e.message.includes("JSON parse failed"))) {
+if (e.message && (e.message.indexOf("empty response") >= 0 || e.message.indexOf("timed out") >= 0 || e.message.indexOf("JSON parse failed") >= 0)) {
 console.warn("[SAYCRD] Retrying synthesis in 2s...");
-setStep(1);
 setFindingPhase("sending");
 setFindingDetail("Retrying — sending to Claude again...");
 await new Promise(function(w) { setTimeout(w, 2000); });
 try {
-var retryResponse = await callClaudeClient(prompt, rawText, 4000);
+var retryResponse = await callClaudeClient(SYNTHESIS_PROMPT, rawText, 4000);
 var retryData = parseJSON(retryResponse);
 if (retryData && retryData.themes && retryData.themes.length > 0) {
 retryData.themes = retryData.themes.map(function(t, i) { return Object.assign({}, t, { color: NC[i % NC.length] }); });
@@ -1279,18 +1229,63 @@ retryData.connections = (retryData.connections || []).map(function(c) {
 var ft = (retryData.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
-onSynthesis(retryData);
-onComplete();
+setData(retryData);
+setStatus("ready");
+if (onSynthesis) onSynthesis(retryData);
 return;
 }
 } catch(e2) { console.error("[SAYCRD] Retry also failed:", e2); }
 }
-setErr(e.message || "API error");
-setStep(2);
+setError(e.message || "API error");
+setStatus("error");
 }
 })();
-return function() { clearTimeout(t1); };
-}, [crisisState]);
+}, [rawText, crisisState, enabled, onSynthesis]);
+return {
+status: crisisState === "detected" ? "crisis" : status,
+data: data,
+error: error,
+findingPhase: findingPhase,
+findingDetail: findingDetail,
+clearCrisis: function() { setCrisisState("cleared"); }
+};
+}
+
+function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
+const [step, setStep] = useState(0);
+const [revealData, setRevealData] = useState(null);
+const [revealFadeOut, setRevealFadeOut] = useState(false);
+const step1Start = useRef(null);
+var synth = useSynthesis(rawText, {
+onSynthesis: useCallback(function(d) {
+setRevealData(d);
+if (onSynthesis) onSynthesis(d);
+}, [onSynthesis])
+});
+var err = synth.error;
+var crisisState = synth.status === "crisis" ? "detected" : null;
+var findingPhase = synth.findingPhase;
+var findingDetail = synth.findingDetail;
+useEffect(function() {
+if (synth.status !== "loading") return;
+if (step === 0) {
+step1Start.current = Date.now();
+var t = setTimeout(function() { setStep(1); }, 800);
+return function() { clearTimeout(t); };
+}
+}, [synth.status, step]);
+useEffect(function() {
+if (synth.status !== "ready" || !synth.data) return;
+var elapsed = step1Start.current ? Date.now() - step1Start.current : 0;
+var waitMore = Math.max(0, MIN_FINDING_MS - elapsed);
+var t = setTimeout(function() {
+setStep(2);
+setRevealData(synth.data);
+setTimeout(function() { setRevealFadeOut(true); }, REVEAL_DURATION_MS - 1800);
+setTimeout(onComplete, REVEAL_DURATION_MS);
+}, waitMore);
+return function() { clearTimeout(t); };
+}, [synth.status, synth.data, onComplete]);
 return (
 <>
 {crisisState === "detected" && (
@@ -1313,7 +1308,7 @@ return (
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FB, lineHeight: 1.5, marginBottom: 24 }}>
 If you're okay and want to continue, you can proceed.
 </div>
-<button onClick={function(){ setCrisisState("cleared"); }} style={{ width: "100%", padding: "14px 24px", borderRadius: 20, border: "none", background: "linear-gradient(135deg, rgba(107,184,255,0.35), rgba(107,184,255,0.2))", color: "#fff", fontFamily: FB, fontSize: 14, fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.2)" }}>
+<button onClick={function(){ synth.clearCrisis(); }} style={{ width: "100%", padding: "14px 24px", borderRadius: 20, border: "none", background: "linear-gradient(135deg, rgba(107,184,255,0.35), rgba(107,184,255,0.2))", color: "#fff", fontFamily: FB, fontSize: 14, fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.2)" }}>
 Continue
 </button>
 </div>
@@ -1454,7 +1449,56 @@ color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.6)"
 );
 }
 
-function MapPhase({ onComplete, synthesisData, rawText, onPatchSynthesis, onBack }) {
+function MapPhase({ onComplete, synthesisData, rawText, onSynthesis, onPatchSynthesis, onBack }) {
+var needsSynthesis = !synthesisData && rawText;
+var synth = useSynthesis(rawText, {
+onSynthesis: onSynthesis,
+enabled: !!needsSynthesis
+});
+if (needsSynthesis) {
+if (synth.status === "crisis") {
+return (
+<>
+<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", animation: "riseUp 0.25s ease both" }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "linear-gradient(180deg, #0d0d1a 0%, #15152a 100%)", borderRadius: 24, padding: "32px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06) inset", border: "1px solid rgba(107,184,255,0.2)" }}>
+<div style={{ fontSize: 11, letterSpacing: "0.35em", color: "rgba(255,255,255,0.5)", fontFamily: FB, marginBottom: 16, textTransform: "uppercase" }}>We noticed something</div>
+<div style={{ fontSize: 17, fontFamily: FD, color: "rgba(255,255,255,0.95)", lineHeight: 1.5, marginBottom: 24 }}>We noticed some language that might suggest you're going through something difficult. If you're struggling, these resources are here for you:</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
+{CRISIS_RESOURCES.map(function(r) {
+return (
+<a key={r.name} href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "14px 18px", background: "rgba(107,184,255,0.12)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.3)", color: "#6BB8FF", fontFamily: FB, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}>
+<div style={{ marginBottom: 2 }}>{r.name}</div>
+<div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{r.line}</div>
+</a>
+);
+})}
+</div>
+<div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FB, lineHeight: 1.5, marginBottom: 24 }}>If you're okay and want to continue, you can proceed.</div>
+<button onClick={synth.clearCrisis} style={{ width: "100%", padding: "14px 24px", borderRadius: 20, border: "none", background: "linear-gradient(135deg, rgba(107,184,255,0.35), rgba(107,184,255,0.2))", color: "#fff", fontFamily: FB, fontSize: 14, fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.2)" }}>Continue</button>
+</div>
+</div>
+</>
+);
+}
+if (synth.status === "error") {
+return (
+<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px" }}>
+<div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,107,107,0.8)", margin: "0 auto 28px" }}/>
+<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(255,107,107,0.9)", lineHeight: 1.4 }}>Error: {(synth.error && synth.error.length > 90 ? synth.error.slice(0,90)+"\u2026" : synth.error)}</div>
+<button onClick={function(){ window.location.reload(); }} style={{ marginTop: 20, padding: "10px 24px", borderRadius: 999, border: "1px solid rgba(255,107,107,0.4)", background: "transparent", color: "rgba(255,107,107,0.7)", fontFamily: FB, fontSize: 13, cursor: "pointer" }}>go back and retry</button>
+</div>
+);
+}
+return (
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
+<ProgressiveLoadingOverlay loading={true} label={synth.findingPhase === "preparing" ? "Reading your words" : "Finding what's underneath"} sublabel={synth.findingDetail || "Your words are being absorbed — the AI is matching patterns in what you wrote"}>
+<div style={{ width: "100%", maxWidth: 560, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
+<MapSkeleton />
+</div>
+</ProgressiveLoadingOverlay>
+</div>
+);
+}
 const [activeConn, setActiveConn] = useState(null);
 const [responses, setResponses] = useState({});
 const [dragging, setDragging] = useState(null);
@@ -10700,9 +10744,9 @@ return (
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
-{cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(2);}} onBack={function(){setPhase(0);}}/>}
+{cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(3);}} onBack={function(){setPhase(0);}}/>}
 {cp==="synthesize"&&<SynthesizePhase rawText={rawText} onComplete={function(){setPhase(3);}} onSynthesis={setSynthesisData}/>}
-{cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(2);}}/>}
+{cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onSynthesis={setSynthesisData} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(1);}}/>}
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
 {cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){setPhase(7);}}/>}
