@@ -5369,7 +5369,7 @@ return "rgb("+dr+","+dg+","+db+")";
 
 function FieldConditionCard({ themes, sd, primaryArch, sessionCount, portrait, portraitReady, goNext }) {
 themes = themes || []; sd = sd || {};
-
+var isMobile = React.useContext(FieldMobileContext);
 
 var [_fcPhrase, _fcSetPhrase] = useState(null);
 var [_fcLoading, _fcSetLoading] = useState(true);
@@ -5403,8 +5403,10 @@ var _condSizes = [72, 56, 48, 40];
 var _numThemes = themes.length;
 var _numConns = (sd && sd.connections || []).length;
 
+var _fcPad = isMobile ? "40px 20px 24px" : "80px 32px 24px";
+var _fcBarPad = isMobile ? "16px 20px" : "20px 24px";
 return (
-<div style={{ position:"absolute", inset:0, overflow:"hidden", background:"#030308" }}>
+<div style={{ position:"absolute", inset:0, overflow:"hidden", background:"#030308", display:"flex", flexDirection:"column" }}>
 {_fcColors.map(function(col, ci) {
 var angles = [15, 75, 135, 200, 270, 330];
 var radii = [55, 45, 60, 50, 55, 45];
@@ -5444,16 +5446,17 @@ stroke={t.color} strokeWidth="0.5" opacity="0.3"/>;
 })}
 </svg>
 
-<div style={{ position:"absolute", top:46, left:24, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.1)", fontFamily:FB }}>SAYCRD</div>
+<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", padding:_fcPad, boxSizing:"border-box", position:"relative", zIndex:1 }}>
+<div style={{ position:"absolute", top:isMobile?12:46, left:isMobile?16:24, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.1)", fontFamily:FB }}>SAYCRD</div>
 
-<div style={{ position:"absolute", top:44, right:24, textAlign:"right" }}>
+<div style={{ position:"absolute", top:isMobile?10:44, right:isMobile?16:24, textAlign:"right" }}>
 <div style={{ fontSize:8, letterSpacing:"0.25em", color:"rgba(255,255,255,0.18)", fontFamily:FB, textTransform:"uppercase" }}>
 {sessionCount > 1 ? "SESSION "+sessionCount+" OF YOUR JOURNEY" : "FIRST SESSION"}
 </div>
 {sessionCount === 1 && <div style={{ fontSize:9, color:"rgba(255,255,255,0.25)", fontFamily:FD, fontStyle:"italic", marginTop:4 }}>The report will deepen as you continue</div>}
 </div>
 
-<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"flex-start", justifyContent:"center", padding:"80px 32px 160px", overflow:"hidden", boxSizing:"border-box" }}>
+<div style={{ paddingTop:isMobile?48:80 }}>
 {_fcLoading ? (
 <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 {[90,64,48].map(function(sz,i){
@@ -5507,22 +5510,23 @@ animation: "riseUp 0.8s ease 0.55s both"
 </>
 )}
 </div>
+</div>
 
-<div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"20px 24px 32px",
-background:"linear-gradient(0deg, rgba(3,3,8,0.95) 0%, transparent 100%)", cursor:"pointer" }} onClick={function(e){ e.stopPropagation(); if(goNext) goNext(); }}>
+<div style={{ flexShrink:0, padding:_fcBarPad, paddingBottom:"calc("+(isMobile?16:20)+"px + env(safe-area-inset-bottom, 0px))",
+background:"linear-gradient(0deg, rgba(3,3,8,0.98) 0%, rgba(3,3,8,0.9) 40%, transparent 100%)", cursor:"pointer", position:"relative", zIndex:2 }} onClick={function(e){ e.stopPropagation(); if(goNext) goNext(); }}>
 <div style={{ display:"flex", gap:2, marginBottom:14, height:3, borderRadius:2, overflow:"hidden" }}>
 {themes.map(function(t,ti){
 return <div key={ti} style={{ flex: t.weight||1, background:t.color, opacity:0.85 }}/>;
 })}
 </div>
-<div style={{ display:"flex", gap:20, alignItems:"center" }}>
+<div style={{ display:"flex", gap:isMobile?12:20, alignItems:"center", flexWrap:"wrap" }}>
 <div style={{ textAlign:"center" }}>
-<div style={{ fontSize:28, fontWeight:700, color:"white", fontFamily:FB, lineHeight:1 }}>{_numThemes}</div>
+<div style={{ fontSize:isMobile?22:28, fontWeight:700, color:"white", fontFamily:FB, lineHeight:1 }}>{_numThemes}</div>
 <div style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontFamily:FB, letterSpacing:"0.15em", textTransform:"uppercase", marginTop:4 }}>themes</div>
 </div>
 <div style={{ width:1, height:36, background:"rgba(255,255,255,0.12)" }}/>
 <div style={{ textAlign:"center" }}>
-<div style={{ fontSize:28, fontWeight:700, color:"white", fontFamily:FB, lineHeight:1 }}>{_numConns}</div>
+<div style={{ fontSize:isMobile?22:28, fontWeight:700, color:"white", fontFamily:FB, lineHeight:1 }}>{_numConns}</div>
 <div style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontFamily:FB, letterSpacing:"0.15em", textTransform:"uppercase", marginTop:4 }}>connections</div>
 </div>
 {primaryArch && <>
@@ -5540,26 +5544,15 @@ return <div key={ci} style={{ width:7, height:7, borderRadius:"50%", background:
 </div>
 </div>
 </div>
+{goNext && <div style={{ marginTop:12, fontSize:11, color:"rgba(255,255,255,0.85)", fontFamily:FB, letterSpacing:"0.25em" }}>NEXT →</div>}
 </div>
-
-
-{goNext && (
-<div style={{ position:"absolute", bottom:0, left:0, right:0, height:80,
-display:"flex", alignItems:"flex-end", justifyContent:"center",
-paddingBottom:20, opacity:0, transition:"opacity 0.2s" }}
-onMouseEnter={function(e){ e.currentTarget.style.opacity="1"; }}
-onMouseLeave={function(e){ e.currentTarget.style.opacity="0"; }}
-onClick={function(e){ e.stopPropagation(); goNext(); }}>
-<div style={{ fontSize:11, color:"rgba(255,255,255,0.7)", fontFamily:FB,
-letterSpacing:"0.25em", cursor:"pointer" }}>NEXT →</div>
-</div>
-)}
 </div>
 );
 }
 
 function ArchBillboardCard({ themes, sd, primaryArch, archColor, sessionCount, prevArch, allSessions, portrait, portraitReady, goNext }) {
 archColor = archColor || (themes && themes[0] && themes[0].color) || "#E84393";
+var isMobile = React.useContext(FieldMobileContext);
 
 var _ab = primaryArch || (sd && sd.archetypes && sd.archetypes[0]) || null;
 var _abName = _ab ? (_ab.name || "") : "THE UNKNOWN";
@@ -5600,8 +5593,10 @@ return function(){ cancelled = true; };
 }
 }, [portrait, portraitReady]);
 
+var _abPad = isMobile ? "48px 20px 24px" : "100px 32px 24px";
+var _abBarPad = isMobile ? "16px 20px" : "16px 24px";
 return (
-<div style={{ position:"absolute", inset:0, overflow:"hidden", background:_abBg }}>
+<div style={{ position:"absolute", inset:0, overflow:"hidden", background:_abBg, display:"flex", flexDirection:"column" }}>
 <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
 opacity:0.06, pointerEvents:"none" }}>
 <ArchGlyph name={_abName} color={_abColor} size={400}/>
@@ -5618,8 +5613,7 @@ animation:"riseUp 0.6s ease 0.2s both" }}/>
 <div style={{ position:"absolute", top:46, left:24, fontSize:9, letterSpacing:"0.5em",
 color:_abColor+"44", fontFamily:FB }}>SAYCRD</div>
 
-<div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column",
-justifyContent:"center", padding:"100px 32px 120px", boxSizing:"border-box" }}>
+<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", display:"flex", flexDirection:"column", justifyContent:"center", padding:_abPad, boxSizing:"border-box" }}>
 
 <div style={{ fontSize:9, letterSpacing:"0.5em", color:_abColor+"BB",
 fontFamily:FB, textTransform:"uppercase", marginBottom:18,
@@ -5709,9 +5703,8 @@ You hold what others cannot yet name.
 </div>
 </div>
 
-<div style={{ position:"absolute", bottom:0, left:0, right:0,
-padding:"16px 24px 30px",
-background:"linear-gradient(0deg, rgba(3,2,8,0.9) 0%, transparent 100%)" }}>
+<div style={{ flexShrink:0, padding:_abBarPad, paddingBottom:"calc("+(isMobile?16:24)+"px + env(safe-area-inset-bottom, 0px))",
+background:"linear-gradient(0deg, rgba(3,2,8,0.95) 0%, rgba(3,2,8,0.85) 50%, transparent 100%)", position:"relative", zIndex:2 }}>
 <div style={{ display:"flex", gap:6, marginBottom:12, height:2, borderRadius:1, overflow:"hidden" }}>
 {themes.map(function(t,ti){
 return <div key={ti} style={{ flex:t.weight||1, background:t.color, opacity:0.7 }}/>;
@@ -5737,6 +5730,7 @@ return <div key={ti} style={{ width:6, height:6, borderRadius:"50%", background:
 
 function DepthsFieldCard({ themes, sd, tension, sessionCount, portrait, portraitReady, goNext }) {
 themes = themes || []; sd = sd || {};
+var isMobile = React.useContext(FieldMobileContext);
 
 var _dUnder = typeof (sd && sd.underneath) === "string" ? sd.underneath : "";
 var _dBlind = typeof (sd && sd.blind_spot) === "string" ? sd.blind_spot : "";
@@ -5794,9 +5788,10 @@ return [
 
 var _depthText = _dLine || (_dUnder && typeof _dUnder === "string" && _dUnder.length > 0 ? _dUnder.split(".")[0] + "." : "Something waits beneath the words you chose.");
 
+var _dBarPad = isMobile ? "16px 20px" : "0 28px 24px";
 return (
 <div style={{ position:"absolute", inset:0, overflow:"hidden",
-background:"linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)" }}>
+background:"linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)", display:"flex", flexDirection:"column" }}>
 
 <div style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
 <div style={{ position:"absolute", top:0, left:0, right:0, height:"22%",
@@ -5866,6 +5861,7 @@ pointerEvents:"none"
 );
 })}
 
+<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", position:"relative", zIndex:1 }}>
 <div style={{ position:"absolute", top:46, left:0, right:0, textAlign:"center" }}>
 <div style={{ fontSize:8, letterSpacing:"0.5em", color:"rgba(107,200,255,0.3)",
 fontFamily:FB, textTransform:"uppercase" }}>SAYCRD</div>
@@ -5875,20 +5871,20 @@ fontFamily:FB, textTransform:"uppercase" }}>SAYCRD</div>
 animation:"riseUp 0.8s ease 0.1s both" }}>
 <div style={{ fontSize:9, letterSpacing:"0.55em", color:"rgba(107,200,255,0.22)",
 fontFamily:FB, textTransform:"uppercase", marginBottom:12 }}>DESCENDING INTO</div>
-<div style={{ fontSize:38, fontWeight:700, color:"rgba(200,235,255,0.88)", fontFamily:FB,
+<div style={{ fontSize:isMobile?28:38, fontWeight:700, color:"rgba(200,235,255,0.88)", fontFamily:FB,
 letterSpacing:"0.04em", textTransform:"uppercase", lineHeight:1.1,
 textShadow:"0 0 60px rgba(107,184,255,0.25)" }}>
 DEPTHS
 </div>
-<div style={{ fontSize:38, fontWeight:300, color:"rgba(150,200,255,0.5)", fontFamily:FB,
+<div style={{ fontSize:isMobile?28:38, fontWeight:300, color:"rgba(150,200,255,0.5)", fontFamily:FB,
 letterSpacing:"0.18em", textTransform:"uppercase", lineHeight:1.1 }}>
 OF THE FIELD
 </div>
 </div>
+</div>
 
-<div style={{ position:"absolute", bottom:0, left:0, right:0,
-padding:"0 28px 44px",
-background:"linear-gradient(0deg, #010208 0%, #02030F88 50%, transparent 100%)" }}>
+<div style={{ flexShrink:0, padding:_dBarPad, paddingBottom:"calc("+(isMobile?20:28)+"px + env(safe-area-inset-bottom, 0px))",
+background:"linear-gradient(0deg, #010208 0%, #02030F88 50%, transparent 100%)", position:"relative", zIndex:2 }}>
 
 <div style={{ width:"100%", height:1, marginBottom:22,
 background:"linear-gradient(90deg, transparent, rgba(107,184,255,0.3) 30%, rgba(164,220,255,0.5) 60%, rgba(107,184,255,0.2) 80%, transparent)",
@@ -5986,13 +5982,15 @@ var _sizes = [68, 48, 34, 24, 16];
 var _weights = [700, 600, 400, 300, 300];
 var _tracking = ["-0.03em", "-0.02em", "0em", "0.02em", "0.04em"];
 
+var isMobile = React.useContext(FieldMobileContext);
 return (
 <div style={{
 position:"absolute", inset:0, overflow:"hidden",
 background:"#F7F4EF",
 display:"flex", flexDirection:"column"
 }}>
-<div style={{ padding:"52px 28px 0 24px" }}>
+<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch" }}>
+<div style={{ padding:isMobile ? "36px 20px 0 20px" : "52px 28px 0 24px" }}>
 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
 marginBottom:12 }}>
 <div style={{ fontSize:7.5, letterSpacing:"0.45em", color:"#999", fontFamily:FB,
@@ -6078,7 +6076,7 @@ background: di < Math.ceil(ratio*3) ? b.color : "#E0D8D0"
 })}
 </div>
 
-<div style={{ padding:"0 48px 40px 24px" }}>
+<div style={{ padding:isMobile ? "0 24px 24px 20px" : "0 48px 40px 24px", paddingBottom:"calc("+(isMobile?24:40)+"px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ height:0.75, background:"#D0C8BC", marginBottom:18 }}/>
 <div style={{ minHeight:52 }}>
 {!_wgReady ? (
@@ -6094,6 +6092,7 @@ fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break
 {_wgLine || (_branches[0] ? "\u201c"+_branches[0].label+" keeps returning \u2014 it wants something.\u201d" : "The field is learning what it loves.")}
 </div>
 )}
+</div>
 </div>
 </div>
 </div>
@@ -6786,7 +6785,7 @@ var chapters = (nar && nar.chapters) || [];
 var turningPoints = (nar && nar.turning_points) || [];
 var storylines = (nar && nar.recurring_storylines) || [];
 return (
-<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button")) goNext && goNext(); }} style={{ position:"absolute", inset:0, cursor:"pointer", overflowY:"auto", WebkitOverflowScrolling:"touch", background:"linear-gradient(180deg, #040810 0%, #080614 100%)", padding:"48px 24px 60px" }}>
+<div data-noadvance="true" onClick={function(e){ if (!e.target.closest("button")) goNext && goNext(); }} style={{ position:"absolute", inset:0, cursor:"pointer", overflowY:"auto", WebkitOverflowScrolling:"touch", background:"linear-gradient(180deg, #040810 0%, #080614 100%)", padding:"48px 24px 60px", paddingBottom:"calc(60px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ position:"absolute", top:0, left:0, right:0, height:120, background:"linear-gradient(180deg, #040810 0%, transparent 100%)", pointerEvents:"none" }}/>
 <div style={{ fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.25)", fontFamily:FB, marginBottom:8, textTransform:"uppercase" }}>YOUR ARC</div>
 <div style={{ fontSize:28, fontWeight:800, color:"white", fontFamily:FB, letterSpacing:"-0.02em", marginBottom:8 }}>WHAT THE RECORD SHOWS</div>
@@ -10580,7 +10579,7 @@ setFieldTransition(true);
 setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
 return (
-<div style={{width:"100%",height:"100vh",minHeight:"100vh",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
+<div className="saycrd-app-shell" style={{width:"100%",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
@@ -10628,6 +10627,7 @@ return (
 @keyframes reportAurora{0%,100%{opacity:0.2;transform:translateY(0) scale(1)}50%{opacity:0.5;transform:translateY(-8%) scale(1.1)}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.saycrd-app-shell{height:100vh;height:100dvh;min-height:100vh;min-height:100dvh}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
 .pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
 textarea{caret-color:#6BB8FF}
