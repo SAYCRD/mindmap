@@ -1612,9 +1612,10 @@ return baseScore + bonus;
 const [pos, setPos] = useState({});
 const prevNodeCount = useRef(0);
 useEffect(function() {
-if (nodes.length !== prevNodeCount.current) {
+var prev = prevNodeCount.current;
+if (nodes.length !== prev) {
 prevNodeCount.current = nodes.length;
-setPos({}); 
+if (prev > 0 && nodes.length > prev) setPos({});
 }
 }, [nodes.length]);
 const [fieldSize, setFieldSize] = useState(null);
@@ -1642,7 +1643,7 @@ rafId = requestAnimationFrame(tryMeasure);
 rafId = requestAnimationFrame(tryMeasure);
 
 return function() { if (rafId) cancelAnimationFrame(rafId); };
-}, []);
+}, [nodes.length]);
 
 useLayoutEffect(() => {
 if (nodes.length === 0 || !fieldSize) return;
@@ -1849,6 +1850,8 @@ var K = function(c) { return c.from+"::"+c.to; };
 const explored = Object.keys(responses).length + discoveredConns.length;
 const didDrag = useRef(false);
 const snapRef = useRef(null);
+const posRef = useRef(pos);
+posRef.current = pos;
 const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
 const [pointerDownKey, setPointerDownKey] = useState(null);
 const pointerDownPos = useRef(null);
@@ -1879,13 +1882,22 @@ var y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0
 pointerDownPos.current = { x: x, y: y };
 setPointerDownKey(key);
 };
+var rafScheduled = useRef(false);
+var lastMoveRef = useRef(null);
 useEffect(() => {
 if(!dragging) return;
 const m = e => {
 didDrag.current = true;
+lastMoveRef.current = e;
+if (rafScheduled.current) return;
+rafScheduled.current = true;
+requestAnimationFrame(function() {
+rafScheduled.current = false;
+var ev = lastMoveRef.current; if (!ev) return;
+lastMoveRef.current = null;
 const r = fieldRef.current ? fieldRef.current.getBoundingClientRect() : null; if(!r) return;
-const ex = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-const ey = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+const ex = ev.clientX != null ? ev.clientX : (ev.touches && ev.touches[0] ? ev.touches[0].clientX : 0);
+const ey = ev.clientY != null ? ev.clientY : (ev.touches && ev.touches[0] ? ev.touches[0].clientY : 0);
 const cx = ex - r.left - dragging.ox;
 const cy = ey - r.top - dragging.oy;
 const newX = Math.max(0, Math.min(cx, r.width - 120));
@@ -1895,7 +1907,7 @@ const dragCtr = { x: newX + 50, y: newY + 18 };
 let closest = null, closeDist = Infinity;
 nodes.forEach(n => {
 if (n.key === dragging.key) return;
-const np = pos[n.key]; if(!np) return;
+const np = posRef.current[n.key]; if(!np) return;
 const nc = { x: np.x + 60, y: np.y + 20 };
 const dist = Math.hypot(nc.x - dragCtr.x, nc.y - dragCtr.y);
 if (dist < SNAP_DIST && dist < closeDist && !anyConn(dragging.key, n.key)) {
@@ -1904,6 +1916,7 @@ closeDist = dist; closest = n.key;
 });
 snapRef.current = closest;
 setSnapTarget(closest);
+});
 };
 var u = function() {
 if (!didDrag.current) {
@@ -1938,16 +1951,13 @@ window.addEventListener("pointerup", u);
 return () => { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
 }, [dragging, selectedNode]);
 
-var _bottomPad = isMobile ? "calc(110px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))";
+var _bottomPad = isMobile ? "calc(80px + env(safe-area-inset-bottom, 0px))" : "calc(70px + env(safe-area-inset-bottom, 0px))";
 return (
-<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "22px 0 " + _bottomPad + " 0", overflow: "hidden",
+<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", padding: "12px 0 " + _bottomPad + " 0", overflow: "hidden",
 background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a14 100%)" }}>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 100% 80% at 50% 30%, rgba(80,60,140,0.06) 0%, transparent 55%)", pointerEvents: "none", zIndex: 0 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
 <Particles color="rgba(107,184,255,0.25)" count={isMobile ? 6 : 14}/>
-<div style={{ textAlign: "center", zIndex: 2, marginBottom: 0, flexShrink: 0, padding: "0 16px", height: 56 }}>
-<div style={{ fontSize: 18, letterSpacing: "0.2em", color: "#fff", fontFamily: FB, fontWeight: 600 }}>Your Current Constellation</div>
-</div>
 <div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); } }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 70% at 50% 50%, rgba(40,50,90,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }}/>
@@ -2181,7 +2191,6 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 </>
 </div>
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
-<button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "#fff", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>{explored >= 1 ? "continue →" : "continue →"}</button>
 {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Back</button>}
 </div>
 </div>
@@ -10732,7 +10741,7 @@ setFieldTransition(true);
 setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
 return (
-<div className="saycrd-app-shell" style={{width:"100%",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
+<div className="saycrd-app-shell" style={{width:"100%",background:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete") ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
@@ -10780,8 +10789,8 @@ return (
 @-webkit-keyframes reportStreamBar{0%,100%{transform:scaleX(0.4);-webkit-transform:scaleX(0.4)}50%{transform:scaleX(0.95);-webkit-transform:scaleX(0.95)}}
 @keyframes reportAurora{0%,100%{opacity:0.2;transform:translateY(0) scale(1)}50%{opacity:0.5;transform:translateY(-8%) scale(1.1)}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
-body{margin:0;background:#000;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.saycrd-app-shell{height:100vh;height:100dvh;min-height:100vh;min-height:100dvh}
+body{margin:0;background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.saycrd-app-shell{height:100vh;height:100dvh;min-height:100vh;min-height:100dvh;overflow:hidden;max-width:100vw}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
 .pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
 textarea{caret-color:#6BB8FF}
