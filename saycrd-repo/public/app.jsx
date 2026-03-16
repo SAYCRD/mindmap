@@ -80,10 +80,9 @@ var key = normalizeSentKey(text);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var optColor = opt && (opt.color || PICKER_ACCENT);
 var isRgba = optColor && typeof optColor === "string" && optColor.indexOf("rgba") >= 0;
-var darkColorNeedsLightText = dark && optColor && !isRgba && isDarkHex(optColor);
 var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : (dark ? optColor + "55" : optColor + "28")) : "transparent";
 var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optColor) : "1px solid transparent";
-var txtColor = optColor ? (isRgba ? (dark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.72)") : (darkColorNeedsLightText ? "rgba(255,255,255,0.95)" : optColor)) : "inherit";
+var txtColor = "inherit";
 return (
 <>
 <span
