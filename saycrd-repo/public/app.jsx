@@ -12,8 +12,9 @@ var SENTENCE_FEEDBACK_OPTIONS = [
 ];
 
 function SentenceFeedbackButtons({ text, onFeedback, onClose }) {
+var [optionalNote, setOptionalNote] = useState("");
 return (
-<div style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+<div style={{ position: "relative", zIndex: 1, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)" }}>
 <button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(0,0,0,0.4)", fontFamily: FB }} aria-label="Close">×</button>
 <div style={{ fontSize: 10, letterSpacing: "0.35em", color: "rgba(0,0,0,0.45)", fontFamily: FB, marginBottom: 10 }}>How did this land?</div>
 <div style={{ fontSize: 13, color: "rgba(0,0,0,0.72)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5, padding: "12px 14px", background: "rgba(0,0,0,0.02)", borderRadius: 10 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
@@ -30,13 +31,16 @@ cursor: "pointer", transition: "all 0.2s",
 boxShadow: isRgba ? "none" : "0 1px 4px " + (c + "22")
 };
 return (
-<button key={o.id} onClick={function(){ onFeedback && onFeedback(o.id); onClose(); }} style={btnStyle}>
+<button key={o.id} onClick={function(){ onFeedback && onFeedback(text, o.id, optionalNote.trim()); onClose(); }} style={btnStyle}>
 {o.label}
 </button>
 );
 })}
 </div>
-<button onClick={onClose} style={{ marginTop: 14, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
+<div style={{ marginTop: 14 }}>
+<textarea placeholder="Optional: share what doesn't land or what you'd add" value={optionalNote} onChange={function(e){ setOptionalNote(e.target.value); }} style={{ width: "100%", minHeight: 56, padding: "10px 12px", fontSize: 12, fontFamily: FD, color: "rgba(0,0,0,0.72)", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, resize: "vertical", outline: "none", boxSizing: "border-box" }} rows={2} />
+</div>
+<button onClick={onClose} style={{ marginTop: 10, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
 </div>
 );
 }
@@ -68,13 +72,14 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 >
 {text}
 </span>
-{open && (
-<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
+{open && ReactDOM.createPortal(
+<div style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ setOpen(false); }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackButtons text={text} onFeedback={function(id){ onFeedback && onFeedback(text, id); setOpen(false); }} onClose={function(){ setOpen(false); }} />
+<SentenceFeedbackButtons text={text} onFeedback={function(id, comment){ onFeedback && onFeedback(text, id, comment); setOpen(false); }} onClose={function(){ setOpen(false); }} />
 </div>
-</div>
+</div>,
+document.body
 )}
 </>
 );
@@ -190,7 +195,7 @@ return c.slice(0, 20);
 }, [bubbles]);
 return (
 <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
-<div style={{ position: "absolute", inset: 0, background: "rgba(0,4,12,0.6)" }}/>
+<div style={{ position: "absolute", inset: 0, background: "rgba(0,2,8,0.85)" }}/>
 <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }} viewBox="0 0 100 100" preserveAspectRatio="none">
 {conns.map(function(pair, ci) {
 var a = bubbles[pair[0]], b = bubbles[pair[1]];
@@ -207,7 +212,7 @@ return (
 </svg>
 {words.map(function(w, i) {
 var b = bubbles[i % bubbles.length];
-var coolColors = ["#7FD4FF","#A8C8FF","#6BFFFF","#B8E0FF","#88D8F0","#9EC8FF"];
+var coolColors = ["#B0FFFF","#C8E8FF","#90FFFF","#D0F4FF","#A8FFFF","#B8E8FF"];
 var wordColor = coolColors[i % coolColors.length];
 return (
 <div key={i} style={{ position: "absolute", left: (b ? b.x : 20 + (i % 5) * 15) + "%", top: (b ? b.y : 30 + Math.floor(i / 5) * 20) + "%", transform: "translate(-50%, -50%)", fontSize: b && b.r > 18 ? 13 : b && b.r > 10 ? 11 : 9, color: wordColor, fontFamily: FD, fontStyle: "italic", opacity: 0.88 + (i % 4) * 0.04, animation: "floatWord 5s ease-in-out infinite", animationDelay: -(i * 0.4) + "s", whiteSpace: "nowrap", textShadow: "0 0 20px rgba(0,0,0,0.7), 0 0 6px " + wordColor + "88" }}>
@@ -238,9 +243,9 @@ return (
 {!isFinding && (
 <>
 <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-<div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "22%", background: "linear-gradient(180deg, #0A3A4A44 0%, transparent 100%)" }}/>
-<div style={{ position: "absolute", top: "25%", left: 0, right: 0, height: "35%", background: "linear-gradient(180deg, transparent, #050A3022 50%, transparent)" }}/>
-<div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "38%", background: "linear-gradient(0deg, #03010F 0%, #06041A44 60%, transparent 100%)" }}/>
+<div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "22%", background: "linear-gradient(180deg, rgba(4,6,14,0.5) 0%, transparent 100%)" }}/>
+<div style={{ position: "absolute", top: "25%", left: 0, right: 0, height: "35%", background: "linear-gradient(180deg, transparent, rgba(6,8,18,0.25) 50%, transparent)" }}/>
+<div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "38%", background: "linear-gradient(0deg, #03010F 0%, rgba(5,7,18,0.6) 60%, transparent 100%)" }}/>
 </div>
 {shafts.map(function(sh, si) {
 return (
@@ -313,8 +318,8 @@ var angle = (Math.PI * 2 * i / Math.max(n, 1)) - Math.PI / 2;
 return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
 });
 return (
-<div style={{ width: "100%", maxWidth: 520, margin: "0 auto" }}>
-<svg viewBox="0 0 400 280" style={{ width: "100%", height: 220 }}>
+<div style={{ width: "100%", maxWidth: 560, margin: "0 auto" }}>
+<svg viewBox="0 0 400 280" style={{ width: "100%", height: 260 }}>
 <defs>
 <filter id="nodeGlow"><feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 </defs>
@@ -780,7 +785,7 @@ return (
 }
 
 var REVEAL_DURATION_MS = 10500;
-var MIN_FINDING_MS = 4000;
+var MIN_FINDING_MS = 6000;
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
 const [err, setErr] = useState(null);
@@ -1200,7 +1205,10 @@ return <span key={i} style={{ fontSize: 11, color: "rgba(107,184,255,"+(0.25+i*0
 ) : revealData && revealData.themes && revealData.themes.length > 0 ? (
 <MapRevealCinematic themes={revealData.themes} connections={revealData.connections || []} mapTitle={revealData.map_title || revealData.mapTitle} />
 ) : (
-<svg viewBox="0 0 200 90" style={{ width: "100%", maxWidth: 280, height: 75 }}><g fill="none"><circle cx="60" cy="35" r="14" fill="rgba(78,201,184,0.25)" stroke="#4EC9B8" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease infinite" }}/><circle cx="140" cy="30" r="12" fill="rgba(107,184,255,0.25)" stroke="#6BB8FF" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.2s infinite" }}/><circle cx="100" cy="60" r="10" fill="rgba(167,139,250,0.25)" stroke="#A78BFA" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.4s infinite" }}/><path d="M 74 35 Q 100 20 126 30" stroke="#6BB8FF" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear infinite" }}/><path d="M 68 45 Q 85 55 92 58" stroke="#A78BFA" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.3s infinite" }}/><path d="M 128 38 Q 125 50 108 56" stroke="#4EC9B8" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.6s infinite" }}/></g></svg>
+<div style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+<svg viewBox="0 0 240 120" style={{ width: "100%", height: 110 }}><g fill="none"><circle cx="50" cy="40" r="12" fill="rgba(78,201,184,0.28)" stroke="#4EC9B8" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease infinite" }}/><circle cx="120" cy="35" r="11" fill="rgba(107,184,255,0.28)" stroke="#6BB8FF" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.2s infinite" }}/><circle cx="190" cy="45" r="10" fill="rgba(167,139,250,0.28)" stroke="#A78BFA" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.4s infinite" }}/><circle cx="95" cy="85" r="9" fill="rgba(127,255,212,0.25)" stroke="#7FFFD4" strokeWidth="1.2" style={{ animation: "nodeBreathe 2s ease 0.15s infinite" }}/><circle cx="150" cy="90" r="8" fill="rgba(56,189,248,0.25)" stroke="#38BDF8" strokeWidth="1.2" style={{ animation: "nodeBreathe 2s ease 0.35s infinite" }}/><path d="M 62 40 Q 95 25 130 35" stroke="#6BB8FF" strokeWidth="1.2" opacity="0.65" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear infinite" }}/><path d="M 131 38 Q 165 40 190 45" stroke="#A78BFA" strokeWidth="1.2" opacity="0.65" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.3s infinite" }}/><path d="M 58 50 Q 85 70 95 85" stroke="#4EC9B8" strokeWidth="1.2" opacity="0.65" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.6s infinite" }}/><path d="M 130 42 Q 140 65 150 90" stroke="#7FFFD4" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.45s infinite" }}/><path d="M 190 50 Q 175 72 155 88" stroke="#38BDF8" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.2s infinite" }}/></g></svg>
+<div style={{ fontSize: 9, letterSpacing: "0.35em", color: "rgba(107,184,255,0.4)", fontFamily: FB, textTransform: "uppercase" }}>Connecting themes · Finding links</div>
+</div>
 )
 }
 />
@@ -2657,14 +2665,18 @@ return note.toLowerCase().replace(/[^a-z\s]/g,"").split(/\s+/).filter(function(w
 
 
 
-function handleSentenceFeedback(text, optionId) {
+function handleSentenceFeedback(text, optionId, optionalComment) {
 var key = (text || "").slice(0, 100);
 setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
 if (optionId === "not_feeling" || optionId === "doesnt_fit") {
+if (optionalComment && optionalComment.trim()) {
+fireRevision(optionalComment.trim(), text);
+} else {
 setTimeout(function(){ if (window.confirm && window.confirm("Add a note about what's different?")) {
 var note = window.prompt("What would you say instead?");
 if (note && note.trim()) fireRevision(note.trim(), text);
 }}, 100);
+}
 }
 }
 
@@ -5684,11 +5696,11 @@ background:"linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072
 
 <div style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
 <div style={{ position:"absolute", top:0, left:0, right:0, height:"22%",
-background:"linear-gradient(180deg, #0A3A4A44 0%, transparent 100%)" }}/>
+background:"linear-gradient(180deg, rgba(4,6,14,0.5) 0%, transparent 100%)" }}/>
 <div style={{ position:"absolute", top:"25%", left:0, right:0, height:"35%",
-background:"linear-gradient(180deg, transparent, #050A3022 50%, transparent)" }}/>
+background:"linear-gradient(180deg, transparent, rgba(6,8,18,0.25) 50%, transparent)" }}/>
 <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"38%",
-background:"linear-gradient(0deg, #03010F 0%, #06041A44 60%, transparent 100%)" }}/>
+background:"linear-gradient(0deg, #03010F 0%, rgba(5,7,18,0.6) 60%, transparent 100%)" }}/>
 </div>
 
 {_dShafts.map(function(sh, si) {
@@ -7560,10 +7572,10 @@ var [_sentenceFeedback, _setSentenceFeedback] = useState(function(){ try { var s
 var [_editingSentence, _setEditingSentence] = useState(null);
 var _mergedReportFb = Object.assign({}, propSentenceFeedback || {}, _sentenceFeedback || {});
 function _handleReportSentenceClick(s) { _setEditingSentence(s); }
-function _handleReportSentenceFeedback(text, optionId) {
+function _handleReportSentenceFeedback(text, optionId, optionalComment) {
 var key = (text || "").slice(0, 100);
 _setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
-onSentenceFeedback && onSentenceFeedback(text, optionId);
+onSentenceFeedback && onSentenceFeedback(text, optionId, optionalComment);
 _setEditingSentence(null);
 }
 useEffect(function() {
@@ -8095,13 +8107,14 @@ return (
 style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"#F9F9F7", display:"flex", flexDirection:"column",
 fontFamily:FB }}>
-{_editingSentence && (
-<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
+{_editingSentence && ReactDOM.createPortal(
+<div style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ _setEditingSentence(null); }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackButtons text={_editingSentence} onFeedback={function(id){ _handleReportSentenceFeedback(_editingSentence, id); _setEditingSentence(null); }} onClose={function(){ _setEditingSentence(null); }} />
+<SentenceFeedbackButtons text={_editingSentence} onFeedback={function(text, id, comment){ _handleReportSentenceFeedback(text, id, comment); _setEditingSentence(null); }} onClose={function(){ _setEditingSentence(null); }} />
 </div>
-</div>
+</div>,
+document.body
 )}
 <div style={{ height:3, flexShrink:0,
 background:"linear-gradient(90deg, "+_accent+", "+_accent+"44)" }}/>
@@ -8709,7 +8722,7 @@ function setSlider(key, v) { setSliderValues(function(prev) { return Object.assi
 var [cardComments, setCardComments] = useState({});
 function setCardComment(key, text) { setCardComments(function(prev) { return Object.assign({}, prev, {[key]: text}); }); }
 var [fieldCardSentenceFeedback, setFieldCardSentenceFeedback] = useState({});
-function handleFieldCardFeedback(text, optionId) {
+function handleFieldCardFeedback(text, optionId, optionalComment) {
 var key = (text || "").slice(0, 100);
 setFieldCardSentenceFeedback(function(prev) {
 var next = Object.assign({}, prev, { [key]: optionId });
