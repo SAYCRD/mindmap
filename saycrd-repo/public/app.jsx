@@ -188,7 +188,7 @@ return out;
 
 const FD = "'DM Serif Display', Georgia, serif";
 const FB = "'DM Sans', sans-serif";
-const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field"];
+const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field", "complete"];
 const GRADIENTS = {
 landing: "#000",
 pour: "linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",
@@ -197,6 +197,7 @@ cosynth: "linear-gradient(160deg, #080818 0%, #1A0A3E 50%, #2D1060 100%)",
 map: "linear-gradient(160deg, #060810 0%, #0B1020 40%, #111830 100%)",
 session: "linear-gradient(160deg, #0A0A1E 0%, #1A1A3B 40%, #2D1B5B 100%)",
 field: "#000",
+complete: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)",
 };
 
 function FloatingWords({ words, color = "#6BB8FF" }) {
@@ -300,6 +301,44 @@ return (
 );
 })}
 </div>
+</div>
+</div>
+);
+}
+
+function ProgressiveLoadingOverlay({ loading, label, sublabel, children }) {
+return (
+<div style={{ position: "relative", width: "100%", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+{children}
+{loading && (
+<div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(2,8,24,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", padding: "24px 20px", zIndex: 5, transition: "opacity 0.4s ease" }}>
+<div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6BB8FF", animation: "pulse 1.5s ease infinite", marginBottom: 20 }}/>
+<div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.95)", fontFamily: FB, letterSpacing: "0.04em", textAlign: "center", marginBottom: 8 }}>{label}</div>
+{sublabel && <div style={{ fontSize: 13, color: "rgba(150,200,255,0.7)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5, maxWidth: 320 }}>{sublabel}</div>
+</div>
+)}
+</div>
+);
+}
+
+function MapSkeleton() {
+var NC = ["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4"];
+var n = 5;
+var cx = 200; var cy = 140; var r = 100;
+var positions = [];
+for (var i = 0; i < n; i++) {
+var angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+positions.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+}
+return (
+<div style={{ width: "100%", maxWidth: 560, margin: "0 auto", opacity: 0.5 }}>
+<svg viewBox="0 0 400 280" style={{ width: "100%", height: 260 }}>
+{positions.map(function(p, i) {
+return <circle key={i} cx={p.x} cy={p.y} r="20" fill={NC[i % NC.length] + "18"} stroke={NC[i % NC.length] + "44"} strokeWidth="1" opacity="0.8" style={{ animation: "nodeBreathe 2.5s ease-in-out infinite", animationDelay: (i * 0.2) + "s" }}/>;
+})}
+</svg>
+<div style={{ marginTop: 16, padding: "0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+{[1,2,3].map(function(i){ return <div key={i} style={{ height: 36, borderRadius: 8, background: "rgba(107,184,255,0.08)", animation: "pulse 2s ease-in-out infinite", animationDelay: (i * 0.3) + "s" }}/>; })}
 </div>
 </div>
 );
@@ -1287,32 +1326,21 @@ Continue
 <button onClick={function(){ window.location.reload(); }} style={{ marginTop:20, padding:"10px 24px", borderRadius:999, border:"1px solid rgba(255,107,107,0.4)", background:"transparent", color:"rgba(255,107,107,0.7)", fontFamily:FB, fontSize:13, cursor:"pointer" }}>go back and retry</button>
 </div>
 ) : (
-<ProcessingScreen
-wrapStyle={revealFadeOut ? { animation: "revealFadeOut 1.8s ease-in-out forwards" } : {}}
-stepKey={step}
-rawText={rawText}
-findingPhase={findingPhase}
-findingDetail={findingDetail}
-label={step===0?"Reading your words":step===1?"Finding what's underneath":(revealData && revealData.themes ? "Your map" : "Building your map")}
-sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?"What's happening in real time — no placeholders":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
-palette={["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"]}
-stage={
-step===0 ? (
-<div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap", padding: "0 20px" }}>
-{["flow","settle","merge","form","rise","fall","gather","drift"].map(function(w,i){
-return <span key={i} style={{ fontSize: 11, color: "rgba(107,184,255,"+(0.25+i*0.08)+")", fontFamily: FD, fontStyle: "italic", animation: "floatWord "+(4+i*0.5)+"s ease-in-out infinite", animationDelay: -(i*0.4)+"s" }}>{w}</span>;
-})}
-</div>
-) : step===1 ? null : revealData && revealData.themes && revealData.themes.length > 0 ? (
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", ...(revealFadeOut ? { animation: "revealFadeOut 1.8s ease-in-out forwards" } : {}) }}>
+<ProgressiveLoadingOverlay
+loading={step === 0 || step === 1}
+label={step===0?"Reading your words":step===1?"Finding what's underneath":"Your map"}
+sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?(findingDetail || "What's happening in real time — no placeholders"):(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
+>
+<div style={{ width: "100%", maxWidth: 560, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
+{revealData && revealData.themes && revealData.themes.length > 0 ? (
 <MapRevealCinematic themes={revealData.themes} connections={revealData.connections || []} mapTitle={revealData.map_title || revealData.mapTitle} />
 ) : (
-<div style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-<svg viewBox="0 0 240 120" style={{ width: "100%", height: 110 }}><g fill="none"><circle cx="50" cy="40" r="12" fill="rgba(78,201,184,0.28)" stroke="#4EC9B8" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease infinite" }}/><circle cx="120" cy="35" r="11" fill="rgba(107,184,255,0.28)" stroke="#6BB8FF" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.2s infinite" }}/><circle cx="190" cy="45" r="10" fill="rgba(167,139,250,0.28)" stroke="#A78BFA" strokeWidth="1.5" style={{ animation: "nodeBreathe 2s ease 0.4s infinite" }}/><circle cx="95" cy="85" r="9" fill="rgba(127,255,212,0.25)" stroke="#7FFFD4" strokeWidth="1.2" style={{ animation: "nodeBreathe 2s ease 0.15s infinite" }}/><circle cx="150" cy="90" r="8" fill="rgba(56,189,248,0.25)" stroke="#38BDF8" strokeWidth="1.2" style={{ animation: "nodeBreathe 2s ease 0.35s infinite" }}/><path d="M 62 40 Q 95 25 130 35" stroke="#6BB8FF" strokeWidth="1.2" opacity="0.65" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear infinite" }}/><path d="M 131 38 Q 165 40 190 45" stroke="#A78BFA" strokeWidth="1.2" opacity="0.65" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.3s infinite" }}/><path d="M 58 50 Q 85 70 95 85" stroke="#4EC9B8" strokeWidth="1.2" opacity="0.65" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.6s infinite" }}/><path d="M 130 42 Q 140 65 150 90" stroke="#7FFFD4" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.45s infinite" }}/><path d="M 190 50 Q 175 72 155 88" stroke="#38BDF8" strokeWidth="1.2" opacity="0.6" fill="none" strokeDasharray="6 4" style={{ animation: "flowLine 2.5s linear 0.2s infinite" }}/></g></svg>
-<div style={{ fontSize: 9, letterSpacing: "0.35em", color: "rgba(107,184,255,0.4)", fontFamily: FB, textTransform: "uppercase" }}>Connecting themes · Finding links</div>
+<MapSkeleton />
+)}
 </div>
-)
-}
-/>
+</ProgressiveLoadingOverlay>
+</div>
 )}
 </>
 );
@@ -7666,7 +7694,7 @@ if (/CONCLUSION/.test(t)) return "The thread that ties it together";
 return "";
 }
 
-function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, sliderValues, portrait, portraitReady, goNext, sentenceFeedback: propSentenceFeedback, onSentenceFeedback }) {
+function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, sliderValues, portrait, portraitReady, goNext, sentenceFeedback: propSentenceFeedback, onSentenceFeedback, onSessionComplete }) {
 themes = themes || [];
 allSessions = allSessions || [];
 var isMobile = React.useContext(FieldMobileContext);
@@ -8561,12 +8589,21 @@ Report unavailable.
 <div style={{ padding:"0 32px 40px", textAlign:"center" }}>
 <div
 onClick={function(){
+if (onSessionComplete) {
+var fade = document.createElement("div");
+fade.style.cssText = "position:fixed;inset:0;background:#000;opacity:0;z-index:99999;transition:opacity 1.2s ease;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
+fade.innerHTML = "<div style=\"font-family:serif;font-size:13px;letter-spacing:0.4em;color:rgba(255,255,255,0.25);opacity:0;transition:opacity 1s ease 0.6s\">SESSION COMPLETE</div>";
+document.body.appendChild(fade);
+requestAnimationFrame(function(){ fade.style.opacity="1"; fade.querySelector("div").style.opacity="1"; });
+setTimeout(function(){ fade.remove(); onSessionComplete(); }, 1200);
+} else {
 var fade = document.createElement("div");
 fade.style.cssText = "position:fixed;inset:0;background:#000;opacity:0;z-index:99999;transition:opacity 1.2s ease;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
 fade.innerHTML = "<div style=\"font-family:serif;font-size:13px;letter-spacing:0.4em;color:rgba(255,255,255,0.25);opacity:0;transition:opacity 1s ease 0.6s\">SESSION COMPLETE</div>";
 document.body.appendChild(fade);
 requestAnimationFrame(function(){ fade.style.opacity="1"; fade.querySelector("div").style.opacity="1"; });
 setTimeout(function(){ try{ window.close(); } catch(e){} }, 1400);
+}
 }}
 style={{ display:"inline-block", fontSize:10, letterSpacing:"0.35em",
 color:"rgba(0,0,0,0.2)", fontFamily:FB, cursor:"pointer",
@@ -8584,7 +8621,7 @@ onMouseLeave={function(e){ e.currentTarget.style.color="rgba(0,0,0,0.2)"; }}>
 );
 }
 
-function FieldPhase({ synthesisData, rawText, mapResponses, sessionData }) {
+function FieldPhase({ synthesisData, rawText, mapResponses, sessionData, onSessionComplete }) {
 var sd = synthesisData || {};
 var mr = mapResponses || {};
 var sData = sessionData || {};
@@ -8954,7 +8991,7 @@ case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "field_report": {
-return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={portrait} portraitReady={portraitReady} goNext={advance} sentenceFeedback={mergedSentenceFeedback} onSentenceFeedback={handleFieldCardFeedback}/>;
+return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={portrait} portraitReady={portraitReady} goNext={advance} sentenceFeedback={mergedSentenceFeedback} onSentenceFeedback={handleFieldCardFeedback} onSessionComplete={onSessionComplete}/>;
 }
 case "the_underdrawing": {
 return <UnderdrawingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -9910,6 +9947,65 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 );
 }
 
+function CompletionPhase({ onStart }) {
+var sessions = [];
+try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+var lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+var themes = (lastSession && lastSession.themes) ? lastSession.themes : [];
+var arch = lastSession && lastSession.archetypes && lastSession.archetypes[0] ? lastSession.archetypes[0] : null;
+var dateStr = lastSession && lastSession.date ? new Date(lastSession.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+var SG = "Space Grotesk, " + FB;
+
+function guardedStart() {
+if (window.currentUser) { onStart(); return; }
+if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+else { onStart(); }
+}
+
+return (
+<div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
+<div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+<div style={{ position: "absolute", top: "-10%", right: "-5%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(184,107,255,0.12), transparent 65%)", filter: "blur(80px)" }} />
+<div style={{ position: "absolute", bottom: "20%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(107,184,255,0.08), transparent 65%)", filter: "blur(60px)" }} />
+</div>
+<div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+<div style={{ textAlign: "center", marginBottom: 40 }}>
+<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(184,107,255,0.6)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+<div style={{ fontSize: 13, letterSpacing: "0.4em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 8 }}>SESSION COMPLETE</div>
+<h1 style={{ fontSize: "clamp(28px, 6vw, 36px)", fontFamily: FD, fontWeight: 300, color: "rgba(255,255,255,0.95)", lineHeight: 1.2, marginBottom: 24 }}>You've woven another thread.</h1>
+</div>
+<div style={{ padding: "24px 20px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 32 }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+<div style={{ fontSize: 11, letterSpacing: "0.3em", color: "rgba(255,255,255,0.4)", fontFamily: FB }}>SESSIONS</div>
+<div style={{ fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,0.95)", fontFamily: FB }}>{sessions.length}</div>
+</div>
+{dateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic", marginBottom: 12 }}>{dateStr}</div>}
+{themes.length > 0 && (
+<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.25em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 8 }}>THIS SESSION</div>
+<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+{themes.slice(0, 5).map(function(t, i){ return <span key={i} style={{ padding: "4px 10px", borderRadius: 8, background: (t.color || "#6BB8FF") + "22", color: t.color || "#6BB8FF", fontSize: 12, fontFamily: FB }}>{t.label}</span>; })}
+</div>
+</div>
+)}
+{arch && arch.name && (
+<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.25em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 4 }}>YOUR PATTERN</div>
+<div style={{ fontSize: 16, fontWeight: 600, color: (arch.color || "#E84393") + "dd", fontFamily: FB }}>{arch.name}</div>
+</div>
+)}
+</div>
+<button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
+Start a new session
+</button>
+<div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+Your field grows with each session.
+</div>
+</div>
+</div>
+);
+}
+
 function LandingPhase({ onStart }) {
 var [show, setShow] = useState(false);
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
@@ -10591,7 +10687,7 @@ return next;
 
 const cp = PHASES[phase];
 
-useEffect(function(){ document.body.classList.toggle("saycrd-landing", cp === "landing"); return function(){ document.body.classList.remove("saycrd-landing"); }; }, [cp]);
+useEffect(function(){ document.body.classList.toggle("saycrd-landing", cp === "landing"); document.body.classList.toggle("saycrd-internal", cp !== "landing"); return function(){ document.body.classList.remove("saycrd-landing","saycrd-internal"); }; }, [cp]);
 
 function enterField() {
 setFieldTransition(true);
@@ -10600,7 +10696,7 @@ setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 return (
 <div className="saycrd-app-shell" style={{width:"100%",background:"#000",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: cp === "landing" ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete") ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
@@ -10609,7 +10705,8 @@ return (
 {cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(2);}}/>}
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
-{cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData}/>}
+{cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){setPhase(7);}}/>}
+{cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}}/>}
 {fieldTransition && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", animation: "morphIn 0.4s ease both" }}>
 <div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase", animation: "pulse 1.5s ease infinite" }}>entering the field</div>
 </div>}
