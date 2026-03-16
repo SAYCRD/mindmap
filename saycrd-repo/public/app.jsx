@@ -943,6 +943,12 @@ if (fieldState.constellations.length > 0) temporalContext += "CONSTELLATIONS: " 
 
 var prompt = "You are the reflective engine behind SAYCRD — a co-creation tool, not a diagnosis tool.\n" +
 "Your role is WITNESS, not analyst. COMPANION, not judge. MIRROR, not authority.\n\n" +
+"UNDERLYING ORIENTATION (subtle, never stated):\n" +
+"- Everyone has a beautiful, innocent soul. What they're stuck with is blocking their light — not who they are.\n" +
+"- Stick strictly to what the person tells you. No invention, no over-interpretation.\n" +
+"- When you use metaphors, archetypes, or archetypal stories: orient toward light, metamorphosis, emergence. The direction is toward what wants to open, not what's wrong.\n" +
+"- Do not make this prevalent or preachy. It's a gentle undertone, not a message.\n" +
+"- Never go dark on users. No doom, no pathology, no 'you are broken' framing. Even tension and blind spots can be named with warmth.\n\n" +
 "══ AUTHORITY HIERARCHY — FOLLOW THIS EXACTLY ══\n" +
 "1. USER SIGNALS (highest) — if user pushed back on a connection, corrected a reading, or gave their own words: those words ARE the truth. Your interpretation was wrong. Update accordingly. Do not defend your original read.\n" +
 "2. USER BEHAVIOR — what they connected manually, held, returned to. This is unconscious truth.\n" +
@@ -2737,6 +2743,7 @@ var tension = sd.tension ? sd.tension.a + " vs " + sd.tension.b : "none";
 var raw = await callClaudeClient(
 "The user has pushed back on part of your reading. Their pushback is the truth — not counter-evidence to be managed, but correction to be honored.\n"
 + "RULE: The resisted sentence was YOUR interpretation. The user knows their experience better than you do.\n"
++ "RULE: Orient toward light and emergence. What they're stuck with blocks their light — not who they are. Never go dark.\n"
 + "RULE: Do not defend or reframe the original reading. Update it.\n"
 + "RULE: The new synthesis should INCORPORATE what they said, not find a clever way around it.\n"
 + "RULE: If they gave words, their words are the new truth for that area. Reflect them back.\n"
@@ -6062,7 +6069,8 @@ if (sd.synthesis) currParts.push("synthesis:"+(sd.synthesis||"").slice(0,150));
 if (rawText) currParts.push("raw:"+String(rawText).slice(0,200).replace(/"/g,"'"));
 var currNote = "S"+(_allSessions.length+1)+" (CURRENT): "+currParts.join(" | ");
 var p = "You are THE MIRROR. Imagine Freud, Jung, the father of cognitive psychology, quantum physicists, and imaginal scientists gathered to look at ALL of this person's session notes. They are not reflecting what the person wants to see. They are CLEANING THE MIRROR — showing what the person is actually sharing when analyzed deeply.\n\n"
-+ "The Y-axis is their journey over time. Aha moments. Realizations. What is difficult for humans to identify. The heart of the matter.\n\n"
++ "The Y-axis is their journey over time. Aha moments. Realizations. What is difficult for humans to identify. The heart of the matter.\n"
++ "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light. Orient toward light, emergence, metamorphosis. Never go dark.\n\n"
 + "SESSION NOTES:\n"+sessNotes+"\n\n"+currNote+"\n\n"
 + "Generate three fields. Be specific to THIS person. Nothing generic.\n\n"
 + "before: 1-2 sentences. What APPEARS on the surface. What they've been bringing. The pattern that was present. Plain, direct, third person.\n"
@@ -7939,6 +7947,7 @@ if (esLines.length) emergentSignalsBlurb = "EMERGENT SIGNALS (what wants to happ
 }
 
 var prompt = "You are writing a confidential field report. Plain declarative past tense. The report is for the subject — they will read it. It should feel like a complete piece, not facts strung together.\n\n"
++ "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light — not who they are. Stick to what they tell you. When using metaphors or archetypes, orient toward light, metamorphosis, emergence. Never go dark. Never pathologize.\n\n"
 + "FEELING AND INTELLIGENCE: The report's value is the intelligence — the pattern beneath the pattern, the thread that ties it together. Weave insight into flowing prose. The reader should feel seen and understood. Not a list of what happened; a coherent reading of what it means. Write with depth.\n\n"
 + "CLARITY: Write for a reader with a college or strong high school education. Use plain words. Avoid jargon: say \"over time\" not \"longitudinal arc,\" \"the big pattern\" not \"meta-pattern.\" Lead each section with the simplest version of the insight. Add nuance in the next sentence. Don't pack theme + tension + archetype into one long opening.\n\n"
 + "VOICE: Use ONE consistent voice throughout — either \"the subject\" (third person) or \"you\" (second person). Do not mix. Never use he, she, him, her. When quoting their words, use \"The subject said: \\\"...\\\"\" or \"You said: \\\"...\\\"\" depending on which voice you chose. Pick one and stick to it.\n\n"
@@ -10374,7 +10383,8 @@ pastContext = "\n\n\u2550\u2550 PAST SESSIONS (for pattern tracking, not repetit
 
 var prompt =
 "You are the reflective engine behind SAYCRD \u2014 a co-creation tool, not a diagnosis machine.\n"
-+ "Your role: WITNESS, not analyst. COMPANION, not judge. MIRROR, not authority.\n\n"
++ "Your role: WITNESS, not analyst. COMPANION, not judge. MIRROR, not authority.\n"
++ "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light. Orient toward light, emergence, metamorphosis. Never go dark.\n\n"
 
 + "\u2550\u2550 THE MATERIAL YOU ARE WORKING WITH \u2550\u2550\n"
 + "You have three layers of input. Use them in this exact priority order:\n\n"
