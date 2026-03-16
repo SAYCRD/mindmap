@@ -53,6 +53,7 @@ var optColor = opt && (opt.color || PICKER_ACCENT);
 var isRgba = optColor && typeof optColor === "string" && optColor.indexOf("rgba") >= 0;
 var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : optColor + "28") : "transparent";
 var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optColor) : "1px solid transparent";
+var txtColor = optColor ? (isRgba ? "rgba(255,255,255,0.85)" : optColor) : "inherit";
 return (
 <>
 <span
@@ -65,7 +66,7 @@ margin: "0 1px",
 background: bg,
 borderBottom: bord,
 transition: "all 0.2s",
-color: "inherit",
+color: txtColor,
 }}
 onMouseEnter={function(e){ if(!feedback) e.currentTarget.style.background = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"; }}
 onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "transparent"; }}
@@ -328,19 +329,19 @@ var fromIdx = themes.findIndex(function(t){ return t.label === conn.from; });
 var toIdx = themes.findIndex(function(t){ return t.label === conn.to; });
 if (fromIdx < 0 || toIdx < 0) return null;
 var p1 = positions[fromIdx]; var p2 = positions[toIdx];
-var midDelay = Math.max(fromIdx, toIdx) * 0.85 + 2;
+var midDelay = Math.max(fromIdx, toIdx) * 1.5 + 3.5;
 return (
 <g key={ci}>
-<line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={(themes[fromIdx] && themes[fromIdx].color) || "#6BB8FF"} strokeWidth="2" opacity="0.65" fill="none" strokeDasharray="300" strokeDashoffset="300" style={{ animation: "connectionReveal 1.8s ease-out forwards", animationDelay: midDelay + "s" }}/>
+<line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={(themes[fromIdx] && themes[fromIdx].color) || "#6BB8FF"} strokeWidth="2" opacity="0.65" fill="none" strokeDasharray="300" strokeDashoffset="300" style={{ animation: "connectionReveal 2.8s ease-in-out forwards", animationDelay: midDelay + "s" }}/>
 </g>
 );
 })}
 {themes.map(function(t, i) {
 var p = positions[i];
 var col = t.color || "#6BB8FF";
-var delay = (i * 0.85) + 0.6;
+var delay = (i * 1.4) + 1.2;
 return (
-<g key={i} filter="url(#nodeGlow)" style={{ animation: "themeReveal 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards", animationDelay: delay + "s", opacity: 0 }}>
+<g key={i} filter="url(#nodeGlow)" style={{ animation: "themeReveal 2.2s ease-in-out forwards", animationDelay: delay + "s", opacity: 0 }}>
 <circle cx={p.x} cy={p.y} r="24" fill={col + "35"} stroke={col} strokeWidth="2.5" opacity="0.95"/>
 <text x={p.x} y={p.y + 5} textAnchor="middle" fontSize="11" fontFamily={FB} fontWeight="600" fill="rgba(255,255,255,0.98)" style={{ pointerEvents: "none" }}>{(t.label || "").slice(0, 14)}{(t.label || "").length > 14 ? "…" : ""}</text>
 </g>
@@ -349,29 +350,29 @@ return (
 </svg>
 <div style={{ marginTop: 16, padding: "0 12px", maxHeight: 200, overflow: "hidden" }}>
 {themes.slice(0, 5).map(function(t, i) {
-var delay = (i * 0.95) + 3.2;
+var delay = (i * 1.4) + 5.5;
 var col = t.color || "#6BB8FF";
 return (
-<div key={i} style={{ animation: "mapTitleReveal 0.8s ease-out " + delay + "s forwards", opacity: 0, marginBottom: 10, padding: "10px 14px", background: "rgba(0,0,0,0.25)", borderRadius: 10, borderLeft: "3px solid " + col }}>
+<div key={i} style={{ animation: "mapTitleReveal 1.5s ease-in-out " + delay + "s forwards", opacity: 0, marginBottom: 10, padding: "10px 14px", background: "rgba(0,0,0,0.25)", borderRadius: 10, borderLeft: "3px solid " + col }}>
 <div style={{ fontSize: 12, fontWeight: 600, color: col, fontFamily: FB, marginBottom: 2 }}>{t.label}</div>
 {(t.why && String(t.why).trim()) ? <div style={{ fontSize: 11, color: "rgba(200,235,255,0.7)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.4 }}>"{String(t.why).slice(0, 60)}{String(t.why).length > 60 ? "…" : ""}"</div> : null}
 </div>
 );
 })}
 {connections.slice(0, 4).map(function(conn, ci) {
-var delay = 7.2 + (ci * 0.8);
+var delay = 11 + (ci * 1.3);
 var col = (themes.find(function(t){ return t.label === conn.from; }) || {}).color || "#6BB8FF";
 var insight = conn.insight || conn.mechanism || "";
 if (!insight.trim()) return null;
 return (
-<div key={"c"+ci} style={{ animation: "mapTitleReveal 0.8s ease-out " + delay + "s forwards", opacity: 0, marginBottom: 8, padding: "8px 12px", background: "rgba(0,0,0,0.2)", borderRadius: 8, borderLeft: "2px solid " + col + "88" }}>
+<div key={"c"+ci} style={{ animation: "mapTitleReveal 1.5s ease-in-out " + delay + "s forwards", opacity: 0, marginBottom: 8, padding: "8px 12px", background: "rgba(0,0,0,0.2)", borderRadius: 8, borderLeft: "2px solid " + col + "88" }}>
 <div style={{ fontSize: 10, color: "rgba(107,184,255,0.8)", fontFamily: FB, marginBottom: 2 }}>{conn.from} ↔ {conn.to}</div>
 <div style={{ fontSize: 11, color: "rgba(180,220,255,0.85)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.4 }}>{String(insight).slice(0, 70)}{String(insight).length > 70 ? "…" : ""}</div>
 </div>
 );
 })}
 </div>
-<div style={{ textAlign: "center", marginTop: 16, animation: "mapTitleReveal 1.1s ease-out 9.5s forwards", opacity: 0 }}>
+<div style={{ textAlign: "center", marginTop: 16, animation: "mapTitleReveal 1.8s ease-in-out 15.5s forwards", opacity: 0 }}>
 <div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 4 }}>YOUR MAP</div>
 <div style={{ fontSize: 14, color: "rgba(200,235,255,0.9)", fontFamily: FD, fontStyle: "italic" }}>{(mapTitle && String(mapTitle).trim()) ? mapTitle : (themes.length ? themes.length + " themes from your words" : "Ready")}</div>
 </div>
@@ -784,7 +785,7 @@ return (
 );
 }
 
-var REVEAL_DURATION_MS = 10500;
+var REVEAL_DURATION_MS = 20000;
 var MIN_FINDING_MS = 6000;
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
@@ -10508,9 +10509,9 @@ return (
 @keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
 @keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
-@keyframes themeReveal{0%{opacity:0;transform:translateY(8px) scale(0.85)}70%{opacity:1;transform:translateY(0) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes themeReveal{0%{opacity:0;transform:translateY(6px) scale(0.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes connectionReveal{0%{stroke-dashoffset:300}100%{stroke-dashoffset:0}}
-@keyframes mapTitleReveal{0%{opacity:0;transform:scale(0.9);filter:blur(4px)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
+@keyframes mapTitleReveal{0%{opacity:0;transform:scale(0.97);filter:blur(2px)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
 @keyframes revealFadeOut{0%{opacity:1}15%{opacity:1}100%{opacity:0}}
 @keyframes reportRibbon{0%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}50%{transform:translateX(10%) skewX(-8deg);opacity:0.35}100%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}}
 @keyframes reportStreamBar{0%,100%{transform:scaleX(0.4)}50%{transform:scaleX(0.95)}}
