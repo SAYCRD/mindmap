@@ -69,6 +69,8 @@ return <div key={id} style={{ width: "16.66%", textAlign: "center", fontSize: 9,
 </div>
 );
 }
+
+function HighlightableText({ text, feedback, onFeedback, dark }) {
 var [open, setOpen] = useState(false);
 var key = (text || "").slice(0, 100);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
