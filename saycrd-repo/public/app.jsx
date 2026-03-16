@@ -3,69 +3,36 @@ const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = R
 var PICKER_ACCENT = "#E84393";
 var PICKER_TRACK_INACTIVE = "#D0D0D0";
 var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: PICKER_ACCENT },
-{ id: "truth_revealed", label: "Truth Revealed", color: PICKER_ACCENT },
-{ id: "something_to_consider", label: "Something to Consider", color: PICKER_ACCENT },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: PICKER_ACCENT },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#8B8B8B" },
-{ id: "not_feeling", label: "Not Feeling That", color: "#6B6B6B" },
+{ id: "lands_hard", label: "Lands Hard", color: "#C9A9B8" },
+{ id: "truth_revealed", label: "Truth Revealed", color: "#7BA8A8" },
+{ id: "something_to_consider", label: "Something to Consider", color: "#A8A8C8" },
+{ id: "hadnt_thought", label: "Hadn't Thought of This", color: "#9BB89B" },
+{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "rgba(0,0,0,0.12)" },
+{ id: "not_feeling", label: "Not Feeling That", color: "rgba(0,0,0,0.12)" },
 ];
-var SENTENCE_FEEDBACK_SLIDER_ORDER = ["not_feeling", "doesnt_fit", "something_to_consider", "hadnt_thought", "truth_revealed", "lands_hard"];
 
-function SentenceFeedbackModal({ text, feedback, onFeedback, onClose }) {
-var sliderOrder = SENTENCE_FEEDBACK_SLIDER_ORDER;
-var initialIdx = feedback ? sliderOrder.indexOf(feedback) : 2;
-if (initialIdx < 0) initialIdx = 2;
-var [sliderVal, setSliderVal] = useState(initialIdx * 20);
-var [note, setNote] = useState("");
-var trackRef = useRef(null);
-var [dragging, setDragging] = useState(false);
-function valueToIdx(v) { return Math.round(Math.max(0, Math.min(100, v)) / 20); }
-function idxToValue(i) { return Math.max(0, Math.min(5, i)) * 20; }
-function handleSlide(clientX) {
-var r = trackRef.current ? trackRef.current.getBoundingClientRect() : null;
-if (!r) return;
-var pct = (clientX - r.left) / r.width * 100;
-var idx = valueToIdx(pct);
-setSliderVal(idxToValue(idx));
-}
-function handleSend() {
-var idx = valueToIdx(sliderVal);
-var optId = sliderOrder[idx];
-onFeedback && onFeedback(text, optId);
-onClose();
-}
-useEffect(function() {
-if (!dragging) return;
-function m(e){ handleSlide(e.clientX); }
-function u(){ setDragging(false); }
-window.addEventListener("pointermove", m);
-window.addEventListener("pointerup", u);
-return function(){ window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
-}, [dragging]);
+function SentenceFeedbackButtons({ text, onFeedback, onClose }) {
 return (
-<div style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 20, padding: "28px 32px", maxWidth: 360, boxShadow: "0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08) inset", border: "none" }}>
-<button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "rgba(0,0,0,0.5)", fontFamily: FB }} aria-label="Close">×</button>
-<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 12 }}>How did this land?</div>
-<div style={{ fontSize: 13, color: "rgba(0,0,0,0.7)", fontFamily: FD, fontStyle: "italic", marginBottom: 20, lineHeight: 1.5, padding: "14px 16px", background: "rgba(0,0,0,0.03)", borderRadius: 12 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
-<div style={{ fontSize: 12, color: "rgba(0,0,0,0.6)", fontFamily: FB, marginBottom: 12 }}>Slide to match how it felt.</div>
-<div ref={trackRef} onPointerDown={function(e){ e.preventDefault(); setDragging(true); handleSlide(e.clientX); }} style={{ position: "relative", height: 28, display: "flex", alignItems: "center", cursor: "pointer", touchAction: "none" }}>
-<div style={{ position: "absolute", left: 0, right: 0, height: 6, borderRadius: 3, background: PICKER_TRACK_INACTIVE }} />
-<div style={{ position: "absolute", left: 0, height: 6, width: sliderVal + "%", borderRadius: 3, background: PICKER_ACCENT, transition: dragging ? "none" : "width 0.15s ease" }} />
-<div style={{ position: "absolute", left: sliderVal + "%", transform: "translateX(-50%)", width: 22, height: 22, borderRadius: "50%", background: PICKER_ACCENT, boxShadow: "0 2px 8px rgba(232,67,147,0.4)", cursor: "grab", transition: dragging ? "none" : "left 0.15s ease" }} />
-</div>
-<div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, padding: "0 2px" }}>
-{sliderOrder.map(function(id, i) {
-var opt = SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === id; });
-return <div key={id} style={{ width: "16.66%", textAlign: "center", fontSize: 9, color: "rgba(0,0,0,0.5)", fontFamily: FB, lineHeight: 1.3 }}>{opt ? opt.label : id}</div>;
+<div style={{ position: "relative", zIndex: 100000, background: "#fff", borderRadius: 16, padding: "24px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+<button onClick={onClose} style={{ position: "absolute", top: 12, right: 12, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(0,0,0,0.4)", fontFamily: FB }} aria-label="Close">×</button>
+<div style={{ fontSize: 10, letterSpacing: "0.35em", color: "rgba(0,0,0,0.45)", fontFamily: FB, marginBottom: 10 }}>How did this land?</div>
+<div style={{ fontSize: 13, color: "rgba(0,0,0,0.72)", fontFamily: FD, fontStyle: "italic", marginBottom: 18, lineHeight: 1.5, padding: "12px 14px", background: "rgba(0,0,0,0.02)", borderRadius: 10 }}>"{text.length > 80 ? text.slice(0,77)+"…" : text}"</div>
+<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+{SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
+var isRgba = (o.color && typeof o.color === "string" && o.color.indexOf("rgba") >= 0);
+var c = isRgba ? null : (o.color || PICKER_ACCENT);
+return (
+<button key={o.id} onClick={function(){ onFeedback && onFeedback(o.id); onClose(); }} style={{
+padding: "10px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.04em", borderRadius: 8, border: isRgba ? "1px solid rgba(0,0,0,0.1)" : "1px solid " + (c + "55"),
+background: isRgba ? "rgba(0,0,0,0.06)" : (c + "20"), color: isRgba ? "rgba(0,0,0,0.72)" : c,
+cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 1px 4px " + (c + "22)"
+}}>
+{o.label}
+</button>
+);
 })}
 </div>
-<div style={{ marginTop: 20, fontSize: 11, color: "rgba(0,0,0,0.5)", fontFamily: FB, marginBottom: 8 }}>Optional: add a note...</div>
-<textarea value={note} onChange={function(e){ setNote(e.target.value); }} placeholder="" style={{ width: "100%", minHeight: 64, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(0,0,0,0.12)", background: "rgba(0,0,0,0.02)", fontSize: 13, fontFamily: FD, resize: "none", outline: "none", boxSizing: "border-box" }} />
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
-<button onClick={onClose} style={{ fontSize: 12, fontFamily: FB, color: "rgba(0,0,0,0.45)", background: "none", border: "none", cursor: "pointer" }}>Skip</button>
-<button onClick={handleSend} style={{ padding: "12px 28px", borderRadius: 20, border: "none", background: PICKER_ACCENT, color: "#fff", fontSize: 13, fontFamily: FB, fontWeight: 600, cursor: "pointer", boxShadow: "0 2px 12px rgba(232,67,147,0.35)" }}>Send</button>
-</div>
+<button onClick={onClose} style={{ marginTop: 14, fontSize: 11, fontFamily: FB, color: "rgba(0,0,0,0.4)", background: "none", border: "none", cursor: "pointer" }}>cancel</button>
 </div>
 );
 }
@@ -75,6 +42,9 @@ var [open, setOpen] = useState(false);
 var key = (text || "").slice(0, 100);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var optColor = opt && (opt.color || PICKER_ACCENT);
+var isRgba = optColor && typeof optColor === "string" && optColor.indexOf("rgba") >= 0;
+var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : optColor + "28") : "transparent";
+var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optColor) : "1px solid transparent";
 return (
 <>
 <span
@@ -84,8 +54,8 @@ cursor: "pointer",
 borderRadius: 4,
 padding: "2px 4px",
 margin: "0 1px",
-background: optColor ? (optColor + "22") : "transparent",
-borderBottom: optColor ? "1.5px solid " + optColor : "1px solid transparent",
+background: bg,
+borderBottom: bord,
 transition: "all 0.2s",
 color: "inherit",
 }}
@@ -98,7 +68,7 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ setOpen(false); }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackModal text={text} onFeedback={function(id){ onFeedback && onFeedback(text, id); setOpen(false); }} onClose={function(){ setOpen(false); }} />
+<SentenceFeedbackButtons text={text} onFeedback={function(id){ onFeedback && onFeedback(text, id); setOpen(false); }} onClose={function(){ setOpen(false); }} />
 </div>
 </div>
 )}
@@ -186,8 +156,66 @@ return <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointer
 </div>;
 }
 
-function ProcessingScreen({ stage, label, sublabel, palette, wrapStyle }) {
+var BUBBLE_STOPWORDS = ["that","this","with","from","have","been","were","would","could","should","what","when","where","which","about","into","over","they","them","their","there","then","than","just","only","more","some","very","also","back","make","like","want","need","feel","know","think","going","being","something","nothing","everything","really"];
+
+function BubbleAnalysisBackground({ rawText, palette }) {
+var colors = palette || ["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8","#E84393"];
+var words = useMemo(function() {
+var w = ((rawText||"").match(/\b[a-zA-Z]{4,}\b/g) || []).filter(function(x){ return !BUBBLE_STOPWORDS.includes(x.toLowerCase()); });
+return w.length ? w.slice(0, 24) : ["patterns","connections","themes","structure","beneath","emerging","forming","settling","listening","noticing","weaving","threads"];
+}, [rawText]);
+var seed = 12345;
+function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+var bubbles = useMemo(function() {
+var b = [];
+for (var i = 0; i < 22; i++) {
+var size = rnd() < 0.15 ? 32 + rnd() * 22 : rnd() < 0.45 ? 16 + rnd() * 14 : 8 + rnd() * 10;
+b.push({ x: 6 + rnd() * 88, y: 10 + rnd() * 80, r: size, color: colors[i % colors.length], dur: 7 + rnd() * 8, delay: -rnd() * 5, opacity: 0.1 + rnd() * 0.14 });
+}
+return b;
+}, []);
+var conns = useMemo(function() {
+var c = [];
+for (var i = 0; i < bubbles.length; i++) {
+for (var j = i + 1; j < bubbles.length; j++) {
+var dx = bubbles[j].x - bubbles[i].x, dy = bubbles[j].y - bubbles[i].y;
+if (dx*dx + dy*dy < 3200) c.push([i, j]);
+}
+}
+return c.slice(0, 20);
+}, [bubbles]);
+return (
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+<svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }} viewBox="0 0 100 100" preserveAspectRatio="none">
+{conns.map(function(pair, ci) {
+var a = bubbles[pair[0]], b = bubbles[pair[1]];
+return <line key={ci} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={a.color} strokeWidth="0.5" opacity="0.35" strokeDasharray="2 4" style={{ animation: "flowLine 2.8s linear infinite", animationDelay: -(ci * 0.35) + "s" }}/>;
+})}
+{bubbles.map(function(b, i) {
+return (
+<circle key={i} cx={b.x} cy={b.y} r={b.r} fill={b.color} opacity={b.opacity}>
+<animate attributeName="cy" values={b.y + ";" + (Math.max(5, b.y - 5)) + ";" + b.y} dur={(b.dur || 10) + "s"} begin={(b.delay || 0) + "s"} repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1; 0.4 0 0.6 1"/>
+<animate attributeName="opacity" values={b.opacity + ";" + (b.opacity * 1.4) + ";" + b.opacity} dur={(b.dur || 10) + "s"} begin={(b.delay || 0) + "s"} repeatCount="indefinite"/>
+</circle>
+);
+})}
+</svg>
+{words.map(function(w, i) {
+var b = bubbles[i % bubbles.length];
+return (
+<div key={i} style={{ position: "absolute", left: (b ? b.x : 20 + (i % 5) * 15) + "%", top: (b ? b.y : 30 + Math.floor(i / 5) * 20) + "%", transform: "translate(-50%, -50%)", fontSize: b && b.r > 18 ? 12 : b && b.r > 10 ? 10 : 8, color: (bubbles[i % bubbles.length] || {}).color || "#6BB8FF", fontFamily: FD, fontStyle: "italic", opacity: 0.55 + (i % 5) * 0.08, animation: "floatWord 5s ease-in-out infinite", animationDelay: -(i * 0.4) + "s", whiteSpace: "nowrap", textShadow: "0 0 24px rgba(0,0,0,0.9), 0 0 8px currentColor" }}>
+{w}
+</div>
+);
+})}
+<div style={{ position: "absolute", bottom: "32%", left: "50%", transform: "translateX(-50%)", fontSize: 10, letterSpacing: "0.35em", color: "rgba(107,184,255,0.65)", fontFamily: FB, textTransform: "uppercase", animation: "pulse 2s ease infinite" }}>Analyzing your words</div>
+</div>
+);
+}
+
+function ProcessingScreen({ stage, label, sublabel, palette, wrapStyle, stepKey, rawText }) {
 var colors = palette || ["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"];
+var isFinding = stepKey === 1;
 var shafts = [{ x: 18, w: 6, dur: 8, delay: 0, opacity: 0.05 }, { x: 42, w: 10, dur: 11, delay: -3, opacity: 0.07 }, { x: 67, w: 7, dur: 9, delay: -5.5, opacity: 0.06 }, { x: 82, w: 5, dur: 13, delay: -1.5, opacity: 0.04 }];
 var particles = useMemo(function() {
 var pts = [];
@@ -199,6 +227,9 @@ return pts;
 }, [colors]);
 return (
 <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)", ...(wrapStyle || {}) }}>
+{isFinding && <BubbleAnalysisBackground rawText={rawText} palette={colors}/>}
+{!isFinding && (
+<>
 <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "22%", background: "linear-gradient(180deg, #0A3A4A44 0%, transparent 100%)" }}/>
 <div style={{ position: "absolute", top: "25%", left: 0, right: 0, height: "35%", background: "linear-gradient(180deg, transparent, #050A3022 50%, transparent)" }}/>
@@ -220,12 +251,73 @@ return (
 );
 })}
 </svg>
+</>
+)}
 <div style={{ position: "absolute", top: "32%", left: 0, right: 0, textAlign: "center", padding: "0 28px", zIndex: 2 }}>
 <div style={{ fontSize: 9, letterSpacing: "0.5em", color: "rgba(107,200,255,0.35)", fontFamily: FB, textTransform: "uppercase", marginBottom: 16 }}>SAYCRD</div>
 <div style={{ fontSize: 26, fontWeight: 700, color: "rgba(200,235,255,0.92)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 50px rgba(107,184,255,0.2)", animation: "riseUp 0.6s ease both" }}>{label}</div>
 {sublabel && <div style={{ marginTop: 12, fontSize: 14, color: "rgba(150,200,255,0.55)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both" }}>{sublabel}</div>}
 </div>
-<div style={{ position: "absolute", bottom: "18%", left: 0, right: 0, zIndex: 2 }}>{stage}</div>
+<div style={{ position: "absolute", bottom: "4%", left: 0, right: 0, maxHeight: "48%", overflowY: "auto", overflowX: "hidden", zIndex: 2, display: "flex", justifyContent: "center", alignItems: "flex-start" }}>{stage}</div>
+</div>
+);
+}
+
+function ReportWritingScreen({ label, sublabel }) {
+var palette = ["#D6B26D","#B86BFF","#6BB8FF","#E84393","#4EC9B8"];
+var ribbons = useMemo(function() {
+return [
+{ color: "#B86BFF", h: 20, top: "8%", dur: 18, delay: 0 },
+{ color: "#6BB8FF", h: 16, top: "22%", dur: 14, delay: -3 },
+{ color: "#E84393", h: 24, top: "38%", dur: 20, delay: -6 },
+{ color: "#4EC9B8", h: 18, top: "54%", dur: 15, delay: -2 },
+{ color: "#D6B26D", h: 14, top: "68%", dur: 16, delay: -4 },
+{ color: "#B86BFF", h: 12, top: "82%", dur: 19, delay: -7 },
+];
+}, []);
+var bars = useMemo(function() {
+return palette.map(function(c, i) { return { color: c, dur: 2.4 + i * 0.35, delay: -i * 0.5 }; });
+}, []);
+return (
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(165deg, #0D0618 0%, #1A0F2E 22%, #151530 45%, #0F1528 70%, #080C18 100%)" }}>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 60% at 50% 25%, rgba(184,107,255,0.15) 0%, transparent 55%)" }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 75% 75%, rgba(78,201,184,0.12) 0%, transparent 55%)" }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 60% 70% at 15% 55%, rgba(232,67,147,0.1) 0%, transparent 55%)" }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 50% 40% at 50% 50%, rgba(214,182,109,0.06) 0%, transparent 60%)" }}/>
+{ribbons.map(function(r, i) {
+return (
+<div key={i} style={{ position: "absolute", left: "-15%", right: "-15%", top: r.top, height: r.h, background: "linear-gradient(105deg, transparent 0%, " + r.color + "33 20%, " + r.color + "99 50%, " + r.color + "33 80%, transparent 100%)", transform: "skewX(-12deg)", opacity: 0.3, animation: "reportRibbon " + r.dur + "s ease-in-out " + r.delay + "s infinite", pointerEvents: "none" }}/>
+);
+})}
+<svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible", pointerEvents: "none" }} viewBox="0 0 100 100" preserveAspectRatio="none">
+{Array.from({ length: 20 }).map(function(_, i) {
+var c = palette[i % palette.length];
+var y = 10 + (i * 4.2);
+return (
+<ellipse key={i} cx="50" cy={y} rx="55" ry="6" fill={c} opacity={0.08 + (i % 4) * 0.04} style={{ animation: "reportAurora " + (9 + i % 5) + "s ease-in-out " + (-i * 0.6) + "s infinite" }}/>
+);
+})}
+</svg>
+<div style={{ position: "absolute", top: "28%", left: 0, right: 0, textAlign: "center", padding: "0 28px", zIndex: 2 }}>
+<div style={{ fontSize: 9, letterSpacing: "0.55em", color: "rgba(184,107,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: 16 }}>FIELD REPORT</div>
+<div style={{ fontSize: 26, fontWeight: 700, color: "rgba(240,235,255,0.96)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 80px rgba(184,107,255,0.3)", animation: "riseUp 0.6s ease both" }}>{label}</div>
+{sublabel && <div style={{ marginTop: 12, fontSize: 14, color: "rgba(190,205,255,0.65)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both" }}>{sublabel}</div>}
+</div>
+<div style={{ position: "absolute", bottom: "10%", left: "50%", transform: "translateX(-50%)", width: "92%", maxWidth: 340, zIndex: 2 }}>
+<div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 12px", background: "rgba(0,0,0,0.2)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+<div style={{ fontSize: 9, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 4 }}>Weaving your year</div>
+{bars.map(function(b, i) {
+return (
+<div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+<div style={{ width: 72, fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: FB, letterSpacing: "0.12em", flexShrink: 0 }}>{["sessions","patterns","themes","threads","weaving"][i]}</div>
+<div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+<div style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
+</div>
+</div>
+);
+})}
+</div>
+</div>
 </div>
 );
 }
@@ -234,43 +326,68 @@ function MapRevealCinematic({ themes, connections, mapTitle }) {
 themes = themes || [];
 connections = connections || [];
 var n = themes.length;
-var cx = 150; var cy = 100; var r = 72;
+var cx = 200; var cy = 140; var r = 100;
 var positions = themes.map(function(_, i) {
 var angle = (Math.PI * 2 * i / Math.max(n, 1)) - Math.PI / 2;
 return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
 });
-var labelByKey = {};
-themes.forEach(function(t) { labelByKey[t.label] = t; });
 return (
-<div style={{ width: "100%", maxWidth: 320, margin: "0 auto" }}>
-<svg viewBox="0 0 300 200" style={{ width: "100%", height: 140 }}>
+<div style={{ width: "100%", maxWidth: 520, margin: "0 auto" }}>
+<svg viewBox="0 0 400 280" style={{ width: "100%", height: 220 }}>
 <defs>
-<filter id="nodeGlow"><feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="nodeGlow"><feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 </defs>
-{connections.slice(0, 6).map(function(conn, ci) {
+{connections.slice(0, 8).map(function(conn, ci) {
 var fromIdx = themes.findIndex(function(t){ return t.label === conn.from; });
 var toIdx = themes.findIndex(function(t){ return t.label === conn.to; });
 if (fromIdx < 0 || toIdx < 0) return null;
 var p1 = positions[fromIdx]; var p2 = positions[toIdx];
-var midDelay = Math.max(fromIdx, toIdx) * 0.4 + 0.5;
+var midDelay = Math.max(fromIdx, toIdx) * 0.55 + 1.2;
 return (
-<line key={ci} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={(themes[fromIdx] && themes[fromIdx].color) || "#6BB8FF"} strokeWidth="1.5" opacity="0.6" fill="none" strokeDasharray="200" strokeDashoffset="200" style={{ animation: "connectionReveal 0.8s ease-out forwards", animationDelay: midDelay + "s" }}/>
+<g key={ci}>
+<line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={(themes[fromIdx] && themes[fromIdx].color) || "#6BB8FF"} strokeWidth="2" opacity="0.65" fill="none" strokeDasharray="300" strokeDashoffset="300" style={{ animation: "connectionReveal 1.2s ease-out forwards", animationDelay: midDelay + "s" }}/>
+</g>
 );
 })}
 {themes.map(function(t, i) {
 var p = positions[i];
 var col = t.color || "#6BB8FF";
+var delay = (i * 0.55) + 0.3;
 return (
-<g key={i} filter="url(#nodeGlow)" style={{ animation: "themeReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards", animationDelay: (i * 0.38) + "s", opacity: 0 }}>
-<circle cx={p.x} cy={p.y} r="18" fill={col + "30"} stroke={col} strokeWidth="2" opacity="0.9"/>
-<text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="9" fontFamily={FB} fontWeight="600" fill="rgba(255,255,255,0.95)" style={{ pointerEvents: "none" }}>{(t.label || "").slice(0, 12)}{(t.label || "").length > 12 ? "…" : ""}</text>
+<g key={i} filter="url(#nodeGlow)" style={{ animation: "themeReveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards", animationDelay: delay + "s", opacity: 0 }}>
+<circle cx={p.x} cy={p.y} r="24" fill={col + "35"} stroke={col} strokeWidth="2.5" opacity="0.95"/>
+<text x={p.x} y={p.y + 5} textAnchor="middle" fontSize="11" fontFamily={FB} fontWeight="600" fill="rgba(255,255,255,0.98)" style={{ pointerEvents: "none" }}>{(t.label || "").slice(0, 14)}{(t.label || "").length > 14 ? "…" : ""}</text>
 </g>
 );
 })}
 </svg>
-<div style={{ textAlign: "center", marginTop: 12, animation: "mapTitleReveal 0.9s ease-out 2.2s forwards", opacity: 0 }}>
+<div style={{ marginTop: 16, padding: "0 12px", maxHeight: 200, overflowY: "auto" }}>
+{themes.slice(0, 5).map(function(t, i) {
+var delay = (i * 0.6) + 2.2;
+var col = t.color || "#6BB8FF";
+return (
+<div key={i} style={{ animation: "mapTitleReveal 0.8s ease-out " + delay + "s forwards", opacity: 0, marginBottom: 10, padding: "10px 14px", background: "rgba(0,0,0,0.25)", borderRadius: 10, borderLeft: "3px solid " + col }}>
+<div style={{ fontSize: 12, fontWeight: 600, color: col, fontFamily: FB, marginBottom: 2 }}>{t.label}</div>
+{(t.why && String(t.why).trim()) ? <div style={{ fontSize: 11, color: "rgba(200,235,255,0.7)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.4 }}>"{String(t.why).slice(0, 60)}{String(t.why).length > 60 ? "…" : ""}"</div> : null}
+</div>
+);
+})}
+{connections.slice(0, 4).map(function(conn, ci) {
+var delay = 5.2 + (ci * 0.5);
+var col = (themes.find(function(t){ return t.label === conn.from; }) || {}).color || "#6BB8FF";
+var insight = conn.insight || conn.mechanism || "";
+if (!insight.trim()) return null;
+return (
+<div key={"c"+ci} style={{ animation: "mapTitleReveal 0.8s ease-out " + delay + "s forwards", opacity: 0, marginBottom: 8, padding: "8px 12px", background: "rgba(0,0,0,0.2)", borderRadius: 8, borderLeft: "2px solid " + col + "88" }}>
+<div style={{ fontSize: 10, color: "rgba(107,184,255,0.8)", fontFamily: FB, marginBottom: 2 }}>{conn.from} ↔ {conn.to}</div>
+<div style={{ fontSize: 11, color: "rgba(180,220,255,0.85)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.4 }}>{String(insight).slice(0, 70)}{String(insight).length > 70 ? "…" : ""}</div>
+</div>
+);
+})}
+</div>
+<div style={{ textAlign: "center", marginTop: 16, animation: "mapTitleReveal 0.9s ease-out 6.5s forwards", opacity: 0 }}>
 <div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 4 }}>YOUR MAP</div>
-<div style={{ fontSize: 13, color: "rgba(200,235,255,0.85)", fontFamily: FD, fontStyle: "italic" }}>{(mapTitle && String(mapTitle).trim()) ? mapTitle : (themes.length ? themes.length + " themes from your words" : "Ready")}</div>
+<div style={{ fontSize: 14, color: "rgba(200,235,255,0.9)", fontFamily: FD, fontStyle: "italic" }}>{(mapTitle && String(mapTitle).trim()) ? mapTitle : (themes.length ? themes.length + " themes from your words" : "Ready")}</div>
 </div>
 </div>
 );
@@ -681,7 +798,8 @@ return (
 );
 }
 
-var REVEAL_DURATION_MS = 4200;
+var REVEAL_DURATION_MS = 7800;
+var MIN_FINDING_MS = 4000;
 function SynthesizePhase({ rawText, onComplete, onSynthesis }) {
 const [step, setStep] = useState(0);
 const [err, setErr] = useState(null);
@@ -689,6 +807,7 @@ const [crisisState, setCrisisState] = useState(null);
 const [revealData, setRevealData] = useState(null);
 const [revealFadeOut, setRevealFadeOut] = useState(false);
 const ran = useRef(false);
+const step1Start = useRef(null);
 useEffect(function crisisCheck() {
   if (!rawText) { setCrisisState("cleared"); return; }
   if (crisisState !== null) return;
@@ -697,7 +816,7 @@ useEffect(function crisisCheck() {
 useEffect(() => {
 if (crisisState !== "cleared") return;
 if (ran.current) return; ran.current = true;
-var t1 = setTimeout(function() { setStep(1); }, 800);
+var t1 = setTimeout(function() { step1Start.current = Date.now(); setStep(1); }, 800);
 
 var prevSessions = [];
 try { prevSessions = loadSessions(); } catch(e) {}
@@ -992,7 +1111,6 @@ userSignals = "\n\n" + userSignalParts.join("\n\n") + "\n══ END USER AUTHORI
 console.log("[SAYCRD] Sending to Claude, awaiting response...");
 var raw = await callClaudeClient(prompt, (rawText || "") + temporalContext + userSignals, 3500);
 console.log("[SAYCRD] AI raw response:", (raw||"").slice(0, 200));
-setStep(2);
 var data = parseJSON(raw);
 console.log("[SAYCRD] Parsed data:", data ? "OK - " + (data.themes||[]).length + " themes" : "FAILED");
 if (data && data.themes && data.themes.length > 0) {
@@ -1005,10 +1123,15 @@ if (data.connections) data.connections = data.connections.map(function(c) {
 var ft = (data.themes || []).find(function(t) { return t.label === c.from; });
 return Object.assign({}, c, { color: ft ? ft.color : NC[0] });
 });
-setRevealData(data);
 onSynthesis(data);
+var elapsed = step1Start.current ? Date.now() - step1Start.current : 0;
+var waitMore = Math.max(0, MIN_FINDING_MS - elapsed);
+setTimeout(function() {
+setStep(2);
+setRevealData(data);
 setTimeout(function(){ setRevealFadeOut(true); }, REVEAL_DURATION_MS - 700);
 setTimeout(onComplete, REVEAL_DURATION_MS);
+}, waitMore);
 } else { throw new Error("No themes parsed from AI response"); }
 } catch (e) {
 console.error("[SAYCRD] Synthesis error:", e);
@@ -1076,8 +1199,10 @@ Continue
 ) : (
 <ProcessingScreen
 wrapStyle={revealFadeOut ? { animation: "revealFadeOut 0.7s ease-out forwards" } : {}}
+stepKey={step}
+rawText={rawText}
 label={step===0?"Reading your words":step===1?"Finding what's underneath":(revealData && revealData.themes ? "Your map" : "Building your map")}
-sublabel={step===0?"Your words are being absorbed - the AI is matching patterns in what you wrote":(step===1?"Extracting themes, connections, and the structure beneath":(revealData && revealData.themes ? "What the AI found in your words" : "Themes, connections, and archetype are forming"))}
+sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?"Extracting themes, connections, and the structure beneath — showing what it's considering":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
 palette={["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"]}
 stage={
 step===0 ? (
@@ -1087,7 +1212,10 @@ return <span key={i} style={{ fontSize: 11, color: "rgba(107,184,255,"+(0.25+i*0
 })}
 </div>
 ) : step===1 ? (
-<svg viewBox="0 0 200 80" style={{ width: "100%", maxWidth: 280, height: 70 }}><g fill="none" stroke="rgba(107,184,255,0.4)" strokeWidth="1.2"><circle cx="50" cy="35" r="12" style={{ animation: "ringPulse 2.5s ease infinite" }}/><circle cx="110" cy="25" r="10" style={{ animation: "ringPulse 2.5s ease 0.3s infinite" }}/><circle cx="150" cy="45" r="8" style={{ animation: "ringPulse 2.5s ease 0.6s infinite" }}/><circle cx="85" cy="55" r="9" style={{ animation: "ringPulse 2.5s ease 0.9s infinite" }}/><line x1="62" y1="35" x2="100" y2="28" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear infinite" }}/><line x1="120" y1="28" x2="142" y2="42" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear 0.5s infinite" }}/><line x1="95" y1="52" x2="58" y2="42" strokeDasharray="4 3" style={{ animation: "flowLine 2s linear 1s infinite" }}/></g></svg>
+<div style={{ width: "100%", maxWidth: 380, margin: "0 auto", padding: "16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(107,184,255,0.5)", fontFamily: FB, textTransform: "uppercase" }}>Large bubbles = themes · Lines = connections forming</div>
+<svg viewBox="0 0 200 60" style={{ width: "100%", height: 50, opacity: 0.6 }}><g fill="none" stroke="rgba(107,184,255,0.4)" strokeWidth="1"><path d="M 30 30 Q 60 15 90 25 Q 120 35 150 30" strokeDasharray="4 4" style={{ animation: "flowLine 2.5s linear infinite" }}/><path d="M 50 45 Q 100 35 150 45" strokeDasharray="4 4" style={{ animation: "flowLine 2.5s linear 0.8s infinite" }}/><circle cx="40" cy="35" r="6" fill="rgba(78,201,184,0.2)" stroke="#4EC9B8" style={{ animation: "ringPulse 2s ease infinite" }}/><circle cx="100" cy="25" r="5" fill="rgba(107,184,255,0.2)" stroke="#6BB8FF" style={{ animation: "ringPulse 2s ease 0.3s infinite" }}/><circle cx="160" cy="40" r="4" fill="rgba(167,139,250,0.2)" stroke="#A78BFA" style={{ animation: "ringPulse 2s ease 0.6s infinite" }}/></g></svg>
+</div>
 ) : revealData && revealData.themes && revealData.themes.length > 0 ? (
 <MapRevealCinematic themes={revealData.themes} connections={revealData.connections || []} mapTitle={revealData.map_title || revealData.mapTitle} />
 ) : (
@@ -7881,14 +8009,6 @@ return function(){ cancelled = true; };
 }, []);
 
 var _accent = (themes[0] && themes[0].color) || "#111";
-var SENTENCE_FEEDBACK_OPTIONS = [
-{ id: "lands_hard", label: "Lands Hard", color: PICKER_ACCENT },
-{ id: "truth_revealed", label: "Truth Revealed", color: PICKER_ACCENT },
-{ id: "something_to_consider", label: "Something to Consider", color: PICKER_ACCENT },
-{ id: "hadnt_thought", label: "Hadn't Thought of This", color: PICKER_ACCENT },
-{ id: "doesnt_fit", label: "Doesn't Fit Quite Right", color: "#8B8B8B" },
-{ id: "not_feeling", label: "Not Feeling That", color: "#6B6B6B" },
-];
 
 function renderBody(text, emphasizeFirst, onSentenceClick, sentenceFeedback) {
 if (!text) return null;
@@ -7943,6 +8063,9 @@ var key = s.slice(0, 100);
 var fb = sentenceFeedback && sentenceFeedback[key];
 var opt = fb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === fb; }) : null;
 var optC = opt && (opt.color || PICKER_ACCENT);
+var _isRgba = optC && typeof optC === "string" && optC.indexOf("rgba") >= 0;
+var _bg = optC ? (_isRgba ? "rgba(0,0,0,0.06)" : optC + "28") : "transparent";
+var _bord = optC ? (_isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optC) : "1px solid transparent";
 return (
 <span key={si}>
 <span
@@ -7952,8 +8075,8 @@ cursor: "pointer",
 borderRadius: 4,
 padding: "2px 4px",
 margin: "0 1px",
-background: optC ? (optC + "22") : "transparent",
-borderBottom: optC ? "1.5px solid " + optC : "1px solid transparent",
+background: _bg,
+borderBottom: _bord,
 transition: "all 0.2s",
 }}
 onMouseEnter={function(e){ if(!fb) e.currentTarget.style.background="rgba(0,0,0,0.04)"; }}
@@ -7979,13 +8102,9 @@ return (
 
 if (!_ready) {
 return (
-<ProcessingScreen
+<ReportWritingScreen
 label="Writing your report"
 sublabel="Gathering your sessions, finding patterns across time, weaving the reading"
-palette={["#D6B26D","#B86BFF","#6BB8FF","#E84393","#4EC9B8"]}
-stage={
-<svg viewBox="0 0 200 75" style={{ width: "100%", maxWidth: 280, height: 65 }}><g fill="none"><line x1="30" y1="60" x2="50" y2="60" stroke="#D6B26D" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear infinite" }}/><line x1="30" y1="45" x2="70" y2="45" stroke="#B86BFF" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear 0.3s infinite" }}/><line x1="30" y1="30" x2="90" y2="30" stroke="#6BB8FF" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear 0.6s infinite" }}/><line x1="100" y1="20" x2="170" y2="20" stroke="#E84393" strokeWidth="1.2" opacity="0.6" strokeDasharray="6 4" style={{ animation: "flowLine 1.8s linear 0.2s infinite" }}/><line x1="100" y1="38" x2="160" y2="38" stroke="#4EC9B8" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2s linear 0.5s infinite" }}/><line x1="100" y1="55" x2="150" y2="55" stroke="#D6B26D" strokeWidth="1" opacity="0.5" strokeDasharray="6 4" style={{ animation: "flowLine 2.2s linear 0.8s infinite" }}/><circle cx="95" cy="38" r="4" fill="rgba(214,178,109,0.3)" stroke="#D6B26D" strokeWidth="0.8"/><circle cx="95" cy="55" r="3" fill="rgba(184,107,255,0.3)" stroke="#B86BFF" strokeWidth="0.8"/><circle cx="95" cy="20" r="3" fill="rgba(107,184,255,0.3)" stroke="#6BB8FF" strokeWidth="0.8"/></g></svg>
-}
 />
 );
 }
@@ -7999,7 +8118,7 @@ fontFamily:FB }}>
 <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ _setEditingSentence(null); }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackModal text={_editingSentence} onFeedback={function(id){ _handleReportSentenceFeedback(_editingSentence, id); _setEditingSentence(null); }} onClose={function(){ _setEditingSentence(null); }} />
+<SentenceFeedbackButtons text={_editingSentence} onFeedback={function(id){ _handleReportSentenceFeedback(_editingSentence, id); _setEditingSentence(null); }} onClose={function(){ _setEditingSentence(null); }} />
 </div>
 </div>
 )}
@@ -10397,9 +10516,12 @@ return (
 @keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
 @keyframes themeReveal{0%{opacity:0;transform:translateY(8px) scale(0.85)}70%{opacity:1;transform:translateY(0) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes connectionReveal{0%{stroke-dashoffset:200}100%{stroke-dashoffset:0}}
+@keyframes connectionReveal{0%{stroke-dashoffset:300}100%{stroke-dashoffset:0}}
 @keyframes mapTitleReveal{0%{opacity:0;transform:scale(0.9);filter:blur(4px)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
 @keyframes revealFadeOut{0%{opacity:1}100%{opacity:0}}
+@keyframes reportRibbon{0%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}50%{transform:translateX(10%) skewX(-8deg);opacity:0.35}100%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}}
+@keyframes reportStreamBar{0%,100%{transform:scaleX(0.4)}50%{transform:scaleX(0.95)}}
+@keyframes reportAurora{0%,100%{opacity:0.2;transform:translateY(0) scale(1)}50%{opacity:0.5;transform:translateY(-8%) scale(1.1)}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
