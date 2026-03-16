@@ -378,7 +378,7 @@ return (
 <div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
 <div style={{ width: 72, fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: FB, letterSpacing: "0.12em", flexShrink: 0 }}>{["sessions","patterns","themes","threads","weaving"][i]}</div>
 <div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
-<div style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
+<div style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", willChange: "transform", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite", WebkitAnimation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
 </div>
 </div>
 );
@@ -9897,7 +9897,7 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 </div>
 </div>
 </div>
-<div key={current + "-" + clicked} style={{ position: "absolute", top: 90, left: 0, right: 0, bottom: 0, animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out" }}>
+<div key={current + "-" + clicked} style={{ position: "absolute", top: isMobile ? 130 : 90, left: 0, right: 0, bottom: 0, animation: clicked ? "morphIn 0.5s ease" : "slideIn 0.35s ease-out" }}>
 {(function() { try { return renderCard(); } catch(e) { console.error("[FIELD] renderCard crashed on card", current, "type:", card && card.type, "error:", e.message||e); return <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:"sans-serif",padding:40,textAlign:"center"}}>card error: {e.message}</div>; } })()}
 </div>
 </div>
@@ -10625,7 +10625,8 @@ return (
 @keyframes mapTitleReveal{0%{opacity:0;transform:scale(0.97);filter:blur(2px)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
 @keyframes revealFadeOut{0%{opacity:1}15%{opacity:1}100%{opacity:0}}
 @keyframes reportRibbon{0%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}50%{transform:translateX(10%) skewX(-8deg);opacity:0.35}100%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}}
-@keyframes reportStreamBar{0%,100%{transform:scaleX(0.4)}50%{transform:scaleX(0.95)}}
+@keyframes reportStreamBar{0%,100%{transform:scaleX(0.4);-webkit-transform:scaleX(0.4)}50%{transform:scaleX(0.95);-webkit-transform:scaleX(0.95)}}
+@-webkit-keyframes reportStreamBar{0%,100%{transform:scaleX(0.4);-webkit-transform:scaleX(0.4)}50%{transform:scaleX(0.95);-webkit-transform:scaleX(0.95)}}
 @keyframes reportAurora{0%,100%{opacity:0.2;transform:translateY(0) scale(1)}50%{opacity:0.5;transform:translateY(-8%) scale(1.1)}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:#000;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
