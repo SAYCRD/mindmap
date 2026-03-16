@@ -109,7 +109,7 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 <div style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ setOpen(false); }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackButtons text={text} onFeedback={function(id, comment){ onFeedback && onFeedback(text, id, comment); setOpen(false); }} onClose={function(){ setOpen(false); }} />
+<SentenceFeedbackButtons text={text} onFeedback={function(_text, optionId, optionalComment){ onFeedback && onFeedback(text, optionId, optionalComment); setOpen(false); }} onClose={function(){ setOpen(false); }} />
 </div>
 </div>,
 document.body
