@@ -1350,13 +1350,15 @@ onRespond(mapped, userWord||null, value, userWord);
 
 const accent = connection.color || "#6BB8FF";
 const mobileSheet = isMobile && !dragPos;
-const s = dragPos ? { left: dragPos.x, top: dragPos.y, transform: "none" }
+var _pad = 20;
+var _clampedDrag = dragPos && isMobile && typeof window !== "undefined" ? { x: Math.max(_pad, Math.min(window.innerWidth - 320 - _pad, dragPos.x)), y: Math.max(_pad, Math.min(window.innerHeight - 420 - _pad, dragPos.y)) } : dragPos;
+const s = _clampedDrag ? { left: _clampedDrag.x, top: _clampedDrag.y, transform: "none" }
 : mobileSheet
-  ? { position: "fixed", left: 0, right: 0, bottom: 0, width: "100%", maxWidth: "100%", transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
-  : { left: "50%", top: Math.max(10, Math.min(position.y - 60, 240)), transform: "translate(-50%, 0)" };
+  ? { position: "fixed", left: _pad, right: _pad, bottom: 0, transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
+  : { left: "50%", top: Math.max(10, Math.min(position.y - 60, 240)), transform: "translate(-50%, 0)", maxWidth: "min(320px, calc(100vw - " + (_pad * 2) + "px))" };
 return (
 <div ref={ref} onPointerDown={handlePD} onClick={function(e){e.stopPropagation();}} style={{
-position: mobileSheet ? "fixed" : "absolute", ...s, width: mobileSheet ? "100%" : 320, maxWidth: mobileSheet ? "100%" : "94%",
+position: mobileSheet ? "fixed" : "absolute", ...s, width: mobileSheet ? undefined : 320, maxWidth: mobileSheet ? undefined : "min(320px, calc(100vw - " + (_pad * 2) + "px))",
 background: `linear-gradient(160deg, rgba(18,20,35,0.98), rgba(28,25,50,0.96))`,
 border: `1.5px solid ${accent}88`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
 zIndex: 30, cursor: dragOff?"grabbing":"grab",
@@ -2004,7 +2006,7 @@ textOverflow: "ellipsis",
 
 {selectedDetail && !activeConn && (
 <div onClick={function(e){e.stopPropagation();}} style={{
-position:"absolute", left:16, right:16, bottom: isMobile ? "calc(100px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))",
+position:"absolute", left: isMobile ? "max(20px, env(safe-area-inset-left, 0px))" : 16, right: isMobile ? "max(20px, env(safe-area-inset-right, 0px))" : 16, bottom: isMobile ? "calc(100px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))",
 zIndex:30,
 background:"rgba(12,14,28,0.95)",
 border:"1px solid rgba(255,255,255,0.25)",
@@ -8227,35 +8229,35 @@ document.body
 <div style={{ height:3, flexShrink:0,
 background:"linear-gradient(90deg, "+_accent+", "+_accent+"44)" }}/>
 
-<div style={{ padding:"34px 30px 0", flexShrink:0 }}>
+<div style={{ padding: isMobile ? "calc(44px + env(safe-area-inset-top, 0px)) 20px 0" : "34px 30px 0", flexShrink:0 }}>
 <div style={{ display:"flex", justifyContent:"space-between",
-alignItems:"flex-start", marginBottom:14 }}>
-<div>
-<div style={{ fontSize:13, letterSpacing:"0.6em",
+alignItems:"flex-start", marginBottom:14, flexWrap:"wrap", gap:12 }}>
+<div style={{ flex:"1 1 140px", minWidth:0 }}>
+<div style={{ fontSize: isMobile ? 11 : 13, letterSpacing:"0.6em",
 color:"rgba(0,0,0,0.28)", marginBottom:6, fontWeight:600 }}>
 SAYCRD · FIELD REPORT
 </div>
-<div style={{ fontSize:34, fontWeight:800, color:"rgba(0,0,0,0.88)",
+<div style={{ fontSize: isMobile ? 26 : 34, fontWeight:800, color:"rgba(0,0,0,0.88)",
 letterSpacing:"-0.025em", lineHeight:1 }}>
 {sessionCount} {sessionCount===1 ? "SESSION" : "SESSIONS"}
 </div>
 </div>
-<div style={{ textAlign:"right" }}>
+<div style={{ textAlign:"right", flexShrink:0 }}>
 {_report && _report.dateRange && (
-<div style={{ fontSize:13, color:"rgba(0,0,0,0.28)",
+<div style={{ fontSize: isMobile ? 11 : 13, color:"rgba(0,0,0,0.28)",
 letterSpacing:"0.08em", marginBottom:4 }}>
 {_report.dateRange}
 </div>
 )}
-<div style={{ fontSize:13, color:"rgba(0,0,0,0.22)",
+<div style={{ fontSize: isMobile ? 11 : 13, color:"rgba(0,0,0,0.22)",
 letterSpacing:"0.2em", fontWeight:600 }}>CONFIDENTIAL</div>
 </div>
 </div>
 <div style={{ height:1, background:"rgba(0,0,0,0.1)" }}/>
 </div>
 
-<div style={{ flex:1, overflowY:"auto", padding:"0 30px",
-WebkitOverflowScrolling:"touch" }}>
+<div style={{ flex:1, overflowY:"auto", padding: isMobile ? "0 20px calc(120px + env(safe-area-inset-bottom, 0px))" : "0 30px calc(60px + env(safe-area-inset-bottom, 0px))",
+WebkitOverflowScrolling:"touch", minHeight:0 }}>
 
 {_report ? (
 <div style={{ paddingTop:24, position: "relative" }}>
