@@ -9907,12 +9907,14 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 
 function LandingPhase({ onStart }) {
 var [show, setShow] = useState(false);
+var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var returning = sessions.length > 0;
 var SG = "Space Grotesk, " + FB;
 
 useEffect(function() { setTimeout(function() { setShow(true); }, 100); }, []);
+useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 
 function guardedStart() {
 if (window.currentUser) { onStart(); return; }
@@ -9943,9 +9945,16 @@ filter:"blur(80px)", animation:"floatWord 18s ease-in-out infinite", animationDe
 alignItems:"center", padding:"calc(20px + env(safe-area-inset-top, 0px)) 7vw 20px",
 background:"rgba(10,9,20,0.8)", backdropFilter:"blur(20px)",
 borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
+<div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
+{authUser && (
+<button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+{(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
+</button>
+)}
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
 WebkitTextFillColor:"transparent" }}>SAYCRD</div>
+</div>
 <button onClick={guardedStart} style={{ padding:"10px 26px", borderRadius:999,
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
@@ -10575,6 +10584,8 @@ return next;
 }
 
 const cp = PHASES[phase];
+
+useEffect(function(){ document.body.classList.toggle("saycrd-landing", cp === "landing"); return function(){ document.body.classList.remove("saycrd-landing"); }; }, [cp]);
 
 function enterField() {
 setFieldTransition(true);
