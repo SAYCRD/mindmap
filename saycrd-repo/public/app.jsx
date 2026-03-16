@@ -97,6 +97,8 @@ background: bg,
 borderBottom: bord,
 transition: "all 0.2s",
 color: txtColor,
+userSelect: "text",
+WebkitUserSelect: "text",
 }}
 onMouseEnter={function(e){ if(!feedback) e.currentTarget.style.background = dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)"; }}
 onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "transparent"; }}
@@ -2857,7 +2859,7 @@ var descentCards = (sd.descent_cards && sd.descent_cards.length > 0) ? sd.descen
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
 <Particles color="rgba(214,178,109,0.15)" count={isMobile ? 4 : 8} />
-<div style={{ maxWidth: 380, margin: "0 auto", padding: (isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1 }}>
+<div style={{ maxWidth: 380, margin: "0 auto", padding: (isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1, userSelect: "text", WebkitUserSelect: "text" }}>
 
 <div style={{ marginBottom: archData ? 18 : 28, animation: "riseUp 0.5s ease" }}>
 <div style={{ fontSize: 16, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", fontFamily: FB, fontWeight: 700 }}>
@@ -5124,9 +5126,9 @@ onTouchStart={function(e){ startInteract(e.touches[0].clientX,e); }}
 onTouchEnd={endInteract}
 onClick={function(e){ e.stopPropagation(); }}
 style={{ padding:"14px 18px", borderRadius:14, background:bg, border:bord,
-cursor:"default", transition:"background 0.2s, border 0.2s",
-userSelect:"none", WebkitUserSelect:"none" }}>
+cursor:"default", transition:"background 0.2s, border 0.2s" }}>
 <p style={{ fontSize:17, fontFamily:FD, lineHeight:1.6, margin:"0 0 6px",
+userSelect:"text", WebkitUserSelect:"text",
 color: opt ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.88)" }}>
 <HighlightableText text={text} feedback={feedback} onFeedback={onFeedback} dark />
 </p>
