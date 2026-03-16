@@ -73,9 +73,9 @@ var key = normalizeSentKey(text);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var optColor = opt && (opt.color || PICKER_ACCENT);
 var isRgba = optColor && typeof optColor === "string" && optColor.indexOf("rgba") >= 0;
-var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : optColor + "28") : "transparent";
+var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : (dark ? optColor + "44" : optColor + "28")) : "transparent";
 var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optColor) : "1px solid transparent";
-var txtColor = optColor ? (isRgba ? "rgba(255,255,255,0.85)" : optColor) : "inherit";
+var txtColor = optColor ? (isRgba ? (dark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.72)") : optColor) : "inherit";
 return (
 <>
 <span
@@ -2599,16 +2599,25 @@ borderRadius:12, padding:"4px 14px", cursor:"pointer" }}>save note</button>
 );
 }
 
+function splitSentencesForFeedback(para) {
+var parts = para.split(/(?<=[.!?])\s+/);
+return parts.map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 3; });
+}
 function HighlightableReading({ text, feedbackMap, onFeedback, dark }) {
 if (!text || text.trim().length === 0) return <span>{text}</span>;
-var sentences = text.match(/[^.!?]+[.!?]+[\u201D\u201C\u2019\u2018"']?\s*/g);
-if (!sentences || sentences.length === 0) {
+var paras = text.split(/\n\n+/);
+if (paras.length <= 1) paras = text.split(/\n/);
+paras = paras.filter(function(p){ return p.trim(); });
+var sentences = [];
+for (var i = 0; i < paras.length; i++) {
+sentences = sentences.concat(splitSentencesForFeedback(paras[i]));
+}
+if (sentences.length === 0) {
 var t = text.trim();
 var key = normalizeSentKey(t);
 return <HighlightableText text={t} feedback={feedbackMap ? feedbackMap[key] : null} onFeedback={onFeedback} dark={dark} />;
 }
-return <span>{sentences.map(function(s, i) {
-var t = s.trim();
+return <span>{sentences.map(function(t, i) {
 var key = normalizeSentKey(t);
 return <HighlightableText key={i} text={t} feedback={feedbackMap ? feedbackMap[key] : null} onFeedback={onFeedback} dark={dark} />;
 })}</span>;
