@@ -3,6 +3,13 @@ const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = R
 var PICKER_ACCENT = "#E84393";
 var PICKER_TRACK_INACTIVE = "#D0D0D0";
 function normalizeSentKey(t) { return (t || "").trim().replace(/\s+/g, " ").slice(0, 100); }
+function isDarkHex(hex) {
+if (!hex || typeof hex !== "string" || hex.indexOf("#") !== 0) return false;
+var h = hex.slice(1);
+if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+var r = parseInt(h.slice(0,2), 16), g = parseInt(h.slice(2,4), 16), b = parseInt(h.slice(4,6), 16);
+return (0.299*r + 0.587*g + 0.114*b) < 140;
+}
 var SENTENCE_FEEDBACK_OPTIONS = [
 { id: "lands_hard", label: "Lands Hard", color: "#A85A7A" },
 { id: "truth_revealed", label: "Truth Revealed", color: "#4A8A8A" },
@@ -73,9 +80,10 @@ var key = normalizeSentKey(text);
 var opt = feedback ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedback; }) : null;
 var optColor = opt && (opt.color || PICKER_ACCENT);
 var isRgba = optColor && typeof optColor === "string" && optColor.indexOf("rgba") >= 0;
-var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : (dark ? optColor + "44" : optColor + "28")) : "transparent";
-var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optColor) : "1px solid transparent";
-var txtColor = optColor ? (isRgba ? (dark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.72)") : optColor) : "inherit";
+var darkColorOnDark = dark && optColor && !isRgba && isDarkHex(optColor);
+var bg = optColor ? (isRgba ? "rgba(0,0,0,0.06)" : (darkColorOnDark ? "rgba(255,255,255,0.1)" : (dark ? optColor + "44" : optColor + "28"))) : "transparent";
+var bord = optColor ? (isRgba ? "1.5px solid rgba(0,0,0,0.18)" : (darkColorOnDark ? "1.5px solid rgba(255,255,255,0.25)" : "1.5px solid " + optColor)) : "1px solid transparent";
+var txtColor = optColor ? (isRgba ? (dark ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.72)") : (darkColorOnDark ? "rgba(255,255,255,0.95)" : optColor)) : "inherit";
 return (
 <>
 <span
@@ -248,7 +256,39 @@ return (
 );
 }
 
-function ProcessingScreen({ stage, label, sublabel, palette, wrapStyle, stepKey, rawText }) {
+function TransparentFindingUI({ findingPhase, findingDetail, palette }) {
+var colors = palette || ["#4EC9B8","#6BB8FF","#A78BFA"];
+var accent = colors[1] || "#6BB8FF";
+return (
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px" }}>
+<div style={{ position: "absolute", inset: 0, background: "rgba(0,2,12,0.94)" }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 50% at 50% 50%, rgba(0,20,40,0.4) 0%, transparent 70%)" }}/>
+<div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420, background: "rgba(0,8,20,0.6)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.15)", padding: "24px 28px", boxShadow: "0 0 40px rgba(0,0,0,0.5)" }}>
+<div style={{ fontSize: 9, letterSpacing: "0.4em", color: "rgba(107,184,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: 20 }}>Under the hood</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+{["preparing","sending","parsing"].map(function(phase, i) {
+var isActive = findingPhase === phase || (findingPhase == null && phase === "preparing");
+var isPast = (phase === "preparing" && (findingPhase === "sending" || findingPhase === "parsing")) || (phase === "sending" && findingPhase === "parsing");
+var label = phase === "preparing" ? "Context & signals" : phase === "sending" ? "Sending to Claude" : "Parsing response";
+return (
+<div key={phase} style={{ display: "flex", alignItems: "center", gap: 14, opacity: isPast ? 0.5 : 1, transition: "opacity 0.3s ease" }}>
+<div style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: isPast ? "rgba(78,201,184,0.3)" : isActive ? accent + "40" : "rgba(255,255,255,0.06)", border: "1px solid " + (isPast ? "rgba(78,201,184,0.5)" : isActive ? accent : "rgba(255,255,255,0.1)") }}>
+{isPast ? <span style={{ fontSize: 11, color: "#4EC9B8" }}>{"\u2713"}</span> : isActive ? <div style={{ width: 6, height: 6, borderRadius: "50%", background: accent, animation: "pulse 1.5s ease infinite" }}/> : null}
+</div>
+<div style={{ flex: 1 }}>
+<div style={{ fontSize: 13, fontFamily: FB, color: isActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)", fontWeight: isActive ? 600 : 500 }}>{label}</div>
+{isActive ? <div style={{ fontSize: 12, color: "rgba(150,200,255,0.75)", fontFamily: FD, fontStyle: "italic", marginTop: 4, lineHeight: 1.4 }}>{findingDetail || "Starting..."}</div> : null}
+</div>
+</div>
+);
+})}
+</div>
+</div>
+</div>
+);
+}
+
+function ProcessingScreen({ stage, label, sublabel, palette, wrapStyle, stepKey, rawText, findingPhase, findingDetail }) {
 var colors = palette || ["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"];
 var isFinding = stepKey === 1;
 var shafts = [{ x: 18, w: 6, dur: 8, delay: 0, opacity: 0.05 }, { x: 42, w: 10, dur: 11, delay: -3, opacity: 0.07 }, { x: 67, w: 7, dur: 9, delay: -5.5, opacity: 0.06 }, { x: 82, w: 5, dur: 13, delay: -1.5, opacity: 0.04 }];
@@ -260,9 +300,10 @@ pts.push({ x: ((seed * 7.3) % 100), y: ((seed * 3.1) % 100), size: 1 + (pi % 3) 
 }
 return pts;
 }, [colors]);
+var baseBg = isFinding ? "linear-gradient(180deg, #010810 0%, #010612 25%, #020418 50%, #020310 75%, #010208 100%)" : "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)";
 return (
-<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)", ...(wrapStyle || {}) }}>
-{isFinding && <BubbleAnalysisBackground rawText={rawText} palette={colors}/>}
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: baseBg, ...(wrapStyle || {}) }}>
+{isFinding && <TransparentFindingUI findingPhase={findingPhase} findingDetail={findingDetail} palette={colors}/>}
 {!isFinding && (
 <>
 <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -815,6 +856,8 @@ const [err, setErr] = useState(null);
 const [crisisState, setCrisisState] = useState(null);
 const [revealData, setRevealData] = useState(null);
 const [revealFadeOut, setRevealFadeOut] = useState(false);
+const [findingPhase, setFindingPhase] = useState(null);
+const [findingDetail, setFindingDetail] = useState("");
 const ran = useRef(false);
 const step1Start = useRef(null);
 useEffect(function crisisCheck() {
@@ -1040,6 +1083,8 @@ return;
 console.log("[SAYCRD] Synthesizing dump:", (rawText||"").slice(0,80) + "...");
 (async function() {
 try {
+setFindingPhase("preparing");
+setFindingDetail(prevSessions.length > 0 ? "Loaded " + prevSessions.length + " past sessions — incorporating your corrections & preferences..." : "Building context from your words...");
 var userSignals = "";
 var mapR = {}; 
 var signalLines = [];
@@ -1123,12 +1168,18 @@ pastUserWords.slice(-8).map(function(w){return "\"" + w + "\"";}).join("\n"));
 if (userSignalParts.length > 0) {
 userSignals = "\n\n" + userSignalParts.join("\n\n") + "\n══ END USER AUTHORITY ══";
 }
+setFindingPhase("sending");
+setFindingDetail("Sending your words to Claude — analyzing themes, connections, archetype...");
 console.log("[SAYCRD] Sending to Claude, awaiting response...");
 var raw = await callClaudeClient(prompt, (rawText || "") + temporalContext + userSignals, 3500);
+setFindingPhase("parsing");
+setFindingDetail("Received response — parsing themes, connections, archetype...");
 console.log("[SAYCRD] AI raw response:", (raw||"").slice(0, 200));
 var data = parseJSON(raw);
 console.log("[SAYCRD] Parsed data:", data ? "OK - " + (data.themes||[]).length + " themes" : "FAILED");
 if (data && data.themes && data.themes.length > 0) {
+var connCount = (data.connections || []).length;
+setFindingDetail("Found " + data.themes.length + " themes, " + connCount + " connections — building your map...");
 data.themes = data.themes.map(function(t, i) { return Object.assign({}, t, { color: NC[i % NC.length] }); });
 if (data.archetype && !data.archetypes) {
 data.archetypes = [data.archetype];
@@ -1153,6 +1204,8 @@ console.error("[SAYCRD] Synthesis error:", e);
 if (e.message && (e.message.includes("empty response") || e.message.includes("timed out") || e.message.includes("JSON parse failed"))) {
 console.warn("[SAYCRD] Retrying synthesis in 2s...");
 setStep(1);
+setFindingPhase("sending");
+setFindingDetail("Retrying — sending to Claude again...");
 await new Promise(function(w) { setTimeout(w, 2000); });
 try {
 var retryResponse = await callClaudeClient(prompt, rawText, 4000);
@@ -1216,8 +1269,10 @@ Continue
 wrapStyle={revealFadeOut ? { animation: "revealFadeOut 1.8s ease-in-out forwards" } : {}}
 stepKey={step}
 rawText={rawText}
+findingPhase={findingPhase}
+findingDetail={findingDetail}
 label={step===0?"Reading your words":step===1?"Finding what's underneath":(revealData && revealData.themes ? "Your map" : "Building your map")}
-sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?"Extracting themes, connections, and the structure beneath — showing what it's considering":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
+sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?"What's happening in real time — no placeholders":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
 palette={["#4EC9B8","#6BB8FF","#A78BFA","#7FFFD4","#38BDF8"]}
 stage={
 step===0 ? (
@@ -1226,12 +1281,7 @@ step===0 ? (
 return <span key={i} style={{ fontSize: 11, color: "rgba(107,184,255,"+(0.25+i*0.08)+")", fontFamily: FD, fontStyle: "italic", animation: "floatWord "+(4+i*0.5)+"s ease-in-out infinite", animationDelay: -(i*0.4)+"s" }}>{w}</span>;
 })}
 </div>
-) : step===1 ? (
-<div style={{ width: "100%", maxWidth: 380, margin: "0 auto", padding: "16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-<div style={{ fontSize: 10, letterSpacing: "0.4em", color: "rgba(107,184,255,0.5)", fontFamily: FB, textTransform: "uppercase" }}>Large bubbles = themes · Lines = connections forming</div>
-<svg viewBox="0 0 200 60" style={{ width: "100%", height: 50, opacity: 0.6 }}><g fill="none" stroke="rgba(107,184,255,0.4)" strokeWidth="1"><path d="M 30 30 Q 60 15 90 25 Q 120 35 150 30" strokeDasharray="4 4" style={{ animation: "flowLine 2.5s linear infinite" }}/><path d="M 50 45 Q 100 35 150 45" strokeDasharray="4 4" style={{ animation: "flowLine 2.5s linear 0.8s infinite" }}/><circle cx="40" cy="35" r="6" fill="rgba(78,201,184,0.2)" stroke="#4EC9B8" style={{ animation: "ringPulse 2s ease infinite" }}/><circle cx="100" cy="25" r="5" fill="rgba(107,184,255,0.2)" stroke="#6BB8FF" style={{ animation: "ringPulse 2s ease 0.3s infinite" }}/><circle cx="160" cy="40" r="4" fill="rgba(167,139,250,0.2)" stroke="#A78BFA" style={{ animation: "ringPulse 2s ease 0.6s infinite" }}/></g></svg>
-</div>
-) : revealData && revealData.themes && revealData.themes.length > 0 ? (
+) : step===1 ? null : revealData && revealData.themes && revealData.themes.length > 0 ? (
 <MapRevealCinematic themes={revealData.themes} connections={revealData.connections || []} mapTitle={revealData.map_title || revealData.mapTitle} />
 ) : (
 <div style={{ width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
