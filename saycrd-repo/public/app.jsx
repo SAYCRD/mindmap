@@ -1529,15 +1529,6 @@ return (
 </div>
 );
 }
-return (
-<div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #021018 0%, #010C1A 20%, #040A22 45%, #05072A 68%, #03041A 85%, #010208 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
-<ProgressiveLoadingOverlay loading={true} label={synth.findingPhase === "preparing" ? "Reading your words" : "Finding what's underneath"} sublabel={synth.findingDetail || "Your words are being absorbed — the AI is matching patterns in what you wrote"}>
-<div style={{ width: "100%", maxWidth: 560, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
-<MapSkeleton />
-</div>
-</ProgressiveLoadingOverlay>
-</div>
-);
 }
 
 function extractSnippet(txt, label) {
@@ -1892,9 +1883,11 @@ useEffect(() => {
 if(!dragging) return;
 const m = e => {
 didDrag.current = true;
-const r = fieldRef.current?.getBoundingClientRect(); if(!r) return;
-const cx = (e.clientX||e.touches?.[0]?.clientX) - r.left - dragging.ox;
-const cy = (e.clientY||e.touches?.[0]?.clientY) - r.top - dragging.oy;
+const r = fieldRef.current ? fieldRef.current.getBoundingClientRect() : null; if(!r) return;
+const ex = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+const ey = e.clientY != null ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+const cx = ex - r.left - dragging.ox;
+const cy = ey - r.top - dragging.oy;
 const newX = Math.max(0, Math.min(cx, r.width - 120));
 const newY = Math.max(0, Math.min(cy, r.height - 40));
 setPos(p => ({...p, [dragging.key]: {x: newX, y: newY}}));
@@ -2185,7 +2178,7 @@ if(dw&&dw.insight) onPatchSynthesis({connections:[{from:fn,to:tn,insight:dw.insi
 }
 }}
 />}
-</>}
+</>
 </div>
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
 <button onClick={function(){var merged=Object.assign({},responses);discoveredConns.forEach(function(c){var k2=c.from+"::"+c.to;if(!merged[k2]) merged[k2]={value:"discovered",from:c.from,to:c.to,insight:c.insight||"",label:c.label||"",userDiscovered:true,comment:""};});onComplete(merged);}} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, rgba(107,184,255,0.25), rgba(61,139,255,0.2))", border: "1px solid rgba(107,184,255,0.5)", borderRadius: 24, padding: "14px 28px", minHeight: 48, color: "#fff", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", boxShadow: "0 4px 24px rgba(0,0,0,0.4)", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>{explored >= 1 ? "continue →" : "continue →"}</button>
@@ -10746,7 +10739,6 @@ return (
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
 {cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(3);}} onBack={function(){setPhase(0);}}/>}
-{cp==="synthesize"&&<SynthesizePhase rawText={rawText} onComplete={function(){setPhase(3);}} onSynthesis={setSynthesisData}/>}
 {cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onSynthesis={setSynthesisData} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(1);}}/>}
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
