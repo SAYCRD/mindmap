@@ -21,12 +21,16 @@ return (
 {SENTENCE_FEEDBACK_OPTIONS.map(function(o) {
 var isRgba = (o.color && typeof o.color === "string" && o.color.indexOf("rgba") >= 0);
 var c = isRgba ? null : (o.color || PICKER_ACCENT);
+var btnStyle = {
+padding: "10px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.04em", borderRadius: 8,
+border: isRgba ? "1px solid rgba(0,0,0,0.1)" : "1px solid " + (c + "55"),
+background: isRgba ? "rgba(0,0,0,0.06)" : (c + "20"),
+color: isRgba ? "rgba(0,0,0,0.72)" : c,
+cursor: "pointer", transition: "all 0.2s",
+boxShadow: isRgba ? "none" : "0 1px 4px " + (c + "22")
+};
 return (
-<button key={o.id} onClick={function(){ onFeedback && onFeedback(o.id); onClose(); }} style={{
-padding: "10px 14px", fontSize: 12, fontFamily: FB, letterSpacing: "0.04em", borderRadius: 8, border: isRgba ? "1px solid rgba(0,0,0,0.1)" : "1px solid " + (c + "55"),
-background: isRgba ? "rgba(0,0,0,0.06)" : (c + "20"), color: isRgba ? "rgba(0,0,0,0.72)" : c,
-cursor: "pointer", transition: "all 0.2s", boxShadow: isRgba ? "none" : "0 1px 4px " + (c + "22)"
-}}>
+<button key={o.id} onClick={function(){ onFeedback && onFeedback(o.id); onClose(); }} style={btnStyle}>
 {o.label}
 </button>
 );
