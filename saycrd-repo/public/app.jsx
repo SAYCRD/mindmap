@@ -2026,16 +2026,16 @@ var _sva=pos[c.from],_svb=pos[c.to];
 if(!_sva||!_svb)return null;
 {var _svdx=(_svb.x+60)-(_sva.x+60),_svdy=(_svb.y+20)-(_sva.y+20);if(Math.sqrt(_svdx*_svdx+_svdy*_svdy)<90)return null;}
 const isAct = activeConn && K(activeConn)===k;
-let stroke="rgba(255,255,255,0.18)", sw=2, dash="8 5", op=1, glowStroke="rgba(255,255,255,0.06)";
-if(resp?.value==="yes"){stroke="rgba(107,211,198,0.72)";sw=3;dash="none";glowStroke="rgba(107,211,198,0.15)";}
-else if(resp?.value==="partly"){stroke="rgba(165,235,220,0.5)";sw=2.5;dash="none";glowStroke="rgba(165,235,220,0.12)";}
+let stroke="rgba(255,255,255,0.32)", sw=2, dash="8 5", op=1, glowStroke="rgba(255,255,255,0.12)";
+if(resp?.value==="yes"){stroke="rgba(107,211,198,0.88)";sw=3;dash="none";glowStroke="rgba(107,211,198,0.25)";}
+else if(resp?.value==="partly"){stroke="rgba(165,235,220,0.7)";sw=2.5;dash="none";glowStroke="rgba(165,235,220,0.2)";}
 else if(resp?.value==="no"){
 var hasWord=resp.comment&&resp.comment.trim().length>0;
-stroke=hasWord?"rgba(214,178,100,0.75)":"rgba(214,178,100,0.35)";
-sw=hasWord?2.5:1.5; dash="5 4";glowStroke="rgba(214,178,100,0.08)";
+stroke=hasWord?"rgba(214,178,100,0.9)":"rgba(214,178,100,0.55)";
+sw=hasWord?2.5:1.5; dash="5 4";glowStroke="rgba(214,178,100,0.15)";
 }
-if(isAct){stroke=`${c.color}88`;sw=3;dash="none"; op=1;glowStroke=c.color+"22";}
-var flowStroke = resp?.value==="yes" ? "rgba(107,211,198,0.55)" : resp?.value==="partly" ? "rgba(165,235,220,0.4)" : "rgba(255,255,255,0.06)";
+if(isAct){stroke=`${c.color}cc`;sw=3;dash="none"; op=1;glowStroke=c.color+"44";}
+var flowStroke = resp?.value==="yes" ? "rgba(107,211,198,0.7)" : resp?.value==="partly" ? "rgba(165,235,220,0.55)" : "rgba(255,255,255,0.12)";
 return <g key={k}><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={glowStroke} strokeWidth={sw+6} strokeLinecap="round" strokeDasharray={dash} opacity={0.8} style={{transition:"all 0.6s ease"}}/><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} opacity={op} style={{transition:"all 0.6s ease"}}/><line x1={ep.x1} y1={ep.y1} x2={ep.x2} y2={ep.y2} stroke={flowStroke} strokeWidth={resp?.value==="yes"||resp?.value==="partly"?1.8:1} strokeLinecap="round" strokeDasharray="6 18" style={{animation:"flowLine "+(resp?.value==="yes"||resp?.value==="partly"?"2.2":"4")+"s linear infinite"}}/></g>;
 })}
 {selectedNode && (() => {
@@ -2064,13 +2064,13 @@ position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
 padding: "6px 12px", borderRadius: 8, fontSize: 10, fontWeight: 700, fontFamily: FB,
 letterSpacing: "0.06em", textTransform: "uppercase",
 color: isAct?"white":isUserDefined?"#D6B264":isExp?accent:"#fff",
-background: isAct?accent+"44":isUserDefined?"rgba(50,40,15,0.95)":"rgba(12,14,28,0.92)",
-border:"1.5px solid "+(isAct?accent:isUserDefined?"rgba(214,178,100,0.5)":isExp?accent+"44":accent+"66"),
+background: isAct?accent+"66":isUserDefined?"rgba(50,40,15,0.95)":"rgba(12,14,28,0.92)",
+border:"1.5px solid "+(isAct?accent:isUserDefined?"rgba(214,178,100,0.6)":isExp?accent+"66":accent+"99"),
 cursor: "pointer", whiteSpace: "normal", maxWidth: 160, textAlign: "center", lineHeight: 1.25,
 zIndex: isAct ? 15 : 5,
 transition: "all 0.3s ease",
 animation: !isExp ? "connBlink 2s ease-in-out infinite" : "none",
-boxShadow: isAct ? `0 4px 16px rgba(0,0,0,0.35), 0 0 20px ${accent}33` : !isExp ? `0 4px 12px rgba(0,0,0,0.3), 0 0 12px ${accent}15` : "0 4px 12px rgba(0,0,0,0.25)",
+boxShadow: isAct ? `0 4px 16px rgba(0,0,0,0.35), 0 0 24px ${accent}55` : !isExp ? `0 4px 12px rgba(0,0,0,0.3), 0 0 16px ${accent}35` : "0 4px 12px rgba(0,0,0,0.25), 0 0 12px " + accent + "40",
 }}>
 {!isExp && <div style={{ position:"absolute", inset:-5, borderRadius:10, border:"1px solid "+accent+"44", animation:"ringPulse 2s ease-in-out infinite", pointerEvents:"none" }}/>}
 {isUserDefined
@@ -2110,13 +2110,13 @@ minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined,
 textTransform: "uppercase", letterSpacing: "0.06em",
 whiteSpace: "nowrap", maxWidth: 140,
 background: isSnap
-? "rgba(125,183,174,0.18)"
-: n.w > 0.7 ? `rgba(214,178,109,0.25)` : "rgba(244,241,234,0.12)",
-border: isSnap ? "1.5px solid rgba(125,183,174,0.7)"
+? "rgba(125,183,174,0.28)"
+: n.w > 0.7 ? `rgba(214,178,109,0.35)` : n.color + "25",
+border: isSnap ? "1.5px solid rgba(125,183,174,0.85)"
 : isSel ? "1.5px solid #6BFFB8"
-: canLink ? `1.5px solid ${n.color}aa`
-: n.w > 0.7 ? "1.5px solid rgba(214,178,109,0.45)"
-: `1.5px solid rgba(244,241,234,0.22)`,
+: canLink ? `1.5px solid ${n.color}dd`
+: n.w > 0.7 ? "1.5px solid rgba(214,178,109,0.6)"
+: `1.5px solid ${n.color}88`,
 backdropFilter: "blur(12px)",
 WebkitBackdropFilter: "blur(12px)",
 cursor: isDrag?"grabbing":"pointer", zIndex: isDrag?20: isSel||isSnap?10 :3,
@@ -2126,7 +2126,7 @@ boxShadow: isSnap
 ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 24px rgba(0,0,0,0.4), 0 0 28px rgba(125,183,174,0.5), 0 0 12px rgba(125,183,174,0.25)"
 : isSel
 ? "inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 24px rgba(0,0,0,0.4), 0 0 28px rgba(107,255,184,0.35), 0 0 10px rgba(107,255,184,0.2)"
-: `inset 0 1px 0 rgba(255,255,255,0.1), 0 6px 20px rgba(0,0,0,0.35), 0 0 ${isDrag?32:20}px ${n.color}${isDrag?"66":"35"}, 0 0 8px ${n.color}22`,
+: `inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 20px rgba(0,0,0,0.35), 0 0 ${isDrag?32:20}px ${n.color}${isDrag?"88":"55"}, 0 0 10px ${n.color}44`,
 touchAction: "none", userSelect: "none",
 animation: isDrag||isSel||isSnap ? "none" : "nodeBreathe 8s ease-in-out infinite",
 animationDelay: `${ni*-1.5}s`,
@@ -2398,11 +2398,11 @@ cursor: expanded || saved ? "default" : "pointer", transition: "all 0.3s",
 animation: `riseUp 0.5s ease ${0.1 + index * 0.15}s both`,
 }}>
 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-<span style={{ fontSize: 14, color: gt.color }}>{gt.icon}</span>
-<span style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: gt.color, fontFamily: FB }}>{item.type}</span>
+<span style={{ fontSize: 16, color: gt.color }}>{gt.icon}</span>
+<span style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: gt.color, fontFamily: FB }}>{item.type}</span>
 {saved && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: FB, marginLeft: "auto" }}>responded</span>}
 </div>
-<p style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>{item.text}</p>
+<p style={{ fontSize: 17, color: "rgba(255,255,255,0.85)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>{item.text}</p>
 {expanded && !saved && (
 <div style={{ marginTop: 14, animation: "riseUp 0.3s ease" }}>
 <textarea value={response} onChange={function(e){ setResponse(e.target.value); }}
@@ -3031,7 +3031,7 @@ SESSION {sessionNum} · {new Date().toLocaleDateString("en-US", { month: "long",
 </div>}
 
 {THEMES.length > 0 && <div style={{ marginBottom: 32, animation: "riseUp 0.5s ease 0.08s both" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#E84393", marginBottom: 14, fontFamily: FB, textTransform: "uppercase", opacity: 0.75 }}>
+<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#E84393", marginBottom: 14, fontFamily: FB, textTransform: "uppercase", opacity: 0.9 }}>
 {THEMES.length} forces
 </div>
 <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
@@ -3045,7 +3045,7 @@ return <div key={t.name} style={{ padding: pad, borderRadius: 24, background: t.
 
 {synthesis && <div style={{ marginBottom: 32, animation: "riseUp 0.6s ease 0.12s both" }}>
 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#D6B26D", fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>the reading</div>
+<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#D6B26D", fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>the reading</div>
 {isRevising && <div style={{ fontSize:14, color:"rgba(214,178,109,0.6)", fontFamily:FB, letterSpacing:"0.14em", animation:"pulse 1.5s ease infinite" }}>recomputing...</div>}
 {!isRevising && signalStatus === "new_connection" && <div style={{ fontSize:14, color:"rgba(107,184,255,0.65)", fontFamily:FB, letterSpacing:"0.12em" }}>new connection found ↓</div>}
 {!isRevising && signals.resisted_count > 0 && signalStatus !== "new_connection" && <div style={{ fontSize:14, color:"rgba(255,255,255,0.25)", fontFamily:FB, letterSpacing:"0.1em" }}>incorporated</div>}
@@ -3072,7 +3072,7 @@ background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", 
 
 {underneath.length > 0 && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.2s both" }}>
 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#B86BFF", fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>what{"'"}s underneath</div>
+<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#B86BFF", fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>what{"'"}s underneath</div>
 </div>
 {underneath.map(function(t, i) {
 var uKey = normalizeSentKey(t);
@@ -3087,7 +3087,7 @@ border: bord,
 marginBottom: 8, position: "relative", animation: "riseUp 0.5s ease " + (0.3 + i * 0.1) + "s both", transition: "all 0.3s" }}>
 <div style={{ position: "absolute", left: 10, top: 16, width: 3, height: 3, borderRadius: "50%",
 background: optC || "#B86BFF", opacity: 0.5 }} />
-<p style={{ fontSize: 15, color: opt ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.55)", fontFamily: FD, lineHeight: 1.65, margin: "0 0 6px" }}>
+<p style={{ fontSize: 17, color: opt ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.82)", fontFamily: FD, lineHeight: 1.65, margin: "0 0 6px" }}>
 <HighlightableText text={t} feedback={uFb} onFeedback={handleSentenceFeedback} dark />
 </p>
 </div>;
@@ -3095,7 +3095,7 @@ background: optC || "#B86BFF", opacity: 0.5 }} />
 </div>}
 
 {tension && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.3s both" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#FFB86B", marginBottom: 14, fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>the tension</div>
+<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#FFB86B", marginBottom: 14, fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>the tension</div>
 <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 12, alignItems: "center", marginBottom: tension.text ? 12 : 0 }}>
 <div style={{ fontSize: 18, color: "#FFB86B", fontFamily: FB, fontWeight: 900, lineHeight: 1.35, wordBreak: "break-word", overflowWrap: "break-word", textAlign: "center" }}>{tension.a}</div>
 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.25)", fontFamily: FB }}>↔</div>
@@ -3119,12 +3119,12 @@ background: optC || "#B86BFF", opacity: 0.5 }} />
 </div>}
 
 {opening && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.35s both" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#6BFFB8", marginBottom: 14, fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>what{"'"}s opening</div>
+<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#6BFFB8", marginBottom: 14, fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>what{"'"}s opening</div>
 <p style={{ fontSize: 19, color: "rgba(107,255,184,0.88)", fontFamily: FD, lineHeight: 1.65, margin: 0 }}>{opening}</p>
 </div>}
 
 {GUIDE_ITEMS.length > 0 && <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)", animation: "riseUp 0.6s ease 0.4s both" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.45em", fontWeight: 600, color: "#7DB7AE", marginBottom: 14, fontFamily: FB, opacity: 0.6, textTransform: "uppercase" }}>your guide</div>
+<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#7DB7AE", marginBottom: 14, fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>your guide</div>
 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 {GUIDE_ITEMS.map(function(item, i) { return <GuideItem key={i} item={item} index={i} onPatchSynthesis={onPatchSynthesis} allGuide={sd.guide||[]} isMobile={isMobile} />; })}
 </div>
