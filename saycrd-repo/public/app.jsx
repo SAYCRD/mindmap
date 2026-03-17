@@ -7850,30 +7850,40 @@ if (b.indexOf(text.trim()) >= 0 || b.replace(/\s+/g, " ").indexOf(text.trim().re
 }
 if (sectionIdx >= 0 && targetSection) {
 _setRevisingSection(sectionIdx);
-fireReportRevision(text, optionId, optionalComment, sectionIdx, targetSection, _setReport);
+fireReportRevision(text, optionId, optionalComment, sectionIdx, targetSection, _report, _setReport);
 }
 }
 }
-async function fireReportRevision(sentence, feedbackId, userNote, sectionIdx, section, setReport) {
+async function fireReportRevision(sentence, feedbackId, userNote, sectionIdx, section, fullReport, setReport) {
 try {
 var sectionTitle = section.title || "Section " + (sectionIdx + 1);
 var feedbackLabel = (SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedbackId; }) || {}).label || feedbackId;
-var prompt = "The subject read their field report and gave feedback on a sentence. Their feedback is the truth — honor it.\n\n"
+var fullReportContext = fullReport ? "\n\nFULL REPORT (for context — if their correction contradicts the overall narrative, revise other sections too):\nOne-line verdict: \"" + (fullReport.oneLineVerdict || "") + "\"\nWhat might want to happen: \"" + (fullReport.whatMightWantToHappen || "") + "\"\n" + (fullReport.sections || []).map(function(s, i){ return "Section " + (i+1) + " (" + (s.title || "") + "): " + (s.body || "").slice(0, 500) + (s.body && s.body.length > 500 ? "…" : ""); }).join("\n\n") + "\n" : "";
+var prompt = "The subject read their field report and gave feedback on a sentence. Their feedback is the truth — honor it. LISTEN to them.\n\n"
 + "RULES: Do NOT defend or reframe the original. Revise the section to incorporate their feedback. Remove or replace the sentence that didn't land. If they gave a note, use their words. Keep the same structure (2-3 short paragraphs). No poetry. Plain, clear language. Their truth overrides.\n\n"
++ "CRITICAL — IF THEIR CORRECTION SHIFTS THE CORE NARRATIVE: If the subject said something that contradicts the report's overall message (e.g. report says 'the magic left' but they said 'it seemed to have come back'), then the ENTIRE report must align with their truth. Revise the section, the verdict, AND any other sections that would contradict what they said. Do not leave them feeling unheard — if they corrected a central point, the whole report should reflect it.\n\n"
 + "SECTION TITLE: " + sectionTitle + "\n"
 + "CURRENT BODY:\n" + (section.body || "") + "\n\n"
 + "SENTENCE THEY GAVE FEEDBACK ON: \"" + sentence.slice(0, 200) + "\"\n"
-+ "FEEDBACK: " + feedbackLabel + (userNote && userNote.trim() ? "\nTHEIR NOTE: \"" + userNote.trim().slice(0, 300) + "\"" : "") + "\n\n"
-+ "Return JSON only: {\"body\":\"revised section body, same format\", \"reviseVerdict\":\"only if their feedback is HIGHLY relevant to the core takeaway — otherwise omit\"}. Do NOT overweight the feedback: if it's a minor correction to one sentence, revise that sentence only. If it's central to the report's message, then consider revising the verdict.";
-var raw = await callClaudeClient(prompt, "", 400);
++ "FEEDBACK: " + feedbackLabel + (userNote && userNote.trim() ? "\nTHEIR NOTE: \"" + userNote.trim().slice(0, 300) + "\"" : "") + "\n"
++ fullReportContext
++ "\nReturn JSON: {\"body\":\"revised section body\", \"reviseVerdict\":\"revised one-line verdict if their correction affects the core takeaway — otherwise omit\", \"reviseWhatMightWantToHappen\":\"revised 'what might want to happen' if relevant — otherwise omit\", \"otherSections\":[{\"index\":0,\"body\":\"...\"}] for any OTHER sections that contradict their correction — omit if none}. If their correction is central (e.g. 'it came back' vs 'it left'), include otherSections, reviseVerdict, and optionally reviseWhatMightWantToHappen so the whole report listens to them.";
+var raw = await callClaudeClient(prompt, "", 550);
 var d = parseJSON(raw);
 if (d && d.body) {
 setReport(function(prev) {
 if (!prev || !prev.sections) return prev;
 var next = prev.sections.slice();
 next[sectionIdx] = Object.assign({}, next[sectionIdx], { body: d.body });
+if (d.otherSections && Array.isArray(d.otherSections)) {
+d.otherSections.forEach(function(os) {
+var idx = os.index;
+if (typeof idx === "number" && idx >= 0 && idx < next.length && os.body) next[idx] = Object.assign({}, next[idx], { body: os.body });
+});
+}
 var out = Object.assign({}, prev, { sections: next });
 if (d.reviseVerdict && d.reviseVerdict.trim()) out.oneLineVerdict = d.reviseVerdict.trim().slice(0, 120);
+if (d.reviseWhatMightWantToHappen && d.reviseWhatMightWantToHappen.trim()) out.whatMightWantToHappen = d.reviseWhatMightWantToHappen.trim().slice(0, 200);
 return out;
 });
 }
@@ -8325,6 +8335,8 @@ b = b.replace(new RegExp('"underneath_' + j + '"', "gi"), "\"" + repl + "\"");
 }
 dd.sections[i].body = b;
 }
+if (dd.oneLineVerdict && String(dd.oneLineVerdict).trim().toLowerCase() === "omit") dd.oneLineVerdict = "";
+if (dd.whatMightWantToHappen && String(dd.whatMightWantToHappen).trim().toLowerCase() === "omit") dd.whatMightWantToHappen = "";
 _setReport(dd);
 try {
 var firstBody = (dd.sections[0] && dd.sections[0].body) || "";
@@ -8513,7 +8525,7 @@ Add your notes below. What stands out? What are you hearing yourself say?
 </div>
 ) : (
 <>
-{_report.oneLineVerdict && (
+{_report.oneLineVerdict && _report.oneLineVerdict.trim().toLowerCase() !== "omit" && _report.oneLineVerdict.trim().length >= 4 && (
 <div style={{ marginBottom:26, padding:"16px 18px",
 borderLeft:"3px solid "+_accent,
 background:"rgba(0,0,0,0.03)" }}>
@@ -8524,7 +8536,7 @@ fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal", textAlign:"l
 </div>
 )}
 
-{_report.whatMightWantToHappen && (
+{_report.whatMightWantToHappen && _report.whatMightWantToHappen.trim().toLowerCase() !== "omit" && (
 <div style={{ marginBottom:20, padding:"14px 18px",
 borderLeft:"3px solid rgba(0,0,0,0.12)",
 background:"rgba(107,184,255,0.06)" }}>
@@ -8570,7 +8582,7 @@ var isConclusion = /CONCLUSION/i.test(sec.title || "");
 return (
 <div key={si} id={"report-sec-"+si} style={{ marginBottom: isConclusion ? 0 : 30, padding: isConclusion ? "32px 24px 40px" : "24px 20px 30px",
 background: isConclusion ? "linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.04) 100%)" : "rgba(0,0,0,0.02)", borderRadius:12, border: isConclusion ? "2px solid "+_accent : "1px solid rgba(0,0,0,0.06)",
-borderBottom: si<2 && !isConclusion ? "1px solid rgba(0,0,0,0.09)" : "none",
+...(si<2 && !isConclusion ? { borderBottom: "1px solid rgba(0,0,0,0.09)" } : {}),
 animation:"riseUp 0.5s ease "+(si*0.12)+"s both" }}>
 
 <div style={{ fontSize: isConclusion ? 11 : 13, letterSpacing: isConclusion ? "0.6em" : "0.5em",
@@ -8699,8 +8711,10 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 onClick={function(){
 var esc = function(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>"); };
 var verdict = _report && _report.oneLineVerdict ? String(_report.oneLineVerdict).trim() : "";
+if (verdict.toLowerCase() === "omit" || verdict.length < 4) verdict = "";
 var dateRange = _report && _report.dateRange ? String(_report.dateRange).trim() : "";
 var nextEdge = _report && _report.whatMightWantToHappen ? String(_report.whatMightWantToHappen).trim() : "";
+if (nextEdge.toLowerCase() === "omit") nextEdge = "";
 var accent = (_accent||"#6BB8FF").replace(/"/g,"");
 var hex = accent.replace("#","");
 if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
@@ -8708,9 +8722,34 @@ var r=parseInt(hex.slice(0,2),16)||107, g=parseInt(hex.slice(2,4),16)||184, b=pa
 var accentRgba = "rgba("+r+","+g+","+b+",0.12)";
 var lastSd = (allSessions.length > 0 && allSessions[allSessions.length-1]) ? allSessions[allSessions.length-1] : sd;
 var currSd = currentSessionData || lastSd || sd;
-var underneath = (currSd.underneath && Array.isArray(currSd.underneath) ? currSd.underneath : (sd.underneath && Array.isArray(sd.underneath) ? sd.underneath : [])).filter(function(u){ return typeof u==="string"&&u.trim(); }).slice(0,3);
-var blindSpot = (currSd.blind_spot || sd.blind_spot || "").trim();
-var synthesis = (currSd.synthesis || sd.synthesis || "").trim();
+var sessUnderneath = (currSd.underneath && Array.isArray(currSd.underneath) ? currSd.underneath : (sd.underneath && Array.isArray(sd.underneath) ? sd.underneath : [])).filter(function(u){ return typeof u==="string"&&u.trim(); }).slice(0,3);
+var sessBlindSpot = (currSd.blind_spot || sd.blind_spot || "").trim();
+var sessSynthesis = (currSd.synthesis || sd.synthesis || "").trim();
+var underneath = sessUnderneath;
+var blindSpot = sessBlindSpot;
+var synthesis = sessSynthesis;
+if (_report && _report.sections && _report.sections.length > 0) {
+var secs = _report.sections;
+secs.forEach(function(sec, idx) {
+var t = (sec.title || "").toUpperCase();
+var b = (sec.body || "").trim();
+if (!b) return;
+var firstPara = b.split(/\n\n+/)[0].replace(/^◆\s*/, "").trim();
+if (t.indexOf("BLIND") >= 0) blindSpot = firstPara.slice(0, 400);
+else if (t.indexOf("REVEALED") >= 0 || (t.indexOf("CONCLUSION") >= 0 && !synthesis)) synthesis = firstPara.slice(0, 500);
+else if (t.indexOf("SHOWED") >= 0 || t.indexOf("SESSION") >= 0) synthesis = firstPara.slice(0, 500);
+else if (t.indexOf("RETURNING") >= 0 || t.indexOf("STILL") >= 0 || t.indexOf("UNDERNEATH") >= 0) {
+var sents = b.split(/[.!?]\s+/).filter(function(s){ return s.trim().length > 25; }).slice(0, 3);
+if (sents.length > 0) underneath = sents.map(function(s){ return (s.replace(/^◆\s*/, "").trim() + (s.trim().match(/[.!?]$/) ? "" : ".")).slice(0, 200); });
+}
+});
+if (secs.length >= 4 && !synthesis) synthesis = (secs[3].body || "").split(/\n\n+/)[0].replace(/^◆\s*/, "").trim().slice(0, 500);
+if (secs.length >= 1 && !synthesis) synthesis = (secs[0].body || "").split(/\n\n+/)[0].replace(/^◆\s*/, "").trim().slice(0, 500);
+if (secs.length >= 3 && underneath.length === 0) {
+var s3 = (secs[2].body || "").split(/[.!?]\s+/).filter(function(s){ return s.trim().length > 25; }).slice(0, 3);
+if (s3.length > 0) underneath = s3.map(function(s){ return (s.replace(/^◆\s*/, "").trim() + (s.trim().match(/[.!?]$/) ? "" : ".")).slice(0, 200); });
+}
+}
 var clarity = (currSd.clarity || "").trim();
 var userQuote = clarity;
 if (!userQuote && currSd.mapResponses) {
