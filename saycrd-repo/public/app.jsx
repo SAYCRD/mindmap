@@ -7833,6 +7833,7 @@ var [_notesSummarizing, _setNotesSummarizing] = useState(false);
 var [_sentenceFeedback, _setSentenceFeedback] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.sentenceFeedback ? l.sentenceFeedback : {}; } catch(e){ return {}; } });
 var [_editingSentence, _setEditingSentence] = useState(null);
 var [_greyFlowActive, _setGreyFlowActive] = useState(false);
+var [_revisingSection, _setRevisingSection] = useState(null);
 var _mergedReportFb = Object.assign({}, propSentenceFeedback || {}, _sentenceFeedback || {});
 function _handleReportSentenceClick(s) { _setEditingSentence(s); }
 function _handleReportSentenceFeedback(text, optionId, optionalComment) {
@@ -7840,6 +7841,44 @@ var key = normalizeSentKey(text);
 _setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
 onSentenceFeedback && onSentenceFeedback(text, optionId, optionalComment);
 _setEditingSentence(null);
+if ((optionId === "doesnt_fit" || optionId === "not_feeling") && _report && _report.sections && _report.sections.length > 0) {
+var sectionIdx = -1;
+var targetSection = null;
+for (var i = 0; i < _report.sections.length; i++) {
+var b = _report.sections[i].body || "";
+if (b.indexOf(text.trim()) >= 0 || b.replace(/\s+/g, " ").indexOf(text.trim().replace(/\s+/g, " ")) >= 0) { sectionIdx = i; targetSection = _report.sections[i]; break; }
+}
+if (sectionIdx >= 0 && targetSection) {
+_setRevisingSection(sectionIdx);
+fireReportRevision(text, optionId, optionalComment, sectionIdx, targetSection, _setReport);
+}
+}
+}
+async function fireReportRevision(sentence, feedbackId, userNote, sectionIdx, section, setReport) {
+try {
+var sectionTitle = section.title || "Section " + (sectionIdx + 1);
+var feedbackLabel = (SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedbackId; }) || {}).label || feedbackId;
+var prompt = "The subject read their field report and gave feedback on a sentence. Their feedback is the truth — honor it.\n\n"
++ "RULES: Do NOT defend or reframe the original. Revise the section to incorporate their feedback. Remove or replace the sentence that didn't land. If they gave a note, use their words. Keep the same structure (2-3 short paragraphs). No poetry. Plain, clear language. Their truth overrides.\n\n"
++ "SECTION TITLE: " + sectionTitle + "\n"
++ "CURRENT BODY:\n" + (section.body || "") + "\n\n"
++ "SENTENCE THEY GAVE FEEDBACK ON: \"" + sentence.slice(0, 200) + "\"\n"
++ "FEEDBACK: " + feedbackLabel + (userNote && userNote.trim() ? "\nTHEIR NOTE: \"" + userNote.trim().slice(0, 300) + "\"" : "") + "\n\n"
++ "Return JSON only: {\"body\":\"revised section body, same format\", \"reviseVerdict\":\"only if their feedback is HIGHLY relevant to the core takeaway — otherwise omit\"}. Do NOT overweight the feedback: if it's a minor correction to one sentence, revise that sentence only. If it's central to the report's message, then consider revising the verdict.";
+var raw = await callClaudeClient(prompt, "", 400);
+var d = parseJSON(raw);
+if (d && d.body) {
+setReport(function(prev) {
+if (!prev || !prev.sections) return prev;
+var next = prev.sections.slice();
+next[sectionIdx] = Object.assign({}, next[sectionIdx], { body: d.body });
+var out = Object.assign({}, prev, { sections: next });
+if (d.reviseVerdict && d.reviseVerdict.trim()) out.oneLineVerdict = d.reviseVerdict.trim().slice(0, 120);
+return out;
+});
+}
+} catch(e) { console.warn("[SAYCRD] Report revision failed:", e); }
+finally { _setRevisingSection(null); }
 }
 useEffect(function() {
 try {
@@ -7970,7 +8009,12 @@ if (recent.length > 0) {
 var lines = recent.map(function(r, i) {
 return "Report " + (i + 1) + ": verdict \"" + (r.oneLine || "").slice(0, 80) + "\"; opening: \"" + (r.firstOpen || "").slice(0, 60) + "\"";
 }).join(". ");
-prevReportHint = "AVOID REPETITION: Your last " + recent.length + " report(s): " + lines + ". This report must feel FRESH and DISTINCT. Do NOT repeat that structure, phrasing, or angle. Lead with what's different about THIS moment. Vary the opening — sometimes start with the arc, sometimes with the current tension, sometimes with what the subject said, sometimes with a pattern that spans sessions. Never formulaic.\n\n";
+prevReportHint = "PREVIOUS REPORTS — REVIEW BEFORE WRITING: Your last " + recent.length + " report(s): " + lines + ".\n\n";
+var lastWithBrief = recent[recent.length - 1];
+if (lastWithBrief && lastWithBrief.sectionsBrief) {
+prevReportHint += "LAST REPORT CONTENT (themes, blind spots, tensions, insights — build on this, don't repeat):\n" + lastWithBrief.sectionsBrief.slice(0, 1200) + (lastWithBrief.sectionsBrief.length > 1200 ? "…" : "") + "\n\n";
+}
+prevReportHint += "AVOID REPETITION: This report must feel FRESH and DISTINCT. Do NOT repeat that structure, phrasing, or angle. Lead with what's different about THIS moment. Vary the opening — sometimes start with the arc, sometimes with the current tension, sometimes with what the subject said, sometimes with a pattern that spans sessions. Never formulaic.\n\n";
 }
 } catch(e) {}
 
@@ -8266,9 +8310,10 @@ try {
 var firstBody = (dd.sections[0] && dd.sections[0].body) || "";
 var firstOpen = firstBody.split(/\n\n+/)[0] || firstBody.split("\n")[0] || "";
 firstOpen = firstOpen.trim().slice(0, 120);
+var sectionsBrief = (dd.sections || []).map(function(s){ return (s.title || "") + ": " + (s.body || "").slice(0, 350); }).join("\n\n");
 var historyKey = "saycrd-report-history-" + getCurrentUid();
 var reportHistory = JSON.parse(localStorage.getItem(historyKey) || "[]");
-reportHistory.push({ sessionIndex: total, oneLine: (dd.oneLineVerdict||"").slice(0, 100), firstOpen: firstOpen, generatedAt: new Date().toISOString() });
+reportHistory.push({ sessionIndex: total, oneLine: (dd.oneLineVerdict||"").slice(0, 100), firstOpen: firstOpen, sectionsBrief: sectionsBrief, generatedAt: new Date().toISOString() });
 reportHistory = reportHistory.slice(-10);
 localStorage.setItem(historyKey, JSON.stringify(reportHistory));
 } catch(e2) {}
@@ -8315,9 +8360,9 @@ return (
 {bulletLines.map(function(line, li) {
 var clean = line.replace(/^[-•]\s*/, "").replace(/^\d+\.\s*/, "");
 return (
-<div key={li} style={{ display: "flex", gap: 10, marginBottom: li < bulletLines.length - 1 ? 8 : 0, lineHeight: 1.7 }}>
+<div key={li} style={{ display: "flex", gap: 10, marginBottom: li < bulletLines.length - 1 ? 8 : 0, lineHeight: 1.7, textAlign: "left", textIndent: 0 }}>
 <span style={{ flexShrink: 0, color: "rgba(0,0,0,0.5)", fontWeight: 600 }}>•</span>
-<span style={{ flex: 1 }}>{clean}</span>
+<span style={{ flex: 1, textAlign: "left" }}>{clean}</span>
 </div>
 );
 })}
@@ -8463,9 +8508,9 @@ fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal", textAlign:"l
 <div style={{ marginBottom:20, padding:"14px 18px",
 borderLeft:"3px solid rgba(0,0,0,0.12)",
 background:"rgba(107,184,255,0.06)" }}>
-<div style={{ fontSize:11, letterSpacing:"0.12em", color:"rgba(0,0,0,0.45)", fontFamily:FB, textTransform:"uppercase", marginBottom:6 }}>What might want to happen</div>
+<div style={{ fontSize:11, letterSpacing:"0.12em", color:"rgba(0,0,0,0.45)", fontFamily:FB, textTransform:"uppercase", marginBottom:6, textAlign:"left", textIndent:0 }}>What might want to happen</div>
 <div style={{ fontSize:15, color:"rgba(0,0,0,0.7)",
-fontFamily:FD, lineHeight:1.6, fontStyle:"italic" }}>
+fontFamily:FD, lineHeight:1.6, fontStyle:"italic", textAlign:"left", textIndent:0 }}>
 {_report.whatMightWantToHappen}
 </div>
 </div>
@@ -8478,8 +8523,8 @@ return (s.mapResponses && Object.keys(s.mapResponses).length > 0) || (s.correcti
 });
 return hasMapOrSessionWords ? (
 <div style={{ marginBottom:20, padding:"10px 14px", background:"rgba(0,0,0,0.02)", borderRadius:6, border:"1px solid rgba(0,0,0,0.06)" }}>
-<div style={{ fontSize:11, letterSpacing:"0.12em", color:"rgba(0,0,0,0.4)", fontFamily:FB, textTransform:"uppercase", marginBottom:4 }}>Grounded in your input</div>
-<div style={{ fontSize:13, color:"rgba(0,0,0,0.6)", fontFamily:FD, lineHeight:1.5 }}>This report used your words from the map and session — your corrections and notes shape what appears here.</div>
+<div style={{ fontSize:11, letterSpacing:"0.12em", color:"rgba(0,0,0,0.4)", fontFamily:FB, textTransform:"uppercase", marginBottom:4, textAlign:"left", textIndent:0 }}>Grounded in your input</div>
+<div style={{ fontSize:13, color:"rgba(0,0,0,0.6)", fontFamily:FD, lineHeight:1.5, textAlign:"left", textIndent:0 }}>This report used your words from the map and session — your corrections and notes shape what appears here.</div>
 </div>
 ) : null;
 })()}
@@ -8509,13 +8554,16 @@ borderBottom: si<2 && !isConclusion ? "1px solid rgba(0,0,0,0.09)" : "none",
 animation:"riseUp 0.5s ease "+(si*0.12)+"s both" }}>
 
 <div style={{ fontSize: isConclusion ? 11 : 13, letterSpacing: isConclusion ? "0.6em" : "0.5em",
-color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConclusion ? 800 : 700, opacity: isConclusion ? 0.9 : 0.75 }}>
+color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConclusion ? 800 : 700, opacity: isConclusion ? 0.9 : 0.75, textAlign: "left", textIndent: 0 }}>
 {sec.title}
 </div>
-{sub && <div style={{ fontSize:12, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:16 }}>{sub}</div>}
+{sub && <div style={{ fontSize:12, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:16, textAlign: "left", textIndent: 0 }}>{sub}</div>}
 
-<div style={{ fontSize: isConclusion ? 22 : 19, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
+<div style={{ position: "relative", fontSize: isConclusion ? 22 : 19, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
 fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal", textAlign: "left", textIndent: 0 }}>
+{_revisingSection === si && (
+<div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.7)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "rgba(0,0,0,0.5)", fontFamily: FB, letterSpacing: "0.1em" }}>Incorporating your feedback…</div>
+)}
 {renderBody(sec.body, isConclusion, _handleReportSentenceClick, _mergedReportFb)}
 </div>
 
