@@ -396,34 +396,44 @@ return (
 );
 }
 
-function ReportWritingScreen({ label, sublabel }) {
+function LoadingWaveBox(props) {
+var title = props.title, labels = props.labels;
+if (!labels) labels = ["sessions","patterns","themes","threads","weaving"];
 var palette = ["#D6B26D","#B86BFF","#6BB8FF","#E84393","#4EC9B8"];
+var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var bars = useMemo(function() {
 return palette.map(function(c, i) { return { color: c, dur: 2.4 + i * 0.35, delay: -i * 0.5 }; });
 }, []);
 return (
-<div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #0A0812 0%, #0E0C1A 15%, #0F0E1E 40%, #0C0A18 75%, #080610 100%)", zIndex: 10 }}>
-<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 40% at 50% 30%, rgba(184,107,255,0.06) 0%, transparent 60%)" }}/>
-<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 50% 50% at 80% 70%, rgba(78,201,184,0.04) 0%, transparent 55%)" }}/>
-<div style={{ position: "absolute", top: "28%", left: 0, right: 0, textAlign: "center", padding: "0 28px", zIndex: 2 }}>
-<div style={{ fontSize: 9, letterSpacing: "0.55em", color: "rgba(184,107,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: 16 }}>FIELD REPORT</div>
-<div style={{ fontSize: 26, fontWeight: 700, color: "rgba(240,235,255,0.96)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 80px rgba(184,107,255,0.3)", animation: "riseUp 0.6s ease both" }}>{label}</div>
-{sublabel && <div style={{ marginTop: 12, fontSize: 14, color: "rgba(190,205,255,0.65)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both" }}>{sublabel}</div>}
-</div>
-<div style={{ position: "absolute", bottom: "10%", left: "50%", transform: "translateX(-50%)", width: "92%", maxWidth: 340, zIndex: 2 }}>
-<div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px 12px", background: "rgba(0,0,0,0.2)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 4 }}>Weaving your year</div>
+<div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 12, padding: isMobile ? "14px 12px" : "16px 12px", background: "rgba(0,0,0,0.2)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+<div style={{ fontSize: 9, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 4 }}>{title}</div>
 {bars.map(function(b, i) {
 return (
-<div key={i} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-<div style={{ width: 72, fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: FB, letterSpacing: "0.12em", flexShrink: 0 }}>{["sessions","patterns","themes","threads","weaving"][i]}</div>
-<div style={{ flex: 1, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
-<div style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", willChange: "transform", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite", WebkitAnimation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
+<div key={i} style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
+<div style={{ width: isMobile ? 58 : 72, minWidth: isMobile ? 58 : 72, fontSize: isMobile ? 9 : 10, color: "rgba(255,255,255,0.5)", fontFamily: FB, letterSpacing: "0.12em", flexShrink: 0 }}>{labels[i] || labels[0]}</div>
+<div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+<div style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", WebkitTransformOrigin: "left center", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite", WebkitAnimation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
 </div>
 </div>
 );
 })}
 </div>
+);
+}
+
+function ReportWritingScreen({ label, sublabel }) {
+var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
+return (
+<div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "linear-gradient(180deg, #0A0812 0%, #0E0C1A 15%, #0F0E1E 40%, #0C0A18 75%, #080610 100%)", zIndex: 10, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 40% at 50% 30%, rgba(184,107,255,0.06) 0%, transparent 60%)" }}/>
+<div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 50% 50% at 80% 70%, rgba(78,201,184,0.04) 0%, transparent 55%)" }}/>
+<div style={{ position: "absolute", top: isMobile ? "22%" : "28%", left: 0, right: 0, textAlign: "center", padding: isMobile ? "0 20px" : "0 28px", zIndex: 2 }}>
+<div style={{ fontSize: isMobile ? 8 : 9, letterSpacing: "0.55em", color: "rgba(184,107,255,0.5)", fontFamily: FB, textTransform: "uppercase", marginBottom: isMobile ? 12 : 16 }}>FIELD REPORT</div>
+<div style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: "rgba(240,235,255,0.96)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 80px rgba(184,107,255,0.3)", animation: "riseUp 0.6s ease both" }}>{label}</div>
+{sublabel && <div style={{ marginTop: isMobile ? 10 : 12, fontSize: isMobile ? 13 : 14, color: "rgba(190,205,255,0.65)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both", padding: "0 8px" }}>{sublabel}</div>}
+</div>
+<div style={{ position: "absolute", bottom: isMobile ? "calc(8% + env(safe-area-inset-bottom, 0px))" : "10%", left: "50%", transform: "translateX(-50%)", width: isMobile ? "calc(100% - 32px)" : "92%", maxWidth: 340, zIndex: 2 }}>
+<LoadingWaveBox title="Weaving your year" labels={["sessions","patterns","themes","threads","weaving"]}/>
 </div>
 </div>
 );
@@ -1481,14 +1491,9 @@ return (
 <div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
 <div style={{ fontSize: 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: 12 }}>Click connections to uncover relationships</div>
 </div>
-<div style={{ flex: 1, position: "relative", width: "100%", overflow: "hidden", pointerEvents: "none" }}>
-{[0,1,2,3,4,5,6,7].map(function(i) {
-return (
-<div key={i} style={{ position: "absolute", left: (8 + i * 12) + "%", top: 0, bottom: 0, width: 2,
-background: "linear-gradient(180deg, transparent, rgba(140,180,255,0.12), transparent)",
-animation: "sweep " + (4 + i * 0.7) + "s ease-in-out infinite", animationDelay: (i * 0.5) + "s" }} />
-);
-})}
+<div style={{ flex: 1, minHeight: 0 }} />
+<div style={{ flexShrink: 0, padding: "0 20px calc(10% + env(safe-area-inset-bottom, 0px)) 20px", width: "100%", maxWidth: 340, margin: "0 auto", boxSizing: "border-box" }}>
+<LoadingWaveBox title="Weaving your map" labels={["themes","connections","patterns","threads","emerging"]}/>
 </div>
 </div>
 );
@@ -10717,14 +10722,9 @@ return (
 <div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
 <div style={{ fontSize: 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: 12 }}>Your reading will appear in a moment</div>
 </div>
-<div style={{ flex: 1, position: "relative", width: "100%", overflow: "hidden", pointerEvents: "none" }}>
-{[0,1,2,3,4,5,6,7].map(function(i) {
-return (
-<div key={i} style={{ position: "absolute", left: (8 + i * 12) + "%", top: 0, bottom: 0, width: 2,
-background: "linear-gradient(180deg, transparent, rgba(140,180,255,0.12), transparent)",
-animation: "sweep " + (4 + i * 0.7) + "s ease-in-out infinite", animationDelay: (i * 0.5) + "s" }} />
-);
-})}
+<div style={{ flex: 1, minHeight: 0 }} />
+<div style={{ flexShrink: 0, padding: "0 20px calc(10% + env(safe-area-inset-bottom, 0px)) 20px", width: "100%", maxWidth: 340, margin: "0 auto", boxSizing: "border-box" }}>
+<LoadingWaveBox title="Weaving your reading" labels={["feedback","patterns","threads","reading","mirror"]}/>
 </div>
 </div>
 );
