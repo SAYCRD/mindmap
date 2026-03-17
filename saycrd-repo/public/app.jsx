@@ -1388,10 +1388,11 @@ const s = _clampedDrag
   ? { position: "fixed", left: _clampedDrag.x, top: _clampedDrag.y, transform: "none", maxWidth: _drawerW, maxHeight: "calc(100vh - " + (_pad * 2) + "px)" }
   : mobileSheet
     ? { position: "fixed", left: _pad, right: _pad, bottom: 0, transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
-    : { position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)", maxWidth: "min(320px, calc(100vw - " + (_pad * 2) + "px))", maxHeight: "calc(100vh - " + (_pad * 2) + "px)", overflow: "auto" };
-return (
+    : { width: 320, maxWidth: "min(320px, calc(100vw - " + (_pad * 2) + "px))", maxHeight: "calc(100vh - " + (_pad * 2) + "px)", overflow: "auto" };
+var _desktopWrap = !mobileSheet && !_clampedDrag;
+var _drawerEl = (
 <div ref={ref} onPointerDown={handlePD} onClick={function(e){e.stopPropagation();}} style={{
-position: "fixed", ...s, width: mobileSheet ? undefined : 320, maxWidth: mobileSheet ? undefined : "min(320px, calc(100vw - " + (_pad * 2) + "px))",
+position: _desktopWrap ? "relative" : "fixed", ...s, width: mobileSheet ? undefined : 320, maxWidth: mobileSheet ? undefined : "min(320px, calc(100vw - " + (_pad * 2) + "px))",
 background: `linear-gradient(160deg, rgba(18,20,35,0.98), rgba(28,25,50,0.96))`,
 border: `1.5px solid ${accent}88`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
 zIndex: 30, cursor: dragOff?"grabbing":"grab",
@@ -1452,6 +1453,11 @@ color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.6)"
 </div>
 </div>
 );
+return _desktopWrap ? (
+<div onClick={onClose} style={{ position: "fixed", inset: _pad, display: "flex", alignItems: "center", justifyContent: "center", overflow: "auto", zIndex: 30, pointerEvents: "auto" }}>
+{_drawerEl}
+</div>
+) : _drawerEl;
 }
 
 var MAP_LOADING_PHRASES = ["Synthesizing what you shared", "Your map being created", "Analyzing connections", "What's really going on?", "What's hiding? What's underneath?", "Deeper connections", "Pattern recognition"];
@@ -2136,6 +2142,7 @@ textOverflow: "ellipsis",
 {selectedDetail && !activeConn && (
 <div onClick={function(e){e.stopPropagation();}} style={{
 position:"absolute", left: isMobile ? "max(20px, env(safe-area-inset-left, 0px))" : 16, right: isMobile ? "max(20px, env(safe-area-inset-right, 0px))" : 16, bottom: isMobile ? "calc(100px + env(safe-area-inset-bottom, 0px))" : "calc(90px + env(safe-area-inset-bottom, 0px))",
+maxHeight:"calc(100vh - 140px)", overflowY:"auto", WebkitOverflowScrolling:"touch",
 zIndex:30,
 background:"rgba(12,14,28,0.95)",
 border:"1px solid rgba(255,255,255,0.25)",
@@ -2241,11 +2248,11 @@ document.body
 )}
 </>
 </div>
-<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
+<div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, transparent 0%, rgba(6,9,16,0.4) 40%, rgba(6,9,16,0.6) 100%)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
 <div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center", width: "100%", justifyContent: "center" }}>
 {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Back</button>}
 {nodes.length > 0 && onComplete && (
-<button onClick={function(){ onComplete(responses); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", color: "white", fontSize: 14, fontFamily: FB, fontWeight: 600, padding: "10px 24px", borderRadius: 20, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.35)" }}>Continue →</button>
+<button onClick={function(){ onComplete(responses); }} style={{ width: "100%", maxWidth: 340, background: "linear-gradient(135deg, #6BFFB8, #3DFFAA)", border: "none", color: "#0A2E1A", fontSize: 17, fontFamily: FB, fontWeight: 700, padding: "16px 28px", minHeight: 52, borderRadius: 24, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 24px rgba(107,255,184,0.35)", touchAction: "manipulation" }}>Continue →</button>
 )}
 </div>
 </div>
@@ -10797,7 +10804,7 @@ setFieldTransition(true);
 setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
 return (
-<div className="saycrd-app-shell" style={{width:"100%",background:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
+<div className="saycrd-app-shell" style={{width:"100%",background:cp==="map"?GRADIENTS.map:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete") ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
