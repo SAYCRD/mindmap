@@ -10071,6 +10071,8 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 function JourneysPhase({ onStart, onBack }) {
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
+var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
 if (window.currentUser) { onStart(); return; }
 if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
@@ -10091,6 +10093,27 @@ return (
 {sessions.length === 0 ? (
 <div style={{ padding: "32px 24px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 24, textAlign: "center" }}>
 <div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic" }}>No sessions yet. Start your first.</div>
+</div>
+) : isMobile ? (
+<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 32, gridAutoFlow: "dense" }}>
+{sessions.slice().reverse().map(function(s, i) {
+var idx = sessions.length - i;
+var dateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+var th = (s.map_title || s.mapTitle || (s.themes || []).slice(0, 2).map(function(t){ return t.label; }).join(" · ") || "—");
+var arch = s.archetypes && s.archetypes[0] ? s.archetypes[0].name : "";
+var isMilestone = MILESTONES.indexOf(idx) >= 0;
+var span = isMilestone ? 2 : 1;
+return (
+<div key={i} style={{ gridColumn: "span " + span, padding: isMilestone ? "22px 20px" : "16px 18px", background: "rgba(255,255,255,0.06)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)", animation: "riseUp 0.5s ease " + (i * 0.06) + "s both" }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+<div style={{ fontSize: isMilestone ? 12 : 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.8)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
+{dateStr && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{dateStr}</div>}
+</div>
+<div style={{ fontSize: isMilestone ? 14 : 13, color: "rgba(255,255,255,0.75)", fontFamily: FD, lineHeight: 1.45 }}>{String(th).slice(0, isMilestone ? 80 : 40)}{String(th).length > (isMilestone ? 80 : 40) ? "…" : ""}</div>
+{arch && <div style={{ marginTop: 8, fontSize: 12, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FB }}>{arch}</div>}
+</div>
+);
+})}
 </div>
 ) : (
 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
@@ -10123,6 +10146,11 @@ Start a new session
 <div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
 Your field grows with each session.
 </div>
+{sessions.length >= 2 && isMobile && (
+<div style={{ marginTop: 16, fontSize: 12, color: "rgba(184,107,255,0.6)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+Your next session could deepen this thread.
+</div>
+)}
 </div>
 </div>
 );
@@ -10156,7 +10184,7 @@ return (
 <div style={{ fontSize: 13, letterSpacing: "0.4em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 8 }}>SESSION COMPLETE</div>
 <h1 style={{ fontSize: "clamp(28px, 6vw, 36px)", fontFamily: FD, fontWeight: 300, color: "rgba(255,255,255,0.95)", lineHeight: 1.2, marginBottom: 24 }}>You've woven another thread.</h1>
 </div>
-<div style={{ padding: "24px 20px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 32 }}>
+<div style={{ padding: "24px 20px", background: isMobile ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", backdropFilter: isMobile ? "blur(12px)" : "none", WebkitBackdropFilter: isMobile ? "blur(12px)" : "none", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 32 }}>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
 <div style={{ fontSize: 11, letterSpacing: "0.3em", color: "rgba(255,255,255,0.4)", fontFamily: FB }}>SESSIONS</div>
 <div style={{ fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,0.95)", fontFamily: FB }}>{sessions.length}</div>
@@ -10188,6 +10216,11 @@ Start a new session
 <div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
 Your field grows with each session.
 </div>
+{sessions.length >= 2 && isMobile && (
+<div style={{ marginTop: 16, fontSize: 12, color: "rgba(184,107,255,0.6)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+Your next session could deepen this thread.
+</div>
+)}
 </div>
 </div>
 );
