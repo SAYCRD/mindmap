@@ -6255,6 +6255,7 @@ fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break
 function MirrorCard({ themes, sd, sessionCount, rawText, allSessions, portrait, portraitReady, goNext, setSlider, sliderValues }) {
 themes = themes || [];
 allSessions = allSessions || [];
+var isMobile = React.useContext(FieldMobileContext);
 var _landVal = (sliderValues && sliderValues.the_mirror !== undefined) ? sliderValues.the_mirror : 50;
 var _setLand = setSlider ? function(v) { setSlider("the_mirror", v); } : function() {};
 
@@ -6318,32 +6319,32 @@ display:"flex", flexDirection:"column" }}>
 <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 20%, rgba(140,170,255,0.12) 0%, transparent 55%)", pointerEvents:"none" }}/>
 <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"50%", background:"radial-gradient(ellipse 100% 80% at 50% 100%, rgba(180,140,255,0.08) 0%, transparent 60%)", pointerEvents:"none" }}/>
 
-<div style={{ padding:"52px 28px 0", flexShrink:0 }}>
-<div style={{ fontSize:8, letterSpacing:"0.55em",
+<div style={{ padding: isMobile ? "44px 20px 0" : "52px 28px 0", flexShrink:0 }}>
+<div style={{ fontSize: isMobile ? 9 : 10, letterSpacing:"0.55em",
 color:"rgba(200,220,255,0.4)", fontFamily:FB, marginBottom:6 }}>
 SAYCRD
 </div>
-<div style={{ fontSize:11, letterSpacing:"0.4em",
+<div style={{ fontSize: isMobile ? 13 : 14, letterSpacing:"0.4em",
 color:"rgba(220,235,255,0.7)", fontFamily:FB, fontWeight:600 }}>
 THE MIRROR
 </div>
-<div style={{ fontSize:13, color:"rgba(200,220,255,0.6)", fontFamily:FD, marginTop:8, lineHeight:1.5 }}>
+<div style={{ fontSize: isMobile ? 15 : 16, color:"rgba(200,220,255,0.6)", fontFamily:FD, marginTop:8, lineHeight:1.5 }}>
 The Y-axis of your journey — what appears, what's being revealed
 </div>
 </div>
 
 <div style={{ flex:1, minHeight:0, display:"flex", flexDirection:"column",
-justifyContent:"flex-start", padding:"24px 28px 36px",
+justifyContent:"flex-start", padding: isMobile ? "20px 20px 28px" : "24px 28px 36px",
 overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
 
 {_isFirst ? (
 <div style={{ animation:"riseUp 0.8s ease 0.2s both" }}>
-<div style={{ fontSize:22, fontWeight:700, color:"rgba(255,255,255,0.9)",
+<div style={{ fontSize: isMobile ? 24 : 26, fontWeight:700, color:"rgba(255,255,255,0.9)",
 fontFamily:FB, lineHeight:1.3, marginBottom:14,
 wordBreak:"break-word" }}>
 This is your first session.
 </div>
-<div style={{ fontSize:16, color:"rgba(220,235,255,0.65)",
+<div style={{ fontSize: isMobile ? 18 : 19, color:"rgba(220,235,255,0.65)",
 fontFamily:FD, lineHeight:1.7 }}>
 The mirror needs your journey over time. Come back after another session.
 </div>
@@ -6353,80 +6354,80 @@ The mirror needs your journey over time. Come back after another session.
 {_ready && _mirrorData ? (
 <>
 {_mirrorData.heart && (
-<div style={{ marginBottom:28, animation:"riseUp 0.6s ease 0.1s both" }}>
-<div style={{ fontSize:10, letterSpacing:"0.35em",
+<div style={{ marginBottom: isMobile ? 24 : 28, animation:"riseUp 0.6s ease 0.1s both" }}>
+<div style={{ fontSize: isMobile ? 12 : 13, letterSpacing:"0.35em",
 color:"rgba(200,220,255,0.5)", fontFamily:FB, marginBottom:10, textTransform:"uppercase" }}>
 The heart of the matter
 </div>
-<div style={{ fontSize:22, fontWeight:700,
+<div style={{ fontSize: isMobile ? 26 : 28, fontWeight:700,
 color:"rgba(255,255,255,0.98)", fontFamily:FD,
-lineHeight:1.45, wordBreak:"break-word",
+lineHeight:1.5, wordBreak:"break-word",
 overflowWrap:"break-word" }}>
 {_mirrorData.heart}
 </div>
 </div>
 )}
 
-<div style={{ display:"flex", flexDirection:"column", gap:20, animation:"riseUp 0.6s ease 0.3s both" }}>
+<div style={{ display:"flex", flexDirection:"column", gap: isMobile ? 24 : 28, animation:"riseUp 0.6s ease 0.3s both" }}>
 <div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:10, fontWeight:600, letterSpacing:"0.2em",
-color:"rgba(140,170,230,0.9)", fontFamily:FB, marginBottom:10, textTransform:"uppercase" }}>
+<div style={{ fontSize: isMobile ? 12 : 13, fontWeight:600, letterSpacing:"0.2em",
+color:"rgba(140,170,230,0.9)", fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>
 What appears
 </div>
 <div style={{
-padding:"20px 20px",
-borderRadius:18,
+padding: isMobile ? "24px 22px" : "28px 24px",
+borderRadius:20,
 background:"linear-gradient(180deg, rgba(140,170,230,0.14), rgba(140,170,230,0.06))",
 border:"1px solid rgba(140,170,230,0.3)",
 boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
 }}>
-<div style={{ fontSize:16, color:"rgba(220,235,255,0.92)", fontFamily:FD,
-lineHeight:1.6, wordBreak:"break-word", overflowWrap:"break-word" }}>
+<div style={{ fontSize: isMobile ? 19 : 21, color:"rgba(220,235,255,0.92)", fontFamily:FD,
+lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacing:"0.01em" }}>
 {_mirrorData.before || "—"}
 </div>
 </div>
 </div>
 
-<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize:18, flexShrink:0 }}>↓</div>
+<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize: isMobile ? 22 : 24, flexShrink:0 }}>↓</div>
 
 <div style={{ flex:1, minWidth:0 }}>
-<div style={{ fontSize:10, fontWeight:600, letterSpacing:"0.2em",
-color:_currColor, fontFamily:FB, marginBottom:10, textTransform:"uppercase" }}>
+<div style={{ fontSize: isMobile ? 12 : 13, fontWeight:600, letterSpacing:"0.2em",
+color:_currColor, fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>
 What's being revealed
 </div>
 <div style={{
-padding:"20px 20px",
-borderRadius:18,
+padding: isMobile ? "24px 22px" : "28px 24px",
+borderRadius:20,
 background:"linear-gradient(180deg, "+_currColor+"22, "+_currColor+"08)",
 border:"1px solid "+_currColor+"44",
 boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
 }}>
-<div style={{ fontSize:16, color:"rgba(255,255,255,0.95)", fontFamily:FD,
-lineHeight:1.6, wordBreak:"break-word", overflowWrap:"break-word" }}>
+<div style={{ fontSize: isMobile ? 19 : 21, color:"rgba(255,255,255,0.95)", fontFamily:FD,
+lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacing:"0.01em" }}>
 {_mirrorData.after || "—"}
 </div>
 </div>
 </div>
 </div>
 
-<div style={{ marginTop:24 }} data-noadvance>
+<div style={{ marginTop: isMobile ? 28 : 32 }} data-noadvance>
 <AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
 </div>
 </>
 ) : (
 <div>
-<div style={{ width:"90%", height:20, borderRadius:3,
+<div style={{ width:"90%", height:24, borderRadius:4,
 background:"rgba(255,255,255,0.06)",
 animation:"breathe 1.5s ease-in-out infinite alternate",
 marginBottom:16 }}/>
-<div style={{ width:"100%", height:60, borderRadius:12,
+<div style={{ width:"100%", height:80, borderRadius:14,
 background:"rgba(255,255,255,0.04)",
 animation:"breathe 1.5s ease-in-out 0.2s infinite alternate",
 marginBottom:20 }}/>
-<div style={{ width:"100%", height:60, borderRadius:12,
+<div style={{ width:"100%", height:80, borderRadius:14,
 background:"rgba(255,255,255,0.04)",
 animation:"breathe 1.5s ease-in-out 0.4s infinite alternate" }}/>
-<div style={{ marginTop:24 }} data-noadvance>
+<div style={{ marginTop:28 }} data-noadvance>
 <AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
 </div>
 </div>
@@ -6435,9 +6436,9 @@ animation:"breathe 1.5s ease-in-out 0.4s infinite alternate" }}/>
 )}
 </div>
 
-<div style={{ padding:"0 28px 36px", flexShrink:0,
+<div style={{ padding: isMobile ? "0 20px 28px" : "0 28px 36px", flexShrink:0,
 display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-<div style={{ fontSize:9, letterSpacing:"0.35em",
+<div style={{ fontSize: isMobile ? 10 : 11, letterSpacing:"0.35em",
 color:"rgba(200,220,255,0.4)", fontFamily:FB }}>
 SESSION {sessionCount}
 </div>
