@@ -871,7 +871,7 @@ return <div style={{ display: "flex", gap: 3, padding: "calc(14px + env(safe-are
 }
 
 function PourPhase({ onComplete, onBack }) {
-var _draftKey = "saycrd-pour-draft";
+var _draftKey = "saycrd-" + getCurrentUid() + "-pour-draft";
 var _restored = (function(){ try { var d = localStorage.getItem(_draftKey); return d ? d : ""; } catch(e){ return ""; } })();
 const [text, setText] = useState(_restored);
 const [words, setWords] = useState([]);
@@ -2902,7 +2902,7 @@ const [claritySaved, setClaritySaved] = useState(false);
 const [showNoticing, setShowNoticing] = useState(false);
 const scrollRef = useRef(null);
 const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
-const [showSwipeHint, setShowSwipeHint] = useState(function(){ try { return !localStorage.getItem("saycrd-session-swipe-hint-seen"); } catch(e){ return true; } });
+const [showSwipeHint, setShowSwipeHint] = useState(function(){ try { return !localStorage.getItem("saycrd-" + getCurrentUid() + "-session-swipe-hint-seen"); } catch(e){ return true; } });
 useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 
 
@@ -4557,7 +4557,7 @@ lastBlindSpot: lastBlindSpot,
 constellations: constellations,
 };
 
-try { localStorage.setItem("saycrd-field-state", JSON.stringify(state)); } catch(e) {}
+try { localStorage.setItem("saycrd-" + getCurrentUid() + "-field-state", JSON.stringify(state)); } catch(e) {}
 return state;
 }
 
@@ -5224,9 +5224,10 @@ if (saved) return;
 setHolding(true);
 holdTimer.current = setTimeout(function() {
 try {
-var bm = JSON.parse(localStorage.getItem("saycrd-bookmarks") || "[]");
+var bmKey = "saycrd-" + getCurrentUid() + "-bookmarks";
+var bm = JSON.parse(localStorage.getItem(bmKey) || "[]");
 bm.push({ text, label, date: new Date().toISOString() });
-localStorage.setItem("saycrd-bookmarks", JSON.stringify(bm));
+localStorage.setItem(bmKey, JSON.stringify(bm));
 } catch(e2) {}
 setSaved(true); setHolding(false);
 setTimeout(function() { setSaved(false); }, 2500);
@@ -5257,9 +5258,10 @@ e.stopPropagation();
 setHolding(true);
 holdTimer.current = setTimeout(function() {
 try {
-var bm = JSON.parse(localStorage.getItem("saycrd-bookmarks") || "[]");
+var bmKey = "saycrd-" + getCurrentUid() + "-bookmarks";
+var bm = JSON.parse(localStorage.getItem(bmKey) || "[]");
 bm.push({ text: text, label:"Underneath", date:new Date().toISOString() });
-localStorage.setItem("saycrd-bookmarks", JSON.stringify(bm));
+localStorage.setItem(bmKey, JSON.stringify(bm));
 } catch(e2) {}
 setSaved(true); setHolding(false);
 }, HOLD_MS);
@@ -7822,7 +7824,9 @@ sliderValues = sliderValues || {};
 
 var [_report, _setReport] = useState(null);
 var [_ready, _setReady] = useState(false);
-var _notesKey = "saycrd-report-notes-" + sessionCount;
+var [_lifeFieldGap, _setLifeFieldGap] = useState(null);
+var [_lifeFieldResponse, _setLifeFieldResponse] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.lifeFieldGapResponse ? l.lifeFieldGapResponse : ""; } catch(e){ return ""; } });
+var _notesKey = "saycrd-" + getCurrentUid() + "-report-notes-" + sessionCount;
 var [_reportNotes, _setReportNotes] = useState("");
 var [_notesSummary, _setNotesSummary] = useState("");
 var [_notesSummarizing, _setNotesSummarizing] = useState(false);
@@ -7847,7 +7851,13 @@ if (s) _setNotesSummary(s);
 }, [_notesKey]);
 
 useEffect(function() {
+var last = allSessions.length > 0 ? allSessions[allSessions.length - 1] : null;
+if (last && last.lifeFieldGapResponse !== undefined) _setLifeFieldResponse(last.lifeFieldGapResponse || "");
+}, [allSessions]);
+
+useEffect(function() {
 var cancelled = false;
+_setLifeFieldGap(null);
 (async function() {
 try {
 var total = allSessions.length; 
@@ -8000,6 +8010,16 @@ var t = String(mr.comment).trim().slice(0, 180);
 if (subjectWordsList.indexOf(t) === -1) subjectWordsList.push(t);
 });
 });
+var lifeFieldResponseEntries = [];
+allSessions.forEach(function(s) {
+if (s.lifeFieldGapResponse && String(s.lifeFieldGapResponse).trim()) {
+var q = s.lifeFieldGapQuestion || "life focus question";
+lifeFieldResponseEntries.push("When asked \"" + q.slice(0, 100) + (q.length > 100 ? "…" : "") + "\", they said: \"" + String(s.lifeFieldGapResponse).trim().slice(0, 280) + (String(s.lifeFieldGapResponse).trim().length > 280 ? "…" : "") + "\"");
+}
+});
+var lifeFieldResponseBlurb = lifeFieldResponseEntries.length > 0
+? "SUBJECT'S RESPONSE TO LIFE FOCUS QUESTION — HIGHEST PRIORITY (their words override any interpretation; use exact phrasing when relevant):\n" + lifeFieldResponseEntries.join("\n") + "\n\n"
+: "";
 var subjectWordsBlurb = subjectWordsList.length > 0
 ? "SUBJECT'S OWN WORDS (session corrections and map notes — when citing these, use the exact quote in the report):\n" + subjectWordsList.slice(0, 14).map(function(w){ return "\""+w+"\""; }).join("\n") + "\n\n"
 : "";
@@ -8136,6 +8156,7 @@ if (lifeFieldGap) {
 var gapLines = ["FIELD OF LIFE INTELLIGENCE: Focus (where energy goes) is " + lifeFieldGap.dominantLabel + " at " + lifeFieldGap.pct + "%. But they brought up: " + lifeFieldGap.undermentioned.map(function(u){ return u.label + " (S" + u.firstSession + (u.count > 1 ? ", " + u.count + "x total" : "") + ")"; }).join("; ") + ". When focus is on one area and they mention another — especially briefly or in passing — that may be what wants attention or what they're avoiding. Surface it: 'Your focus has been on " + lifeFieldGap.dominantLabel.toLowerCase() + ". You brought up " + (lifeFieldGap.undermentioned[0] ? lifeFieldGap.undermentioned[0].label.toLowerCase() : "other areas") + " in passing. What\'s there?' Frame as curiosity, not accusation."];
 peLines.push(gapLines.join(" "));
 }
+_setLifeFieldGap(lifeFieldGap || null);
 if (pe.regression_context && pe.regression_context.length) peLines.push("Regressions (when themes/map values dropped — prior context): " + pe.regression_context.map(function(r){ return "S" + (r.sessionIndex + 1) + " " + r.type + " " + r.key + (r.priorContext ? " — prior: " + r.priorContext.slice(0, 60) : ""); }).join("; "));
 if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' — never state as fact.\n\n";
 }
@@ -8172,11 +8193,12 @@ if (esLines.length) emergentSignalsBlurb = "EMERGENT SIGNALS (what wants to happ
 }
 
 var prompt = "You are writing a confidential field report. Plain declarative past tense. The report is for the subject — they will read it. It should feel like a complete piece, not facts strung together.\n\n"
-+ "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light — not who they are. Stick to what they tell you. When using metaphors or archetypes, orient toward light, metamorphosis, emergence. Never go dark. Never pathologize.\n\n"
-+ "FEELING AND INTELLIGENCE: The report's value is the intelligence — the pattern beneath the pattern, the thread that ties it together. Weave insight into flowing prose. The reader should feel seen and understood. Not a list of what happened; a coherent reading of what it means. Write with depth.\n\n"
-+ "CLARITY: Write for a reader with a college or strong high school education. Use plain words. Avoid jargon: say \"over time\" not \"longitudinal arc,\" \"the big pattern\" not \"meta-pattern.\" Lead each section with the simplest version of the insight. Add nuance in the next sentence. Don't pack theme + tension + archetype into one long opening.\n\n"
++ "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light — not who they are. Stick to what they tell you. When using metaphors or archetypes, orient toward light, metamorphosis, emergence. Never go dark. Never pathologize. Framed by Victor Frankl: find meaning beneath that empowers — without them realizing it.\n\n"
++ "FEELING AND INTELLIGENCE: The report's value is the intelligence — the pattern beneath the pattern, the thread that ties it together. Weave insight into flowing prose. The reader should feel seen and understood. Not a list of what happened; a coherent reading of what it means. Write with depth. Connect to what they've shared — each insight should trace back to something they said, chose, or pushed back on.\n\n"
++ "CLARITY — CRITICAL: Write for a reader with a college or strong high school education. Use plain, direct words. NO poetic or flowery language — if a sentence sounds like it could be in a poem, rewrite it to be clear and precise. Avoid jargon: say \"over time\" not \"longitudinal arc,\" \"the big pattern\" not \"meta-pattern.\" Lead each section with the simplest version of the insight. Add nuance in the next sentence. Don't pack theme + tension + archetype into one long opening. Prefer short, declarative sentences. The report should be easy to read and clinically precise.\n\n"
 + "VOICE: Use ONE consistent voice throughout — either \"the subject\" (third person) or \"you\" (second person). Do not mix. Never use he, she, him, her. When quoting their words, use \"The subject said: \\\"...\\\"\" or \"You said: \\\"...\\\"\" depending on which voice you chose. Pick one and stick to it.\n\n"
-+ "PRACTITIONER MODE: Draw on pattern recognition, systems thinking, and deep listening — without naming disciplines. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth.\n\n"
++ "PRACTITIONER MODE: You are synthesizing as a team of world leaders across disciplines — cognitive psychology, quantum biology, human understanding, family constellations, imaginal theory, shadow work, Jungian depth psychology — without naming them in the report. Draw on pattern recognition, systems thinking, and deep listening. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth. A touch of leverage (Tony Robbins): name what wants to move — not as advice, but as observation.\n\n"
++ "AHA MOMENTS: When a sentence is an insight that is uncovering, seeming to reveal, breaking through, or naming an imbalance — place ◆ (Unicode U+25C6) at the start of that sentence. Example: \"◆ The pattern suggests you've been circling this for a while.\" Use sparingly — 1–3 per section max. These are the nuggets the reader should be drawn to.\n\n"
 + "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
 + "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. CRITICAL: Do NOT claim a card (mirror, synthesis, blind spot, connection, etc.) landed or resonated unless it appears in CARD SLIDERS with a value. If the subject did not interact with a card, you have no basis to say it landed — omit it. Every claim must be traceable to the source data. When in doubt, omit.\n\n"
 + "USER FEEDBACK AND RESISTANCE — CRITICAL: Use feedback and resistance ONLY when the subject EXPLICITLY indicated it (e.g. chose \"Not Feeling That,\" \"Doesn't Fit Quite Right,\" pushed back on a connection, or similar). Do NOT infer resistance from absence of feedback. Silence = no data. If the subject disagrees or says something doesn't fit, that IS their truth at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Never pathologize disagreement.\n\n"
@@ -8186,7 +8208,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "NO ASSUMPTIONS ABOUT \"THE MAIN THING\": Do NOT assume what is most important in someone's life based on time, frequency, or what shows up most in sessions. Unless the subject explicitly says \"this is my main focus\" or \"the most important thing,\" do not conclude it. You may observe: \"After X sessions, this keeps coming up — an interesting question is why it's in the background\" — but never \"this is the main thing.\" The subject's life has many parts; don't collapse it into one.\n\n"
 + "DON'T ASSERT — ASK IN DESCENT: If you have a question about what's going on (e.g. \"Are you putting X before Y?\" \"Is revenue a way of delaying launch?\"), that belongs in Descent as a question the subject can answer — NOT in the report as an assertion. Never assume motivations (e.g. \"not wanting to launch because putting revenue first\") and state them as fact. If the data suggests a tension, name the tension; don't invent the motive. When in doubt, frame as curiosity, not conclusion.\n\n"
 + "LIFE AREA FOCUS — FIELD OF LIFE INTELLIGENCE: Focus is where their energy goes. When there's imbalance (one area dominates — e.g. business, work), look at what they actually brought up. If they focus on business every session but complain about or briefly mention personal life, relationships, physical health, or self — that's a signal. 'Your focus has been on business. You brought up your personal life in passing. What's there?' Focus is where energy goes; what they mention in passing may be what wants attention or what they're hiding from. When imbalance exists, invite them to look at the gap. Do NOT be mechanical — weave naturally. Do NOT pathologize. Frame as curiosity.\n\n"
-+ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. No poetry. No therapy language. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report. The report should read as one coherent piece with intelligence and feeling — not facts strung together. NO NODE LANGUAGE: Never use 'The map offered,' node labels (X↔Y), or quote connector insights verbatim. Rewrite into plain human sentences.\n"
++ "CRITICAL RULES: Only write what the data explicitly states. Do not invent themes, emotions, patterns, or history not present in the data below. If there is only 1 session, say so — do not imply more. If a field is blank, do not fill it in. NO POETRY. NO flowery or obscure language — clarity over beauty. Short paragraphs, 2 sentences each, blank line between them. Descent answers and map feedback are PRIMARY — they show what landed. Use them to ground the report. For each major insight, tie it to something the subject said, chose, or responded to — so they can trace it. The report should read as one coherent piece with intelligence and feeling — not facts strung together. NO NODE LANGUAGE: Never use 'The map offered,' node labels (X↔Y), or quote connector insights verbatim. Rewrite into plain human sentences.\n"
 + "CITATION RULE: When you claim the subject said or wrote something, you MUST quote it. Use the exact words from MAP NOTES, SUBJECT'S OWN WORDS, or DESCENT above. Never paraphrase into a claim the subject did not make. If you cannot find a direct quote for something, do not assert they said it. The subject will read this — every claim must be traceable to the source data.\n"
 + "GROUNDING: For each major insight, anchor it in evidence the reader can trace. Use plain language: \"your sessions suggest,\" \"the pattern suggests,\" \"in sessions where X, the subject tended to Y.\" Never use node labels (X↔Y), connector jargon, or comparison language. Where a pattern is not absolute, add light nuance. Keep the tone elegant and the prose flowing; do not add bullet points or evidence blocks. The report should read as a thoughtful evaluation, not a forensic audit.\n"
 + "NEVER use variable names, keys, or placeholders in the report (e.g. underneath_0, underneath_1). Always use the actual underlying theme or a short paraphrase in plain English.\n\n"
@@ -8206,6 +8228,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + (emergentSignalsBlurb ? emergentSignalsBlurb : "")
 + (metaPatternBlurb ? metaPatternBlurb : "")
 + mapNotesBlurb
++ lifeFieldResponseBlurb
 + subjectWordsBlurb
 + (sentFbBlurb || "")
 + (tensionsBlindSpotsBlurb || "")
@@ -8282,13 +8305,13 @@ return [lead, rest ? " " + rest : ""];
 return paras.map(function(para, pi) {
 var p = para.trim();
 var isFirst = emphasizeFirst && pi === 0;
-var fontSize = isFirst ? 18 : 17;
+var fontSize = isFirst ? 20 : 19;
 var lines = p.split(/\n/).map(function(l){ return l.trim(); }).filter(Boolean);
 var bulletLines = lines.filter(function(l){ return /^[-•]\s/.test(l) || /^\d+\.\s/.test(l); });
 var isBulletBlock = bulletLines.length >= 2 || (bulletLines.length === 1 && lines.length === 1);
 if (isBulletBlock && bulletLines.length > 0) {
 return (
-<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontSize: fontSize }}>
+<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontSize: fontSize, textAlign: "left", textIndent: 0 }}>
 {bulletLines.map(function(line, li) {
 var clean = line.replace(/^[-•]\s*/, "").replace(/^\d+\.\s*/, "");
 return (
@@ -8308,7 +8331,7 @@ var weights = [600, 600, 550, 600, 550];
 var fw = weights[pi % weights.length];
 if (onSentenceClick && sentences.length > 0) {
 return (
-<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85 }}>
+<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85, textAlign: "left", textIndent: 0 }}>
 {sentences.map(function(sent, si) {
 var s = sent.trim();
 if (!s) return null;
@@ -8348,7 +8371,7 @@ onMouseLeave={function(e){ if(!fb) e.currentTarget.style.background="transparent
 }
 var _bold = boldLead(p, wc);
 return (
-<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85 }}>
+<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85, textAlign: "left", textIndent: 0 }}>
 {_bold[0] ? <span style={{ fontWeight: fw, opacity: fw >= 600 ? 1 : 0.92 }}>{_bold[0]}</span> : null}{_bold[1]}
 </div>
 );
@@ -8429,8 +8452,8 @@ Add your notes below. What stands out? What are you hearing yourself say?
 <div style={{ marginBottom:26, padding:"16px 18px",
 borderLeft:"3px solid "+_accent,
 background:"rgba(0,0,0,0.03)" }}>
-<div style={{ fontSize:17, color:"rgba(0,0,0,0.78)",
-fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal" }}>
+<div style={{ fontSize:19, color:"rgba(0,0,0,0.78)",
+fontFamily:FD, lineHeight:1.65, fontWeight:500, fontStyle:"normal", textAlign:"left", textIndent:0 }}>
 {_report.oneLineVerdict}
 </div>
 </div>
@@ -8491,8 +8514,8 @@ color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConcl
 </div>
 {sub && <div style={{ fontSize:12, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:16 }}>{sub}</div>}
 
-<div style={{ fontSize: isConclusion ? 20 : 17, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
-fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal" }}>
+<div style={{ fontSize: isConclusion ? 22 : 19, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
+fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal", textAlign: "left", textIndent: 0 }}>
 {renderBody(sec.body, isConclusion, _handleReportSentenceClick, _mergedReportFb)}
 </div>
 
@@ -8503,6 +8526,31 @@ fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ?
 )}
 
 
+{_lifeFieldGap && (
+<div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
+<div style={{ fontSize:10, letterSpacing:"0.4em", color:"rgba(0,0,0,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:12 }}>What's there?</div>
+<div style={{ fontSize:16, color:"rgba(0,0,0,0.78)", fontFamily:FD, fontStyle:"italic", lineHeight:1.65, marginBottom:12 }}>
+{"Your focus has been on " + _lifeFieldGap.dominantLabel.toLowerCase() + ". You brought up " + (_lifeFieldGap.undermentioned[0] ? _lifeFieldGap.undermentioned[0].label.toLowerCase() : "other areas") + " in passing. What's there?"}
+</div>
+<textarea
+value={_lifeFieldResponse}
+onChange={function(e){ var v=e.target.value; _setLifeFieldResponse(v); }}
+onBlur={function(){
+var v = String(_lifeFieldResponse || "").trim();
+var q = "Your focus has been on " + _lifeFieldGap.dominantLabel.toLowerCase() + ". You brought up " + (_lifeFieldGap.undermentioned[0] ? _lifeFieldGap.undermentioned[0].label.toLowerCase() : "other areas") + " in passing. What's there?";
+updateLastSession({ lifeFieldGapResponse: v, lifeFieldGapQuestion: v ? q : "" });
+}}
+placeholder="Your response — this is high-value. Your words will shape future reports."
+style={{
+width:"100%", minHeight:72, padding:"14px 16px",
+fontSize:15, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
+lineHeight:1.7, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
+borderRadius:6, resize:"vertical", outline:"none",
+boxSizing:"border-box"
+}}
+/>
+</div>
+)}
 <div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
 <div style={{ fontSize:10, letterSpacing:"0.4em", color:"rgba(0,0,0,0.35)", fontFamily:FB, textTransform:"uppercase", marginBottom:12 }}>Your notes</div>
 <div style={{ fontSize:14, color:"rgba(0,0,0,0.45)", fontFamily:FD, fontStyle:"italic", lineHeight:1.6, marginBottom:8 }}>
@@ -9021,7 +9069,8 @@ return next;
 });
 }
 var mergedSentenceFeedback = Object.assign({}, (sData && sData.sentenceFeedback) || {}, fieldCardSentenceFeedback);
-var [bookmarks, setBookmarks] = useState(function() { try { return JSON.parse(localStorage.getItem("saycrd-bookmarks")||"[]"); } catch(e) { return []; } });
+var [bookmarks, setBookmarks] = useState(function() { try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-bookmarks")||"[]"); } catch(e) { return []; } });
+useEffect(function(){ function onAuth(){ try { setBookmarks(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-bookmarks")||"[]")); } catch(e){ setBookmarks([]); } } window.addEventListener("saycrd-auth-change", onAuth); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 
 function handleArchResponse(response) {
 setArchResponse(response);
