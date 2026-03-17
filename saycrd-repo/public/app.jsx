@@ -1454,6 +1454,37 @@ color:comment.trim()?(value<=33?"#D6B264":accent):"rgba(255,255,255,0.6)"
 );
 }
 
+var MAP_LOADING_PHRASES = ["Synthesizing what you shared", "Your map being created", "Analyzing connections", "What's really going on?", "What's hiding? What's underneath?", "Deeper connections", "Pattern recognition"];
+
+function MapLoadingOverlay({ findingDetail }) {
+var [idx, setIdx] = useState(0);
+useEffect(function() {
+var t = setInterval(function() { setIdx(function(i) { return (i + 1) % MAP_LOADING_PHRASES.length; }); }, 2600);
+return function() { clearInterval(t); };
+}, []);
+var phrase = MAP_LOADING_PHRASES[idx];
+var words = ["patterns", "connections", "themes", "structure", "beneath", "emerging", "forming", "settling", "listening", "noticing", "weaving", "threads"];
+return (
+<div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(2,8,24,0.92)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 10 }}>
+<div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+<svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.12 }} viewBox="0 0 100 100" preserveAspectRatio="none">
+{words.map(function(w, i) {
+var x = 15 + (i * 7.3) % 70;
+var y = 20 + (i * 5.1) % 60;
+return (
+<text key={i} x={x} y={y} fill="#6BB8FF" fontSize="4" fontFamily={FD} fontStyle="italic" opacity={0.4 + (i % 4) * 0.1} style={{ animation: "floatWord 5s ease-in-out infinite", animationDelay: -(i * 0.4) + "s" }}>{w}</text>
+);
+})}
+</svg>
+</div>
+<div style={{ position: "relative", zIndex: 1, textAlign: "center", padding: "0 24px" }}>
+<div style={{ fontSize: 15, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.4s ease" }}>{phrase}</div>
+{findingDetail && <div style={{ fontSize: 12, color: "rgba(150,200,255,0.6)", fontFamily: FB, marginTop: 10, letterSpacing: "0.08em" }}>{findingDetail}</div>}
+</div>
+</div>
+);
+}
+
 function MapPhase({ onComplete, synthesisData, rawText, onSynthesis, onPatchSynthesis, onBack }) {
 var needsSynthesis = !synthesisData && rawText;
 var synth = useSynthesis(rawText, {
@@ -1479,10 +1510,8 @@ return { key: t.label, display: label, color: t.color || NC[i % NC.length], w: M
 return [];
 }, [sd]);
 
-var _placeholders = useMemo(function() {
-return [{key:"_p1",display:"…",color:NC[0],w:0.5,shortDesc:"",domain:"life"},{key:"_p2",display:"…",color:NC[1],w:0.5,shortDesc:"",domain:"life"},{key:"_p3",display:"…",color:NC[2],w:0.5,shortDesc:"",domain:"life"},{key:"_p4",display:"…",color:NC[3],w:0.5,shortDesc:"",domain:"life"},{key:"_p5",display:"…",color:NC[4],w:0.5,shortDesc:"",domain:"life"}];
-}, []);
-const displayNodes = (nodes.length > 0 ? nodes : (needsSynthesis && synth.status === "loading" ? _placeholders : nodes));
+var isLoading = needsSynthesis && synth.status === "loading";
+const displayNodes = (nodes.length > 0 ? nodes : []);
 
 const conns = useMemo(() => {
 if (sd && sd.connections) return sd.connections.map(function(c) {
@@ -1971,6 +2000,13 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
 <Particles color="rgba(107,184,255,0.25)" count={isMobile ? 6 : 14}/>
 <div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); } }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
+{isLoading && <MapLoadingOverlay findingDetail={synth.findingDetail} />}
+{!isLoading && nodes.length > 0 && (
+<div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 2, pointerEvents: "none" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 4 }}>YOUR MAP</div>
+<div style={{ fontSize: 13, color: "rgba(200,235,255,0.85)", fontFamily: FD, fontStyle: "italic" }}>Click on connections to uncover relationships</div>
+</div>
+)}
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 90% 70% at 50% 50%, rgba(40,50,90,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }}/>
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 55% at 50% 50%, transparent 50%, rgba(0,0,0,0.35) 100%)", pointerEvents: "none", zIndex: 1 }}/>
@@ -2206,7 +2242,12 @@ document.body
 </>
 </div>
 <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 420, padding: "12px 20px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))", background: "linear-gradient(0deg, rgba(6,9,16,0.98) 0%, rgba(6,9,16,0.95) 90%, transparent)", borderTop: "1px solid rgba(107,184,255,0.15)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", alignItems: "center", boxSizing: "border-box" }}>
+<div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center", width: "100%", justifyContent: "center" }}>
 {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", fontSize: 13, fontFamily: FB, cursor: "pointer" }}>← Back</button>}
+{nodes.length > 0 && onComplete && (
+<button onClick={function(){ onComplete(responses); }} style={{ background: "linear-gradient(135deg, #6BB8FF, #3D8BFF)", border: "none", color: "white", fontSize: 14, fontFamily: FB, fontWeight: 600, padding: "10px 24px", borderRadius: 20, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.35)" }}>Continue →</button>
+)}
+</div>
 </div>
 </div>
 );
