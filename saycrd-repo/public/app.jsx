@@ -8045,7 +8045,6 @@ var parts = connKey.split("::");
 var from = (parts[0]||"").trim(), to = (parts[1]||"").trim();
 mapNotesLines.push("Between \""+from+"\" and \""+to+"\": \""+String(mr.comment).trim().slice(0,220)+(String(mr.comment).trim().length>220?"…":"")+"\"");
 });
-});
 }
 allSessions.forEach(collectMapNotes);
 if (currentSessionData && currentSessionData.mapResponses) collectMapNotes(currentSessionData);
