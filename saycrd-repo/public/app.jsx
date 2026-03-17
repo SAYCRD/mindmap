@@ -1460,32 +1460,30 @@ return _desktopWrap ? (
 ) : _drawerEl;
 }
 
-var MAP_LOADING_PHRASES = ["Synthesizing what you shared", "Your map being created", "Analyzing connections", "What's really going on?", "What's hiding? What's underneath?", "Deeper connections", "Pattern recognition"];
+var MAP_LOADING_PHRASES = ["analyzing what you shared", "looking for patterns", "tensions", "underlying relationships", "insights"];
 
 function MapLoadingOverlay({ findingDetail }) {
 var [idx, setIdx] = useState(0);
 useEffect(function() {
-var t = setInterval(function() { setIdx(function(i) { return (i + 1) % MAP_LOADING_PHRASES.length; }); }, 2600);
+var t = setInterval(function() { setIdx(function(i) { return (i + 1) % MAP_LOADING_PHRASES.length; }); }, 2400);
 return function() { clearInterval(t); };
 }, []);
 var phrase = MAP_LOADING_PHRASES[idx];
-var words = ["patterns", "connections", "themes", "structure", "beneath", "emerging", "forming", "settling", "listening", "noticing", "weaving", "threads"];
 return (
-<div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(2,8,24,0.92)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 10 }}>
-<div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-<svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.12 }} viewBox="0 0 100 100" preserveAspectRatio="none">
-{words.map(function(w, i) {
-var x = 15 + (i * 7.3) % 70;
-var y = 20 + (i * 5.1) % 60;
+<div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", background: "transparent", zIndex: 10 }}>
+<div style={{ flexShrink: 0, padding: "24px 20px 0", textAlign: "center", width: "100%" }}>
+<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR MAP</div>
+<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
+{findingDetail && <div style={{ fontSize: 11, color: "rgba(150,200,255,0.5)", fontFamily: FB, marginTop: 8, letterSpacing: "0.1em" }}>{findingDetail}</div>}
+</div>
+<div style={{ flex: 1, position: "relative", width: "100%", overflow: "hidden", pointerEvents: "none" }}>
+{[0,1,2,3,4,5,6,7].map(function(i) {
 return (
-<text key={i} x={x} y={y} fill="#6BB8FF" fontSize="4" fontFamily={FD} fontStyle="italic" opacity={0.4 + (i % 4) * 0.1} style={{ animation: "floatWord 5s ease-in-out infinite", animationDelay: -(i * 0.4) + "s" }}>{w}</text>
+<div key={i} style={{ position: "absolute", left: (8 + i * 12) + "%", top: 0, bottom: 0, width: 2,
+background: "linear-gradient(180deg, transparent, rgba(140,180,255,0.12), transparent)",
+animation: "sweep " + (4 + i * 0.7) + "s ease-in-out infinite", animationDelay: (i * 0.5) + "s" }} />
 );
 })}
-</svg>
-</div>
-<div style={{ position: "relative", zIndex: 1, textAlign: "center", padding: "0 24px" }}>
-<div style={{ fontSize: 15, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.4s ease" }}>{phrase}</div>
-{findingDetail && <div style={{ fontSize: 12, color: "rgba(150,200,255,0.6)", fontFamily: FB, marginTop: 10, letterSpacing: "0.08em" }}>{findingDetail}</div>}
 </div>
 </div>
 );
