@@ -10592,25 +10592,28 @@ boxShadow:"0 16px 48px rgba(184,107,255,0.25)" }}>
 );
 }
 
+function SessionLoadingOverlay() {
+return (
+<div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", background: "transparent", zIndex: 10 }}>
+<div style={{ flexShrink: 0, padding: "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
+<div style={{ fontSize: 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR SESSION</div>
+<div style={{ fontSize: 17, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5 }}>session loading</div>
+</div>
+<div style={{ flex: 1, position: "relative", width: "100%", overflow: "hidden", pointerEvents: "none" }}>
+{[0,1,2,3,4,5,6,7].map(function(i) {
+return (
+<div key={i} style={{ position: "absolute", left: (8 + i * 12) + "%", top: 0, bottom: 0, width: 2,
+background: "linear-gradient(180deg, transparent, rgba(140,180,255,0.12), transparent)",
+animation: "sweep " + (4 + i * 0.7) + "s ease-in-out infinite", animationDelay: (i * 0.5) + "s" }} />
+);
+})}
+</div>
+</div>
+);
+}
+
 function CoSynthPhase({ rawText, synthesisData, mapResponses, onSynthesis, onComplete }) {
-const [status, setStatus] = useState("reading");
 const sd = synthesisData || {};
-
-var MESSAGES = [
-"listening\u2026",
-"finding the pattern\u2026",
-"seeing what's real\u2026",
-"building your session\u2026",
-"almost there\u2026"
-];
-var [msgIdx, setMsgIdx] = useState(0);
-
-useEffect(function() {
-var interval = setInterval(function() {
-setMsgIdx(function(i) { return (i + 1) % MESSAGES.length; });
-}, 1800);
-return function() { clearInterval(interval); };
-}, []);
 
 useEffect(function() {
 (async function() {
@@ -10731,7 +10734,6 @@ var userInput = (rawText || "") + "\n\n" +
 (mapRecord ? "\u2550\u2550 MAP CO-CREATION RECORD \u2550\u2550\n" + mapRecord : "") +
 pastContext;
 
-setStatus("building");
 var response = await callClaudeClient(prompt, userInput, 3500);
 var data = parseJSON(response);
 
@@ -10755,14 +10757,9 @@ onComplete();
 }, []);
 
 return (
-<ProcessingScreen
-label={MESSAGES[msgIdx]}
-sublabel="Weaving your map feedback into the reading - your confirmations and corrections are primary"
-palette={["#B86BFF","#E84393","#6BB8FF","#7FFFD4","#A78BFA"]}
-stage={
-<svg viewBox="0 0 200 70" style={{ width: "100%", maxWidth: 260, height: 60 }}><g fill="none"><circle cx="55" cy="28" r="10" fill="rgba(184,107,255,0.2)" stroke="#B86BFF" strokeWidth="1.2" opacity="0.9"/><circle cx="145" cy="32" r="9" fill="rgba(184,107,255,0.2)" stroke="#B86BFF" strokeWidth="1.2" opacity="0.9"/><circle cx="100" cy="50" r="8" fill="rgba(232,67,147,0.2)" stroke="#E84393" strokeWidth="1.2" opacity="0.9"/><path d="M 65 28 L 92 42" stroke="#B86BFF" strokeWidth="1" opacity="0.5" strokeDasharray="3 2" style={{ animation: "flowLine 1.8s linear infinite" }}/><path d="M 136 32 L 108 46" stroke="#E84393" strokeWidth="1" opacity="0.5" strokeDasharray="3 2" style={{ animation: "flowLine 1.8s linear 0.4s infinite" }}/><path d="M 55 35 L 95 48" stroke="#6BB8FF" strokeWidth="0.8" opacity="0.4" strokeDasharray="2 3" style={{ animation: "flowLine 2s linear 0.8s infinite" }}/><text x="55" y="26" fontSize="6" fill="rgba(255,255,255,0.6)" fontFamily={FB} textAnchor="middle">✓</text><text x="145" y="30" fontSize="6" fill="rgba(255,255,255,0.6)" fontFamily={FB} textAnchor="middle">✓</text></g></svg>
-}
-/>
+<div style={{ position: "relative", width: "100%", height: "100%", minHeight: 0, flex: 1 }}>
+<SessionLoadingOverlay />
+</div>
 );
 }
 
