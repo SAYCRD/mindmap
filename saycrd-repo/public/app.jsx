@@ -188,7 +188,7 @@ return out;
 
 const FD = "'DM Serif Display', Georgia, serif";
 const FB = "'DM Sans', sans-serif";
-const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field", "complete"];
+const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field", "complete", "journeys"];
 const GRADIENTS = {
 landing: "#000",
 pour: "linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",
@@ -198,6 +198,7 @@ map: "linear-gradient(160deg, #060810 0%, #0B1020 40%, #111830 100%)",
 session: "linear-gradient(160deg, #0A0A1E 0%, #1A1A3B 40%, #2D1B5B 100%)",
 field: "#000",
 complete: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)",
+journeys: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)",
 };
 
 function FloatingWords({ words, color = "#6BB8FF" }) {
@@ -7806,7 +7807,7 @@ if (/CONCLUSION/.test(t)) return "The thread that ties it together";
 return "";
 }
 
-function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, sliderValues, portrait, portraitReady, goNext, sentenceFeedback: propSentenceFeedback, onSentenceFeedback, onSessionComplete }) {
+function FieldReportCard({ themes, sd, sessionCount, allSessions, currentSessionData, sliderValues, portrait, portraitReady, goNext, sentenceFeedback: propSentenceFeedback, onSentenceFeedback, onSessionComplete, onNavigateToJourneys }) {
 themes = themes || [];
 allSessions = allSessions || [];
 var isMobile = React.useContext(FieldMobileContext);
@@ -8698,6 +8699,14 @@ Report unavailable.
 
 <div style={{ height:28 }}/>
 
+{isMobile && onNavigateToJourneys && (
+<div style={{ padding:"0 20px 16px", textAlign:"center" }}>
+<button onClick={onNavigateToJourneys} style={{ fontSize: 14, letterSpacing: "0.2em", color: "rgba(0,0,0,0.65)", fontFamily: FB, fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: "12px 20px", minHeight: 44, touchAction: "manipulation" }}>
+Your Journeys →
+</button>
+</div>
+)}
+
 <div style={{ padding:"0 32px 40px", textAlign:"center" }}>
 <div
 onClick={function(){
@@ -8733,7 +8742,7 @@ onMouseLeave={function(e){ e.currentTarget.style.color="rgba(0,0,0,0.2)"; }}>
 );
 }
 
-function FieldPhase({ synthesisData, rawText, mapResponses, sessionData, onSessionComplete }) {
+function FieldPhase({ synthesisData, rawText, mapResponses, sessionData, onSessionComplete, onNavigateToJourneys }) {
 var sd = synthesisData || {};
 var mr = mapResponses || {};
 var sData = sessionData || {};
@@ -9103,7 +9112,7 @@ case "year_review": {
 return <YearReviewCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "field_report": {
-return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={portrait} portraitReady={portraitReady} goNext={advance} sentenceFeedback={mergedSentenceFeedback} onSentenceFeedback={handleFieldCardFeedback} onSessionComplete={onSessionComplete}/>;
+return <FieldReportCard themes={themes} sd={sd} sessionCount={sessionCount} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={portrait} portraitReady={portraitReady} goNext={advance} sentenceFeedback={mergedSentenceFeedback} onSentenceFeedback={handleFieldCardFeedback} onSessionComplete={onSessionComplete} onNavigateToJourneys={onNavigateToJourneys}/>;
 }
 case "the_underdrawing": {
 return <UnderdrawingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -10059,9 +10068,70 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 );
 }
 
-function CompletionPhase({ onStart }) {
+function JourneysPhase({ onStart, onBack }) {
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+function guardedStart() {
+if (window.currentUser) { onStart(); return; }
+if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+else { onStart(); }
+}
+return (
+<div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
+<div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+<div style={{ position: "absolute", top: "-10%", right: "-5%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(184,107,255,0.12), transparent 65%)", filter: "blur(80px)" }} />
+<div style={{ position: "absolute", bottom: "20%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(107,184,255,0.08), transparent 65%)", filter: "blur(60px)" }} />
+</div>
+<div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+<div style={{ textAlign: "center", marginBottom: 32 }}>
+<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(184,107,255,0.6)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+<div style={{ fontSize: 13, letterSpacing: "0.4em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 8 }}>YOUR JOURNEYS</div>
+<h1 style={{ fontSize: "clamp(28px, 6vw, 36px)", fontFamily: FD, fontWeight: 300, color: "rgba(255,255,255,0.95)", lineHeight: 1.2 }}>Your sessions over time</h1>
+</div>
+{sessions.length === 0 ? (
+<div style={{ padding: "32px 24px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 24, textAlign: "center" }}>
+<div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic" }}>No sessions yet. Start your first.</div>
+</div>
+) : (
+<div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 32 }}>
+{sessions.slice().reverse().map(function(s, i) {
+var idx = sessions.length - i;
+var dateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+var th = (s.themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ");
+var arch = s.archetypes && s.archetypes[0] ? s.archetypes[0].name : "";
+return (
+<div key={i} style={{ padding: "18px 20px", background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)" }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+<div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
+{dateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{dateStr}</div>}
+</div>
+<div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FD, lineHeight: 1.5 }}>{(s.map_title || s.mapTitle || th || "—").slice(0, 60)}{(s.map_title || s.mapTitle || th || "").length > 60 ? "…" : ""}</div>
+{arch && <div style={{ marginTop: 8, fontSize: 12, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FB }}>{arch}</div>}
+</div>
+);
+})}
+</div>
+)}
+{onBack && (
+<button onClick={onBack} style={{ width: "100%", padding: "14px 24px", marginBottom: 12, borderRadius: 20, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.8)", fontSize: 14, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em" }}>
+← Back
+</button>
+)}
+<button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
+Start a new session
+</button>
+<div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+Your field grows with each session.
+</div>
+</div>
+</div>
+);
+}
+
+function CompletionPhase({ onStart, onNavigateToJourneys }) {
+var sessions = [];
+try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
 var themes = (lastSession && lastSession.themes) ? lastSession.themes : [];
 var arch = lastSession && lastSession.archetypes && lastSession.archetypes[0] ? lastSession.archetypes[0] : null;
@@ -10107,6 +10177,11 @@ return (
 </div>
 )}
 </div>
+{isMobile && onNavigateToJourneys && sessions.length > 0 && (
+<button onClick={onNavigateToJourneys} style={{ width: "100%", padding: "14px 24px", marginBottom: 12, borderRadius: 20, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", fontSize: 14, fontFamily: FB, fontWeight: 600, letterSpacing: "0.15em", cursor: "pointer" }}>
+Your Journeys →
+</button>
+)}
 <button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
 Start a new session
 </button>
@@ -10814,7 +10889,7 @@ setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 return (
 <div className="saycrd-app-shell" style={{width:"100%",background:cp==="map"?GRADIENTS.map:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete") ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys") ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
@@ -10822,8 +10897,9 @@ return (
 {cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onSynthesis={setSynthesisData} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(1);}}/>}
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
-{cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){setPhase(7);}}/>}
-{cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}}/>}
+{cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){setPhase(7);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
+{cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
+{cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onBack={function(){setPhase(7);}}/>}
 {fieldTransition && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", animation: "morphIn 0.4s ease both" }}>
 <div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase", animation: "pulse 1.5s ease infinite" }}>entering the field</div>
 </div>}
