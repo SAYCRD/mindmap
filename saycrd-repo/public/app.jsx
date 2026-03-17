@@ -1387,7 +1387,7 @@ var _clampedDrag = dragPos && isMobile ? { x: Math.max(_pad, Math.min(_vw - _dra
 const s = _clampedDrag
   ? { position: "fixed", left: _clampedDrag.x, top: _clampedDrag.y, transform: "none", maxWidth: _drawerW, maxHeight: "calc(100vh - " + (_pad * 2) + "px)" }
   : mobileSheet
-    ? { width: "100%", maxWidth: "100%", maxHeight: "85vh", overflow: "auto", transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)", marginLeft: _pad, marginRight: _pad, boxSizing: "border-box" }
+    ? { width: "100%", maxWidth: "100%", minWidth: 0, maxHeight: "85vh", overflow: "auto", transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)", boxSizing: "border-box" }
     : { width: 320, maxWidth: "min(320px, calc(100vw - " + (_pad * 2) + "px))", maxHeight: "calc(100vh - " + (_pad * 2) + "px)", overflow: "auto" };
 var _desktopWrap = !mobileSheet && !_clampedDrag;
 var _drawerEl = (
@@ -1396,7 +1396,7 @@ position: mobileSheet ? "relative" : (_desktopWrap ? "relative" : "fixed"), ...s
 background: `linear-gradient(160deg, rgba(18,20,35,0.98), rgba(28,25,50,0.96))`,
 border: `1.5px solid ${accent}88`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
 zIndex: 30, cursor: dragOff?"grabbing":"grab",
-animation: "drawerIn 0.4s cubic-bezier(.25,.46,.45,.94) forwards",
+animation: mobileSheet ? "drawerInSheet 0.4s cubic-bezier(.25,.46,.45,.94) forwards" : "drawerIn 0.4s cubic-bezier(.25,.46,.45,.94) forwards",
 touchAction: "none", boxShadow: `0 0 50px ${accent}20, 0 20px 60px rgba(0,0,0,0.6)`,
 }}>
 <div style={{ position: "absolute", top: 0, left: "15%", right: "15%", height: 2, background: `linear-gradient(90deg, transparent, ${accent}88, transparent)`, borderRadius: 1 }}/>
@@ -1458,7 +1458,7 @@ return _desktopWrap ? (
 {_drawerEl}
 </div>
 ) : mobileSheet ? (
-<div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(0,0,0,0.45)", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "stretch", overflow: "hidden", WebkitOverflowScrolling: "touch" }}>
+<div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(0,0,0,0.45)", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "stretch", overflow: "hidden", WebkitOverflowScrolling: "touch", paddingLeft: "max(" + _pad + "px, env(safe-area-inset-left, 0px))", paddingRight: "max(" + _pad + "px, env(safe-area-inset-right, 0px))", boxSizing: "border-box" }}>
 {_drawerEl}
 </div>
 ) : _drawerEl;
@@ -10838,6 +10838,7 @@ return (
 @keyframes shaftPulse { 0%,100%{opacity:0.7;transform:skewX(-8deg) scaleX(1)} 50%{opacity:1.4;transform:skewX(-5deg) scaleX(1.3)} }
 @keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.7}50%{transform:translate(-50%,-50%) scale(1.15);opacity:1}}
 @keyframes drawerIn{from{opacity:0;transform:translate(-50%,24px) scale(0.95)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes drawerInSheet{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
 @keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
 @keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
