@@ -8836,8 +8836,13 @@ var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewpor
 +'.inf-next .inf-punch{color:#6BFFB8}'
 +'.inf-notes .inf-notes-text{font-size:14px;line-height:1.65;color:rgba(255,255,255,0.85)}'
 +'.disclaimer{font-size:9px;color:rgba(255,255,255,0.25);line-height:1.5;margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06)}'
++'.takeaway-back{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;padding:16px 20px;background:rgba(0,0,0,0.3);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);margin:0 -24px 24px -24px;padding-left:24px}'
++'.takeaway-back-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:15px;font-family:DM Sans,sans-serif;font-weight:600;color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:12px;cursor:pointer;text-decoration:none}'
++'.takeaway-back-btn:hover{background:rgba(255,255,255,0.12);color:#fff}'
++'@media (max-width:480px){.hero-count{font-size:clamp(36px,10vw,48px)}.hero-meta{font-size:14px}.verdict-text{font-size:clamp(20px,5vw,26px)}.inf-label{font-size:10px}.inf-line,.inf-punch{font-size:18px;line-height:1.65}.inf-stat{font-size:24px}.inf-stat-label{font-size:12px}.inf-quote .inf-quote-text{font-size:17px}.inf-next .inf-punch{font-size:18px}.inf-notes .inf-notes-text{font-size:16px}.page{padding:24px 20px 48px}}'
 +'@media print{body{background:#080818;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:28px 20px 40px}}'
 +'</style></head><body><div class="page">'
++'<div class="takeaway-back"><button type="button" class="takeaway-back-btn" onclick="window.close()">← Back to report</button></div>'
 +'<div class="brand">SAYCRD</div>'
 +'<div class="hero-count">'+sessionCount+' '+(sessionCount===1?'SESSION':'SESSIONS')+'</div>'
 +(dateRange ? '<div class="hero-meta">'+esc(dateRange)+'</div>' : '')
@@ -10531,9 +10536,13 @@ alignItems:"center", padding:"calc(20px + env(safe-area-inset-top, 0px)) 7vw 20p
 background:"rgba(10,9,20,0.8)", backdropFilter:"blur(20px)",
 borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
-{authUser && (
+{authUser ? (
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
+</button>
+) : (
+<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.9)", fontSize:13, fontWeight:600, fontFamily:FB, letterSpacing:"0.04em", cursor:"pointer" }}>
+Log in / Sign up
 </button>
 )}
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
@@ -10544,7 +10553,7 @@ WebkitTextFillColor:"transparent" }}>SAYCRD</div>
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
 fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"pointer" }}>
-{returning ? "new session" : "begin"}
+{authUser ? (returning ? "new session" : "start a session") : (returning ? "continue" : "begin")}
 </button>
 </nav>
 
@@ -10580,7 +10589,7 @@ background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
 letterSpacing:"0.05em", cursor:"pointer",
 boxShadow:"0 12px 40px rgba(184,107,255,0.3)" }}>
-{returning ? "continue your journey" : "start a session"}
+{authUser ? (returning ? "continue your journey" : "start a session") : (returning ? "continue" : "start a session")}
 </button>
 <button onClick={function(){ var el=document.getElementById("saycrd-why");
 if(el) el.scrollIntoView({behavior:"smooth"}); }}
@@ -10591,9 +10600,17 @@ see the concept
 </button>
 </div>
 
+{!authUser && (
+<div style={{ marginTop: 16, opacity: show ? 1 : 0, transition: "opacity 0.8s ease 0.5s" }}>
+<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
+Log in or create an account to save your sessions
+</button>
+</div>
+)}
+
 {returning && (
 <div style={{ fontSize:13, color:"rgba(232,67,147,0.5)", fontFamily:FB, letterSpacing:"0.06em" }}>
-{sessions.length} session{sessions.length !== 1 ? "s" : ""} in your field
+{sessions.length} session{sessions.length !== 1 ? "s" : ""} in your field{authUser ? "" : " · log in to sync across devices"}
 </div>
 )}
 
@@ -11139,6 +11156,39 @@ return (
 );
 }
 
+function UserMenu({ phase, setPhase }) {
+var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
+var [open, setOpen] = useState(false);
+useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
+useEffect(function(){ if (!open) return; function close(){ setOpen(false); } document.addEventListener("click", close); return function(){ document.removeEventListener("click", close); }; }, [open]);
+var showDashboard = phase !== 7 && phase !== 8;
+var showBackToReport = (phase === 7 || phase === 8) && phase >= 6;
+return (
+<div style={{ position: "fixed", top: "calc(12px + env(safe-area-inset-top, 0px))", right: 16, zIndex: 9998 }}>
+<button onClick={function(e){ e.stopPropagation(); setOpen(!open); }} style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: authUser ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.08)", color: authUser ? "rgba(247,241,231,0.9)" : "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, fontFamily: FB, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.2)" }} aria-label="Account">
+{authUser ? ((authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S") : "⋯"}
+</button>
+{open && (
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "absolute", top: 48, right: 0, minWidth: 200, padding: "12px 0", background: "rgba(12,10,24,0.98)", backdropFilter: "blur(20px)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", animation: "fallIn 0.2s ease both" }}>
+{showBackToReport && <button onClick={function(){ setPhase(6); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(107,184,255,0.95)", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 500 }}>← Back to report</button>}
+{authUser ? (
+<>
+<div style={{ padding: "8px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 8 }}>
+<div style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontFamily: FB, fontWeight: 600 }}>{(authUser.email || "").split("@")[0]}</div>
+<div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FB }}>{(authUser.email || "").slice(0, 28)}{(authUser.email || "").length > 28 ? "…" : ""}</div>
+</div>
+{showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
+<button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
+</>
+) : (
+<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in</button>
+)}
+</div>
+)}
+</div>
+);
+}
+
 function SAYCRDFlow() {
 const [phase, setPhase] = useState(0);
 const [rawText, setRawText] = useState("");
@@ -11194,6 +11244,7 @@ return (
 {fieldTransition && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", animation: "morphIn 0.4s ease both" }}>
 <div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase", animation: "pulse 1.5s ease infinite" }}>entering the field</div>
 </div>}
+{cp !== "landing" && <UserMenu phase={phase} setPhase={setPhase} />}
 </div>
 </div>
 <style>{`
