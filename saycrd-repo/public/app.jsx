@@ -1464,20 +1464,21 @@ return _desktopWrap ? (
 ) : _drawerEl;
 }
 
-var MAP_LOADING_PHRASES = ["analyzing what you shared", "looking for patterns", "tensions", "underlying relationships", "insights"];
+var MAP_LOADING_PHRASES = ["weaving your themes together", "finding what connects", "your map is taking shape", "seeing what's underneath", "what you shared is becoming clear", "patterns emerging from your words", "the threads between your themes"];
 
 function MapLoadingOverlay() {
 var [idx, setIdx] = useState(0);
 useEffect(function() {
-var t = setInterval(function() { setIdx(function(i) { return (i + 1) % MAP_LOADING_PHRASES.length; }); }, 2400);
+var t = setInterval(function() { setIdx(function(i) { return (i + 1) % MAP_LOADING_PHRASES.length; }); }, 2200);
 return function() { clearInterval(t); };
 }, []);
 var phrase = MAP_LOADING_PHRASES[idx];
 return (
 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", background: "transparent", zIndex: 10 }}>
 <div style={{ flexShrink: 0, padding: "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR MAP</div>
+<div style={{ fontSize: 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR MAP</div>
 <div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
+<div style={{ fontSize: 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: 12 }}>Click connections to uncover relationships</div>
 </div>
 <div style={{ flex: 1, position: "relative", width: "100%", overflow: "hidden", pointerEvents: "none" }}>
 {[0,1,2,3,4,5,6,7].map(function(i) {
@@ -10592,12 +10593,21 @@ boxShadow:"0 16px 48px rgba(184,107,255,0.25)" }}>
 );
 }
 
+var SESSION_LOADING_PHRASES = ["weaving your feedback into the reading", "your session is building", "finding what's real for you", "your reading is coming together", "almost there", "honoring what you confirmed", "the mirror is forming"];
+
 function SessionLoadingOverlay() {
+var [idx, setIdx] = useState(0);
+useEffect(function() {
+var t = setInterval(function() { setIdx(function(i) { return (i + 1) % SESSION_LOADING_PHRASES.length; }); }, 2200);
+return function() { clearInterval(t); };
+}, []);
+var phrase = SESSION_LOADING_PHRASES[idx];
 return (
 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", background: "transparent", zIndex: 10 }}>
 <div style={{ flexShrink: 0, padding: "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
 <div style={{ fontSize: 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR SESSION</div>
-<div style={{ fontSize: 17, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5 }}>session loading</div>
+<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
+<div style={{ fontSize: 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: 12 }}>Your reading will appear in a moment</div>
 </div>
 <div style={{ flex: 1, position: "relative", width: "100%", overflow: "hidden", pointerEvents: "none" }}>
 {[0,1,2,3,4,5,6,7].map(function(i) {
