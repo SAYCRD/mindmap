@@ -287,7 +287,7 @@ return (
 {["preparing","sending","parsing"].map(function(phase, i) {
 var isActive = findingPhase === phase || (findingPhase == null && phase === "preparing");
 var isPast = (phase === "preparing" && (findingPhase === "sending" || findingPhase === "parsing")) || (phase === "sending" && findingPhase === "parsing");
-var label = phase === "preparing" ? "Context & signals" : phase === "sending" ? "Sending to Claude" : "Parsing response";
+var label = phase === "preparing" ? "Context & signals" : phase === "sending" ? "Analyzing" : "Parsing response";
 return (
 <div key={phase} style={{ display: "flex", alignItems: "center", gap: 14, opacity: isPast ? 0.5 : 1, transition: "opacity 0.3s ease" }}>
 <div style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: isPast ? "rgba(78,201,184,0.3)" : isActive ? accent + "40" : "rgba(255,255,255,0.06)", border: "1px solid " + (isPast ? "rgba(78,201,184,0.5)" : isActive ? accent : "rgba(255,255,255,0.1)") }}>
@@ -295,7 +295,7 @@ return (
 </div>
 <div style={{ flex: 1 }}>
 <div style={{ fontSize: 13, fontFamily: FB, color: isActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.5)", fontWeight: isActive ? 600 : 500 }}>{label}</div>
-{isActive ? <div style={{ fontSize: 12, color: "rgba(150,200,255,0.75)", fontFamily: FD, fontStyle: "italic", marginTop: 4, lineHeight: 1.4 }}>{findingDetail || "Starting..."}</div> : null}
+{isActive ? <div style={{ fontSize: 12, color: "rgba(150,200,255,0.75)", fontFamily: FD, fontStyle: "italic", marginTop: 4, lineHeight: 1.4 }}>{findingDetail && !/sending|claude/i.test(findingDetail) ? findingDetail : (phase === "sending" ? "Analyzing your words — finding patterns and connections" : (findingDetail || "Starting..."))}</div> : null}
 </div>
 </div>
 );
@@ -1325,7 +1325,7 @@ Continue
 <ProgressiveLoadingOverlay
 loading={step === 0 || step === 1}
 label={step===0?"Reading your words":step===1?"Finding what's underneath":"Your map"}
-sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?(findingDetail || "What's happening in real time — no placeholders"):(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
+sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?"Analyzing your words — finding patterns and connections":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
 >
 <div style={{ width: "100%", maxWidth: 560, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
 {revealData && revealData.themes && revealData.themes.length > 0 ? (
@@ -1387,12 +1387,12 @@ var _clampedDrag = dragPos && isMobile ? { x: Math.max(_pad, Math.min(_vw - _dra
 const s = _clampedDrag
   ? { position: "fixed", left: _clampedDrag.x, top: _clampedDrag.y, transform: "none", maxWidth: _drawerW, maxHeight: "calc(100vh - " + (_pad * 2) + "px)" }
   : mobileSheet
-    ? { position: "fixed", left: _pad, right: _pad, bottom: 0, transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
+    ? { width: "100%", maxWidth: "100%", maxHeight: "85vh", overflow: "auto", transform: "none", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)", marginLeft: _pad, marginRight: _pad, boxSizing: "border-box" }
     : { width: 320, maxWidth: "min(320px, calc(100vw - " + (_pad * 2) + "px))", maxHeight: "calc(100vh - " + (_pad * 2) + "px)", overflow: "auto" };
 var _desktopWrap = !mobileSheet && !_clampedDrag;
 var _drawerEl = (
 <div ref={ref} onPointerDown={handlePD} onClick={function(e){e.stopPropagation();}} style={{
-position: _desktopWrap ? "relative" : "fixed", ...s, width: mobileSheet ? undefined : 320, maxWidth: mobileSheet ? undefined : "min(320px, calc(100vw - " + (_pad * 2) + "px))",
+position: mobileSheet ? "relative" : (_desktopWrap ? "relative" : "fixed"), ...s, width: mobileSheet ? undefined : 320, maxWidth: mobileSheet ? undefined : "min(320px, calc(100vw - " + (_pad * 2) + "px))",
 background: `linear-gradient(160deg, rgba(18,20,35,0.98), rgba(28,25,50,0.96))`,
 border: `1.5px solid ${accent}88`, borderRadius: mobileSheet ? "20px 20px 0 0" : 18, backdropFilter: "blur(20px)",
 zIndex: 30, cursor: dragOff?"grabbing":"grab",
@@ -1457,12 +1457,16 @@ return _desktopWrap ? (
 <div onClick={onClose} style={{ position: "fixed", inset: _pad, display: "flex", alignItems: "center", justifyContent: "center", overflow: "auto", zIndex: 30, pointerEvents: "auto" }}>
 {_drawerEl}
 </div>
+) : mobileSheet ? (
+<div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(0,0,0,0.45)", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "stretch", overflow: "hidden", WebkitOverflowScrolling: "touch" }}>
+{_drawerEl}
+</div>
 ) : _drawerEl;
 }
 
 var MAP_LOADING_PHRASES = ["analyzing what you shared", "looking for patterns", "tensions", "underlying relationships", "insights"];
 
-function MapLoadingOverlay({ findingDetail }) {
+function MapLoadingOverlay() {
 var [idx, setIdx] = useState(0);
 useEffect(function() {
 var t = setInterval(function() { setIdx(function(i) { return (i + 1) % MAP_LOADING_PHRASES.length; }); }, 2400);
@@ -1470,11 +1474,10 @@ return function() { clearInterval(t); };
 }, []);
 var phrase = MAP_LOADING_PHRASES[idx];
 return (
-<div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", background: "transparent", zIndex: 10 }}>
-<div style={{ flexShrink: 0, padding: "24px 20px 0", textAlign: "center", width: "100%" }}>
+<div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", background: "transparent", zIndex: 10 }}>
+<div style={{ flexShrink: 0, padding: "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
 <div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR MAP</div>
 <div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
-{findingDetail && <div style={{ fontSize: 11, color: "rgba(150,200,255,0.5)", fontFamily: FB, marginTop: 8, letterSpacing: "0.1em" }}>{findingDetail}</div>}
 </div>
 <div style={{ flex: 1, position: "relative", width: "100%", overflow: "hidden", pointerEvents: "none" }}>
 {[0,1,2,3,4,5,6,7].map(function(i) {
@@ -2004,11 +2007,11 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 50% at 80% 70%, rgba(107,184,255,0.04) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }}/>
 <Particles color="rgba(107,184,255,0.25)" count={isMobile ? 6 : 14}/>
 <div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); } }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
-{isLoading && <MapLoadingOverlay findingDetail={synth.findingDetail} />}
+{isLoading && <MapLoadingOverlay />}
 {!isLoading && nodes.length > 0 && (
-<div style={{ position: "absolute", top: 12, left: 16, right: 16, zIndex: 2, pointerEvents: "none" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 4 }}>YOUR MAP</div>
-<div style={{ fontSize: 13, color: "rgba(200,235,255,0.85)", fontFamily: FD, fontStyle: "italic" }}>Click on connections to uncover relationships</div>
+<div style={{ position: "absolute", top: 12, left: "8%", right: 16, zIndex: 2, pointerEvents: "none" }}>
+<div style={{ fontSize: 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR MAP</div>
+<div style={{ fontSize: 17, color: "rgba(200,235,255,0.85)", fontFamily: FD, fontStyle: "italic" }}>Click on connections to uncover relationships</div>
 </div>
 )}
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
