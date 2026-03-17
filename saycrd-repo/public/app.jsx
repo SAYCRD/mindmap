@@ -7946,13 +7946,19 @@ whatsNewBlurb = "WHAT'S NEW THIS TIME (compare to last session — focus on CONT
 }
 
 var allCorrections = [];
-allSessions.forEach(function(s) {
-if (s.corrections) {
-Object.values(s.corrections).forEach(function(c) {
-if (typeof c === "string" && c.length > 6) allCorrections.push(c.slice(0,80));
-});
+var correctionsWithContext = [];
+function collectCorrections(s) {
+if (!s || !s.corrections) return;
+Object.keys(s.corrections).forEach(function(ck) {
+var c = s.corrections[ck];
+if (typeof c === "string" && c.length > 6) {
+allCorrections.push(c.slice(0,80));
+correctionsWithContext.push({ wrong: (ck||"").slice(0, 120), right: c.trim().slice(0, 250) });
 }
 });
+}
+allSessions.forEach(collectCorrections);
+if (currentSessionData && currentSessionData.corrections) collectCorrections(currentSessionData);
 
 var resistFreq = {};
 allSessions.forEach(function(s) {
@@ -8030,8 +8036,8 @@ if (allCorrections.length) stats += " Subject said in their own words: "+allCorr
 if (topResist.length) stats += " Kept pushing back on: "+topResist.join("; ")+".";
 
 var mapNotesLines = [];
-allSessions.forEach(function(s) {
-if (!s.mapResponses) return;
+function collectMapNotes(s) {
+if (!s || !s.mapResponses) return;
 Object.keys(s.mapResponses).forEach(function(connKey) {
 var mr = s.mapResponses[connKey];
 if (!mr || !mr.comment || !String(mr.comment).trim()) return;
@@ -8040,20 +8046,25 @@ var from = (parts[0]||"").trim(), to = (parts[1]||"").trim();
 mapNotesLines.push("Between \""+from+"\" and \""+to+"\": \""+String(mr.comment).trim().slice(0,220)+(String(mr.comment).trim().length>220?"…":"")+"\"");
 });
 });
+}
+allSessions.forEach(collectMapNotes);
+if (currentSessionData && currentSessionData.mapResponses) collectMapNotes(currentSessionData);
 var mapNotesBlurb = mapNotesLines.length > 0
 ? "MAP NOTES (subject's words about connections — when using these in the report, QUOTE them in full, e.g. 'The subject said: \"...\"'):\n" + mapNotesLines.slice(0, 20).join("\n") + "\n\n"
 : "";
 
 var subjectWordsList = allCorrections.slice(0, 10);
-allSessions.forEach(function(s) {
-if (!s.mapResponses) return;
+function collectMapComments(s) {
+if (!s || !s.mapResponses) return;
 Object.keys(s.mapResponses).forEach(function(connKey) {
 var mr = s.mapResponses[connKey];
 if (!mr || !mr.comment || !String(mr.comment).trim()) return;
 var t = String(mr.comment).trim().slice(0, 180);
 if (subjectWordsList.indexOf(t) === -1) subjectWordsList.push(t);
 });
-});
+}
+allSessions.forEach(collectMapComments);
+if (currentSessionData && currentSessionData.mapResponses) collectMapComments(currentSessionData);
 var lifeFieldResponseEntries = [];
 allSessions.forEach(function(s) {
 if (s.lifeFieldGapResponse && String(s.lifeFieldGapResponse).trim()) {
@@ -8064,6 +8075,13 @@ lifeFieldResponseEntries.push("When asked \"" + q.slice(0, 100) + (q.length > 10
 var lifeFieldResponseBlurb = lifeFieldResponseEntries.length > 0
 ? "SUBJECT'S RESPONSE TO LIFE FOCUS QUESTION — HIGHEST PRIORITY (their words override any interpretation; use exact phrasing when relevant):\n" + lifeFieldResponseEntries.join("\n") + "\n\n"
 : "";
+var currRevSyn = (currentSessionData && currentSessionData.revisedSynthesis) ? currentSessionData.revisedSynthesis : (lastSession && lastSession.revisedSynthesis) ? lastSession.revisedSynthesis : null;
+var revisedSynthesisBlurb = currRevSyn && currRevSyn.synthesis
+? "REVISED SYNTHESIS (subject corrected the reading — use this, NOT the original): \"" + String(currRevSyn.synthesis).trim().slice(0, 400) + "\"\n\n"
+: "";
+var correctionsBlurb = correctionsWithContext.length > 0
+? "══ SUBJECT CORRECTED — HIGHEST PRIORITY ══\nThe subject pushed back during the session. What the AI suggested was WRONG. Use ONLY what they said. NEVER repeat what the AI suggested.\n\n" + (revisedSynthesisBlurb ? revisedSynthesisBlurb : "") + correctionsWithContext.slice(0, 8).map(function(x){ return "AI suggested (WRONG — do not use): \"" + x.wrong + "\"\nSubject corrected: \"" + x.right + "\" — USE THIS.\n"; }).join("\n") + "\n"
+: (revisedSynthesisBlurb ? "══ SUBJECT CORRECTED — HIGHEST PRIORITY ══\n" + revisedSynthesisBlurb : "");
 var subjectWordsBlurb = subjectWordsList.length > 0
 ? "SUBJECT'S OWN WORDS (session corrections and map notes — when citing these, use the exact quote in the report):\n" + subjectWordsList.slice(0, 14).map(function(w){ return "\""+w+"\""; }).join("\n") + "\n\n"
 : "";
@@ -8124,7 +8142,7 @@ else display = String(ans);
 var prompt = card.phrase || card.prompt || "";
 if (prompt) lines.push("\""+prompt.slice(0,80)+"\" → "+display);
 });
-if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — how much each landed; this is PRIMARY evidence, use it):\n" + lines.join("\n") + "\n\nDESCENT POLARITY: Spectrum sliders: 0=left pole (pole_a), 100=right pole (pole_b). Binary: 'a' = left option, 'b' = right option. The CHOSE/toward direction is authoritative — if it says 'toward X' or 'chose X', the subject chose X. NEVER invert or write the opposite.\n\nDESCENT CITATION: When you cite descent data in the report, ALWAYS include the question so the subject can trace it. Write: \"When asked '[the question]', you said...\" or \"In the descent, [question] — you answered...\" Use WORDS, not percentages: \"you leaned toward X\" or \"you chose Y\" — never \"50% toward X\" or \"51%.\" If the subject selected a spectrum value, describe it in words (slightly, moderately, strongly) with the question named. The subject must recognize when and where they said it.\n\n";
+if (lines.length) descentBlurb = "DESCENT (subject's direct feedback — data collection to understand the person; use for context, not as evidence):\n" + lines.join("\n") + "\n\nDESCENT POLARITY: Spectrum sliders: 0=left pole (pole_a), 100=right pole (pole_b). Binary: 'a' = left option, 'b' = right option. The CHOSE/toward direction is authoritative — if it says 'toward X' or 'chose X', the subject chose X. NEVER invert or write the opposite.\n\nDESCENT RULE — CRITICAL: The subject did NOT choose what the options were. Do NOT highlight specific choices (e.g. \"you chose 50% on 2 choices\") or make a big deal of them. Never use percentages in the report (\"50%\", \"51%\", etc.). NEVER say \"you chose X\" or \"you leaned toward Y\" as if it were a significant finding — it's data, not a verdict. The session is data collection to understand the person. They are not on trial. Do not prosecute them for a particular answer. Weave descent data into the story only when it adds genuine insight — never as a list of choices they \"made.\"\n\n";
 }
 
 var clarityBlurb = "";
@@ -8146,7 +8164,7 @@ var cardFeedbackBlurb = "";
 var cfKeys = Object.keys(sliderValues).filter(function(k){ return sliderValues[k] !== undefined && SLIDER_LABELS[k]; });
 if (cfKeys.length > 0) {
 var cfLines = cfKeys.map(function(k){ var v = sliderValues[k]; return k + ": value=" + v + " → " + sliderToChose(k, v) + " (scale: 0=left \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].left:"") + "\", 100=right \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].right:"") + "\")"; });
-cardFeedbackBlurb = "CARD SLIDERS — SUBJECT'S EXACT CHOICE (0=left pole, 100=right pole. Use ONLY what they chose — never invert):\n" + cfLines.join("\n") + "\n\nCRITICAL: Only the cards listed above were interacted with. If a card (the_mirror, synthesis, blind_spot, etc.) is NOT in this list, the subject did NOT interact with it — do NOT claim it landed, resonated, or that they responded to it. The value and CHOSE direction are authoritative. When citing, name the scale and use words (slightly, moderately, strongly) — not bare percentages.\n\n";
+cardFeedbackBlurb = "CARD SLIDERS — SUBJECT'S EXACT CHOICE (0=left pole, 100=right pole. Use ONLY what they chose — never invert):\n" + cfLines.join("\n") + "\n\nCRITICAL: Only the cards listed above were interacted with. If a card is NOT in this list, the subject did NOT interact with it — do NOT claim it landed, resonated, or that they responded to it. The subject did NOT choose what the options were. Do NOT highlight specific choices or percentages as significant — never \"you chose 50%\" or \"you leaned toward X on 2 cards.\" It's data collection, not a verdict. They are not on trial. Weave into the story only when it adds genuine insight — never as a list of choices they \"made.\"\n\n";
 } else {
 cardFeedbackBlurb = "CARD SLIDERS: (none — subject did not interact with any field card sliders). Do NOT claim that the mirror, synthesis, blind spot, or any other card landed or resonated. You have no basis for that.\n\n";
 }
@@ -8237,13 +8255,16 @@ if (esLines.length) emergentSignalsBlurb = "EMERGENT SIGNALS (what wants to happ
 }
 
 var prompt = "You are writing a confidential field report. Plain declarative past tense. The report is for the subject — they will read it. It should feel like a complete piece, not facts strung together.\n\n"
++ (correctionsBlurb ? "══ USER AUTHORITY — READ FIRST ══\nIf the subject gave corrections or pushed back during the session, their words OVERRIDE everything. The report MUST incorporate what they said. NEVER claim they said something they corrected. NEVER repeat what the AI suggested when they said otherwise. Lead with their truth.\n\n" + correctionsBlurb : "")
 + "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light — not who they are. Stick to what they tell you. When using metaphors or archetypes, orient toward light, metamorphosis, emergence. Never go dark. Never pathologize. Framed by Victor Frankl: find meaning beneath that empowers — without them realizing it.\n\n"
 + "FEELING AND INTELLIGENCE: The report's value is the intelligence — the pattern beneath the pattern, the thread that ties it together. Weave insight into flowing prose. The reader should feel seen and understood. Not a list of what happened; a coherent reading of what it means. Write with depth. Connect to what they've shared — each insight should trace back to something they said, chose, or pushed back on.\n\n"
++ "NARRATIVE: The report should feel like a story — something interesting to read, with momentum and flow. Not a dry list of facts. Connect the dots with a thread. Write well. The reader should want to keep reading. But stay clear and grounded — no flowery or obscure language. The reader should feel seen, not dazzled.\n\n"
++ "DATA COLLECTION, NOT PROSECUTION: Everything in the session is data to understand the person. The subject did NOT choose what the descent options or card poles were. Do NOT highlight specific choices (\"you chose 50%,\" \"you leaned toward X on 2 cards\") as if they were significant findings. Never use percentages in the report. They are not on trial. Reflect and mirror — do not build a case.\n\n"
 + "CLARITY — CRITICAL: Write for a reader with a college or strong high school education. Use plain, direct words. NO poetic or flowery language — if a sentence sounds like it could be in a poem, rewrite it to be clear and precise. Avoid jargon: say \"over time\" not \"longitudinal arc,\" \"the big pattern\" not \"meta-pattern.\" Lead each section with the simplest version of the insight. Add nuance in the next sentence. Don't pack theme + tension + archetype into one long opening. Prefer short, declarative sentences. The report should be easy to read and clinically precise.\n\n"
 + "VOICE: Use ONE consistent voice throughout — either \"the subject\" (third person) or \"you\" (second person). Do not mix. Never use he, she, him, her. When quoting their words, use \"The subject said: \\\"...\\\"\" or \"You said: \\\"...\\\"\" depending on which voice you chose. Pick one and stick to it.\n\n"
 + "PRACTITIONER MODE: You are synthesizing as a team of world leaders across disciplines — cognitive psychology, quantum biology, human understanding, family constellations, imaginal theory, shadow work, Jungian depth psychology — without naming them in the report. Draw on pattern recognition, systems thinking, and deep listening. Identify what the subject cannot easily see: blind spots, recurring structure, the pattern beneath the pattern. With 20+ sessions, uncover the theme that only becomes visible over time. Write with precision and depth. A touch of leverage (Tony Robbins): name what wants to move — not as advice, but as observation.\n\n"
 + "AHA MOMENTS: When a sentence is an insight that is uncovering, seeming to reveal, breaking through, or naming an imbalance — place ◆ (Unicode U+25C6) at the start of that sentence. Example: \"◆ The pattern suggests you've been circling this for a while.\" Use sparingly — 1–3 per section max. These are the nuggets the reader should be drawn to.\n\n"
-+ "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. If you cannot quote it, do not assert it. The subject will read this.\n\n"
++ "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. NEVER claim they said something they explicitly corrected — if they said \"2 projects are working together\" when the AI suggested otherwise, that IS the truth. If you cannot quote it, do not assert it. The subject will read this.\n\n"
 + "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. CRITICAL: Do NOT claim a card (mirror, synthesis, blind spot, connection, etc.) landed or resonated unless it appears in CARD SLIDERS with a value. If the subject did not interact with a card, you have no basis to say it landed — omit it. Every claim must be traceable to the source data. When in doubt, omit.\n\n"
 + "USER FEEDBACK AND RESISTANCE — CRITICAL: Use feedback and resistance ONLY when the subject EXPLICITLY indicated it (e.g. chose \"Not Feeling That,\" \"Doesn't Fit Quite Right,\" pushed back on a connection, or similar). Do NOT infer resistance from absence of feedback. Silence = no data. If the subject disagrees or says something doesn't fit, that IS their truth at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Never pathologize disagreement.\n\n"
 + "TENSIONS AND BLIND SPOTS: When the pattern suggests a tension or blind spot, BRING IT UP and see how it lands — do NOT assert it as fact. Offer it: 'The pattern suggests X — does that land?' or 'Something that may be worth considering: X.' If the subject has given feedback (Not Feeling That, Doesn't Fit Quite Right), their truth overrides. Record tensions and blind spots with the subject's feedback when available. Do NOT conclude anything from user disagreement — that is their truth.\n\n"
@@ -8282,7 +8303,7 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "Write 4 sections. Each has: ALL-CAPS TITLE (3-5 words), then body in short paragraphs separated by blank lines.\n"
 + "SECTION TITLES: Section 1: WHAT SHOWED UP or THIS SESSION. Section 2: WHAT CHANGED (the Y-axis — the journey). Section 3: WHAT KEEPS RETURNING or WHAT'S STILL HERE. Section 4: CONCLUSION.\n"
 + "Where relevant, QUOTE the subject's own words (from MAP NOTES and SUBJECT'S OWN WORDS above) — use \"You said: \\\"...\\\"\" with their exact phrasing. Do not paraphrase into something they didn't say. In the third section, connect at least one 'what's underneath' idea to something the subject actually said — quote the map note or correction so the reader can trace it.\n\n"
-+ "SECTION 1 (WHAT SHOWED UP / THIS SESSION): What dominated in THIS session. When citing map connections: do NOT say 'The map offered:' or quote node language verbatim. Instead, describe the tension or insight that arose in the session in plain sentences — e.g. 'A tension arose: [what it was about, in human language]. You confirmed it strongly.' Rewrite connector insights into flowing prose the reader can grasp. Lead with the meaning, then how they responded. 3 short paragraphs.\n"
++ "SECTION 1 (WHAT SHOWED UP / THIS SESSION): Share a story of what showed up — a reflection, not a case. You are mirroring someone. Do NOT build a case or prosecute. Do NOT highlight descent choices or percentages (\"you chose 50%,\" \"you leaned toward X on 2 cards\") — the subject didn't choose the options; it's data collection, not a verdict. Be insightful like a valuable team of experts (cognitive psychology, imaginal theory, shadow work, Jungian, etc.) — weave depth without judgment. CRITICAL: If the subject gave corrections (see SUBJECT CORRECTED above), OPEN with what THEY said. Quote their exact words. Never repeat what the AI suggested when they corrected it. When citing map connections: do NOT say 'The map offered:' or quote node language verbatim. Describe the tension or insight that arose in plain sentences. Lead with meaning. 3 short paragraphs.\n"
 + "SECTION 2 (WHAT CHANGED): The Y-axis — the journey across sessions. Do NOT lead with archetype progression. Lead with the CONTENT of what they actually said — their themes, their words, what they're willing to say now that they might not have before. Each session, find what's different from the past. If they're truly stuck (same themes, same content session after session), name that. Otherwise, go into the substance: what has shifted in their actual words, what they've named, what they've let in. What has happened over time in what they shared — not the archetype label, but the real content. 3 short paragraphs.\n"
 + "SECTION 3 (WHAT KEEPS RETURNING / WHAT'S STILL HERE): Still unresolved. Still returning. Refer to the 'what's underneath' phrases above — repetition, structure, blind spots the subject may not see. Use them in prose. Never use labels like underneath_0. Where possible, tie one to something the subject actually said — QUOTE the map note or correction. 2 short paragraphs.\n\n"
 + "SECTION 4 (CONCLUSION): A powerful closing. The one thread that runs through everything. The single most honest thing to take away. Written for the subject — use \"you\" when it fits. 2-3 sentences max. No summary of what came before — a landing, an invitation, a truth that ties the report together. Make it memorable. Make it land.\n\n"
