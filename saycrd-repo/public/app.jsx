@@ -3,6 +3,15 @@ const { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } = R
 var PICKER_ACCENT = "#E84393";
 var PICKER_TRACK_INACTIVE = "#D0D0D0";
 function normalizeSentKey(t) { return (t || "").trim().replace(/\s+/g, " ").slice(0, 100); }
+function saveCapture(text, note, source) {
+var key = "saycrd-" + getCurrentUid() + "-captures";
+var list = [];
+try { list = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e) {}
+list.unshift({ text: (text || "").slice(0, 300), note: (note || "").trim().slice(0, 800), date: new Date().toISOString(), source: source || "report" });
+list = list.slice(0, 100);
+localStorage.setItem(key, JSON.stringify(list));
+try { window.dispatchEvent(new CustomEvent("saycrd-captures-updated")); } catch(x) {}
+}
 function isDarkHex(hex) {
 if (!hex || typeof hex !== "string" || hex.indexOf("#") !== 0) return false;
 var h = hex.slice(1);
@@ -12,6 +21,7 @@ return (0.299*r + 0.587*g + 0.114*b) < 140;
 }
 var SENTENCE_FEEDBACK_OPTIONS = [
 { id: "lands_hard", label: "Lands Hard", color: "#C97B8E" },
+{ id: "dont_understand", label: "Don't Understand", color: "#9B8B6B" },
 { id: "truth_revealed", label: "Truth Revealed", color: "#5BA3A3" },
 { id: "something_to_consider", label: "Something to Consider", color: "#8B7CC7" },
 { id: "hadnt_thought", label: "Hadn't Thought of This", color: "#6BBF7A" },
@@ -19,15 +29,19 @@ var SENTENCE_FEEDBACK_OPTIONS = [
 { id: "not_feeling", label: "Not Feeling That", color: "#64748B" },
 ];
 
-function SentenceFeedbackButtons({ text, onFeedback, onClose, onGreyFlowActive }) {
+function SentenceFeedbackButtons({ text, onFeedback, onClose, onGreyFlowActive, captureSource }) {
 var [optionalNote, setOptionalNote] = useState("");
 var [showCommentBox, setShowCommentBox] = useState(false);
 var [pendingOption, setPendingOption] = useState(null);
 var textareaRef = useRef(null);
 useEffect(function(){ if (showCommentBox && textareaRef.current) textareaRef.current.focus(); }, [showCommentBox]);
 function handleChoice(o) {
-if (o.id === "doesnt_fit" || o.id === "not_feeling") {
+if (o.id === "doesnt_fit" || o.id === "not_feeling" || o.id === "dont_understand") {
 setPendingOption(o.id);
+setShowCommentBox(true);
+onGreyFlowActive && onGreyFlowActive(true);
+} else if (o.id === "capture") {
+setPendingOption("capture");
 setShowCommentBox(true);
 onGreyFlowActive && onGreyFlowActive(true);
 } else {
@@ -38,6 +52,12 @@ onClose();
 function submit(includeNote) {
 if (!pendingOption) return;
 var note = includeNote ? optionalNote.trim() : "";
+if (pendingOption === "capture") {
+saveCapture(text, note, captureSource || "report");
+onGreyFlowActive && onGreyFlowActive(false);
+onClose();
+return;
+}
 onFeedback && onFeedback(text, pendingOption, note);
 onGreyFlowActive && onGreyFlowActive(false);
 onClose();
@@ -71,14 +91,19 @@ return (
 );
 })}
 </div>
+{!showCommentBox && (
+<button onClick={function(){ handleChoice({ id: "capture" }); }} style={{ marginTop: 12, padding: "10px 16px", fontSize: 12, fontFamily: FB, letterSpacing: "0.06em", borderRadius: 10, border: "1px solid rgba(107,184,255,0.4)", background: "rgba(107,184,255,0.08)", color: "#6BB8FF", cursor: "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6 }}>
+<span style={{ fontSize: 14 }}>✦</span> Capture this
+</button>
+)}
 {showCommentBox && (
 <div style={{ marginTop: 20, overflow: "hidden", animation: "slideDown 0.35s ease-out forwards" }}>
-<div style={{ fontSize: 12, letterSpacing: "0.08em", color: "rgba(0,0,0,0.55)", fontFamily: FB, marginBottom: 10 }}>What would you add or change?</div>
-<textarea ref={textareaRef} placeholder="Share what doesn't land or what you'd say instead…" value={optionalNote} onChange={function(e){ setOptionalNote(e.target.value); }} onKeyDown={handleKeyDown} style={{ width: "100%", minHeight: 100, padding: "16px 18px", fontSize: 16, fontFamily: FD, color: "rgba(0,0,0,0.85)", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }} rows={3} />
+<div style={{ fontSize: 12, letterSpacing: "0.08em", color: "rgba(0,0,0,0.55)", fontFamily: FB, marginBottom: 10 }}>{pendingOption === "capture" ? "What do you want to remember?" : pendingOption === "dont_understand" ? "What would help? What's unclear?" : "What would you add or change?"}</div>
+<textarea ref={textareaRef} placeholder={pendingOption === "capture" ? "Your thoughts, reflections, what this sparked…" : pendingOption === "dont_understand" ? "What would make this clearer? What are you wondering?" : "Share what doesn't land or what you'd say instead…"} value={optionalNote} onChange={function(e){ setOptionalNote(e.target.value); }} onKeyDown={handleKeyDown} style={{ width: "100%", minHeight: 100, padding: "16px 18px", fontSize: 16, fontFamily: FD, color: "rgba(0,0,0,0.85)", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 12, resize: "vertical", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }} rows={3} />
 <div style={{ fontSize: 11, color: "rgba(0,0,0,0.4)", fontFamily: FB, marginTop: 8 }}>Press Enter to save</div>
 <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
-<button onClick={function(){ submit(true); }} style={{ padding: "12px 24px", fontSize: 14, fontFamily: FB, fontWeight: 600, color: "#fff", background: "#4A8A8A", border: "none", borderRadius: 12, cursor: "pointer", boxShadow: "0 2px 4px rgba(74,138,138,0.3)" }}>Save note</button>
-<button onClick={function(){ submit(false); }} style={{ padding: "12px 20px", fontSize: 13, fontFamily: FB, color: "rgba(0,0,0,0.5)", background: "none", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 12, cursor: "pointer" }}>Done without note</button>
+<button onClick={function(){ submit(true); }} style={{ padding: "12px 24px", fontSize: 14, fontFamily: FB, fontWeight: 600, color: "#fff", background: pendingOption === "capture" ? "#6BB8FF" : "#4A8A8A", border: "none", borderRadius: 12, cursor: "pointer", boxShadow: pendingOption === "capture" ? "0 2px 8px rgba(107,184,255,0.35)" : "0 2px 4px rgba(74,138,138,0.3)" }}>{pendingOption === "capture" ? "Save to journal" : "Save note"}</button>
+<button onClick={function(){ submit(false); }} style={{ padding: "12px 20px", fontSize: 13, fontFamily: FB, color: "rgba(0,0,0,0.5)", background: "none", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 12, cursor: "pointer" }}>{pendingOption === "capture" ? "Save snippet only" : "Done without note"}</button>
 </div>
 </div>
 )}
@@ -124,7 +149,7 @@ onMouseLeave={function(e){ if(!feedback) e.currentTarget.style.background = "tra
 <div style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ if (!greyFlowActive) { setOpen(false); setGreyFlowActive(false); } }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackButtons text={text} onFeedback={function(_text, optionId, optionalComment){ onFeedback && onFeedback(text, optionId, optionalComment); setOpen(false); setGreyFlowActive(false); }} onClose={function(){ setOpen(false); setGreyFlowActive(false); }} onGreyFlowActive={setGreyFlowActive} />
+<SentenceFeedbackButtons text={text} onFeedback={function(_text, optionId, optionalComment){ onFeedback && onFeedback(text, optionId, optionalComment); setOpen(false); setGreyFlowActive(false); }} onClose={function(){ setOpen(false); setGreyFlowActive(false); }} onGreyFlowActive={setGreyFlowActive} captureSource="session" />
 </div>
 </div>,
 document.body
@@ -2929,7 +2954,7 @@ setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: opti
 if (optionalComment && optionalComment.trim()) {
 setCorrections(function(prev){ return Object.assign({}, prev, { [key]: optionalComment.trim() }); });
 }
-if (optionId === "not_feeling" || optionId === "doesnt_fit") {
+if (optionId === "not_feeling" || optionId === "doesnt_fit" || optionId === "dont_understand") {
 if (optionalComment && optionalComment.trim()) {
 fireRevision(optionalComment.trim(), text);
 }
@@ -7841,7 +7866,7 @@ var key = normalizeSentKey(text);
 _setSentenceFeedback(function(prev){ return Object.assign({}, prev, { [key]: optionId }); });
 onSentenceFeedback && onSentenceFeedback(text, optionId, optionalComment);
 _setEditingSentence(null);
-if ((optionId === "doesnt_fit" || optionId === "not_feeling") && _report && _report.sections && _report.sections.length > 0) {
+if ((optionId === "doesnt_fit" || optionId === "not_feeling" || optionId === "dont_understand") && _report && _report.sections && _report.sections.length > 0) {
 var sectionIdx = -1;
 var targetSection = null;
 for (var i = 0; i < _report.sections.length; i++) {
@@ -7860,7 +7885,7 @@ var sectionTitle = section.title || "Section " + (sectionIdx + 1);
 var feedbackLabel = (SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === feedbackId; }) || {}).label || feedbackId;
 var fullReportContext = fullReport ? "\n\nFULL REPORT (for context — if their correction contradicts the overall narrative, revise other sections too):\nOne-line verdict: \"" + (fullReport.oneLineVerdict || "") + "\"\nWhat might want to happen: \"" + (fullReport.whatMightWantToHappen || "") + "\"\n" + (fullReport.sections || []).map(function(s, i){ return "Section " + (i+1) + " (" + (s.title || "") + "): " + (s.body || "").slice(0, 500) + (s.body && s.body.length > 500 ? "…" : ""); }).join("\n\n") + "\n" : "";
 var prompt = "The subject read their field report and gave feedback on a sentence. Their feedback is the truth — honor it. LISTEN to them.\n\n"
-+ "RULES: Do NOT defend or reframe the original. Revise the section to incorporate their feedback. Remove or replace the sentence that didn't land. If they gave a note, use their words. Keep the same structure (2-3 short paragraphs). No poetry. Plain, clear language. Their truth overrides.\n\n"
++ "RULES: Do NOT defend or reframe the original. Revise the section to incorporate their feedback. Remove or replace the sentence that didn't land. If they gave a note, use their words. Keep the same structure (2-3 short paragraphs). No poetry. Plain, clear language. Their truth overrides. If the feedback is \"Don't Understand\" and they gave a note about what's unclear, clarify or simplify that sentence so it's easier to grasp.\n\n"
 + "CRITICAL — IF THEIR CORRECTION SHIFTS THE CORE NARRATIVE: If the subject said something that contradicts the report's overall message (e.g. report says 'the magic left' but they said 'it seemed to have come back'), then the ENTIRE report must align with their truth. Revise the section, the verdict, AND any other sections that would contradict what they said. Do not leave them feeling unheard — if they corrected a central point, the whole report should reflect it.\n\n"
 + "SECTION TITLE: " + sectionTitle + "\n"
 + "CURRENT BODY:\n" + (section.body || "") + "\n\n"
@@ -8097,7 +8122,7 @@ var subjectWordsBlurb = subjectWordsList.length > 0
 var lastSessData = allSessions.length > 0 ? allSessions[allSessions.length - 1] : null;
 var _effectiveSentFb = Object.assign({}, (lastSessData && lastSessData.sentenceFeedback) || {}, propSentenceFeedback || {});
 var sentFbBlurb = (Object.keys(_effectiveSentFb).length > 0)
-? "SENTENCE FEEDBACK (how session/field/report lines landed — use ONLY when the subject EXPLICITLY gave this feedback; do NOT infer from absence):\n" + Object.keys(_effectiveSentFb).map(function(k){ var v=_effectiveSentFb[k]; var lab=(SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===v;})||{}).label||v; return "\""+k.slice(0,80)+(k.length>80?"…":"")+"\" → "+lab; }).join("\n") + "\n\nFEEDBACK RULE: If the subject marked something as \"Not Feeling That\" or \"Doesn't Fit Quite Right,\" that is THEIR TRUTH at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Do NOT use feedback or resistance unless the subject explicitly indicated it — never infer from silence or absence of interaction.\n\n"
+? "SENTENCE FEEDBACK (how session/field/report lines landed — use ONLY when the subject EXPLICITLY gave this feedback; do NOT infer from absence):\n" + Object.keys(_effectiveSentFb).map(function(k){ var v=_effectiveSentFb[k]; var lab=(SENTENCE_FEEDBACK_OPTIONS.find(function(o){return o.id===v;})||{}).label||v; return "\""+k.slice(0,80)+(k.length>80?"…":"")+"\" → "+lab; }).join("\n") + "\n\nFEEDBACK RULE: If the subject marked something as \"Not Feeling That,\" \"Doesn't Fit Quite Right,\" or \"Don't Understand,\" that is THEIR TRUTH at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Do NOT use feedback or resistance unless the subject explicitly indicated it — never infer from silence or absence of interaction.\n\n"
 : "";
 
 var underList = [];
@@ -8133,7 +8158,7 @@ if (tensionsRecord.length > 0 || blindSpotsRecord.length > 0) {
 tensionsBlindSpotsBlurb = "TENSIONS AND BLIND SPOTS RECORD (with user feedback when available):\n";
 if (tensionsRecord.length) tensionsBlindSpotsBlurb += "Tensions in the subject's life:\n" + tensionsRecord.slice(0, 8).join("\n") + "\n\n";
 if (blindSpotsRecord.length) tensionsBlindSpotsBlurb += "Blind spots (pattern intelligence — what may be hard to self-see):\n" + blindSpotsRecord.slice(0, 8).join("\n") + "\n\n";
-tensionsBlindSpotsBlurb += "TENSIONS/BLIND SPOTS RULE: When the pattern suggests a tension or blind spot, BRING IT UP and see how it lands — do NOT assert it as fact. Frame as: 'The pattern suggests X — does that land?' or 'Something that may be worth considering: X. How does that feel?' If the subject has given feedback (Not Feeling That, Doesn't Fit Quite Right), their truth overrides. Record that. Do NOT conclude anything from user disagreement — that is their truth at that moment.\n\n";
+tensionsBlindSpotsBlurb += "TENSIONS/BLIND SPOTS RULE: When the pattern suggests a tension or blind spot, BRING IT UP and see how it lands — do NOT assert it as fact. Frame as: 'The pattern suggests X — does that land?' or 'Something that may be worth considering: X. How does that feel?' If the subject has given feedback (Not Feeling That, Doesn't Fit Quite Right, Don't Understand), their truth overrides. Record that. Do NOT conclude anything from user disagreement — that is their truth at that moment.\n\n";
 }
 
 var descentBlurb = "";
@@ -8275,8 +8300,8 @@ var prompt = "You are writing a confidential field report. Plain declarative pas
 + "AHA MOMENTS: When a sentence is an insight that is uncovering, seeming to reveal, breaking through, or naming an imbalance — place ◆ (Unicode U+25C6) at the start of that sentence. Example: \"◆ The pattern suggests you've been circling this for a while.\" Use sparingly — 1–3 per section max. These are the nuggets the reader should be drawn to.\n\n"
 + "TRUTH RULE: What the subject says is truth. Descent answers (how much something landed), map notes, corrections, clarity — these are their words. NEVER invent or paraphrase into something they did not say. NEVER claim they said something without a direct quote from the data. NEVER claim they said something they explicitly corrected — if they said \"2 projects are working together\" when the AI suggested otherwise, that IS the truth. If you cannot quote it, do not assert it. The subject will read this.\n\n"
 + "NO HALLUCINATION OF ACTIONS: NEVER invent what the subject did or didn't do. If they agreed, confirmed, or resonated — say that only if the data shows it. If they pushed back, resisted, or rejected — say that ONLY if the data explicitly shows it. Do NOT infer the opposite: e.g. if they marked something as landing (high slider, confirmed), do NOT write that they pushed against it. CRITICAL: Do NOT claim a card (mirror, synthesis, blind spot, connection, etc.) landed or resonated unless it appears in CARD SLIDERS with a value. If the subject did not interact with a card, you have no basis to say it landed — omit it. Every claim must be traceable to the source data. When in doubt, omit.\n\n"
-+ "USER FEEDBACK AND RESISTANCE — CRITICAL: Use feedback and resistance ONLY when the subject EXPLICITLY indicated it (e.g. chose \"Not Feeling That,\" \"Doesn't Fit Quite Right,\" pushed back on a connection, or similar). Do NOT infer resistance from absence of feedback. Silence = no data. If the subject disagrees or says something doesn't fit, that IS their truth at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Never pathologize disagreement.\n\n"
-+ "TENSIONS AND BLIND SPOTS: When the pattern suggests a tension or blind spot, BRING IT UP and see how it lands — do NOT assert it as fact. Offer it: 'The pattern suggests X — does that land?' or 'Something that may be worth considering: X.' If the subject has given feedback (Not Feeling That, Doesn't Fit Quite Right), their truth overrides. Record tensions and blind spots with the subject's feedback when available. Do NOT conclude anything from user disagreement — that is their truth.\n\n"
++ "USER FEEDBACK AND RESISTANCE — CRITICAL: Use feedback and resistance ONLY when the subject EXPLICITLY indicated it (e.g. chose \"Not Feeling That,\" \"Doesn't Fit Quite Right,\" \"Don't Understand,\" pushed back on a connection, or similar). Do NOT infer resistance from absence of feedback. Silence = no data. If the subject disagrees or says something doesn't fit, that IS their truth at that moment. Do NOT argue, reframe, or conclude otherwise. Honor it. Never pathologize disagreement.\n\n"
++ "TENSIONS AND BLIND SPOTS: When the pattern suggests a tension or blind spot, BRING IT UP and see how it lands — do NOT assert it as fact. Offer it: 'The pattern suggests X — does that land?' or 'Something that may be worth considering: X.' If the subject has given feedback (Not Feeling That, Doesn't Fit Quite Right, Don't Understand), their truth overrides. Record tensions and blind spots with the subject's feedback when available. Do NOT conclude anything from user disagreement — that is their truth.\n\n"
 + "TENSE AWARENESS (past / present / future): Be mindful of when the subject said something. If they said they are going to do something, or plan to, or will — that is a PLAN, not an action. Do NOT conclude they did it. If they said they did it — that is past action. If they said they are doing it — that is present. Never collapse future intention into past accomplishment. \"I'm going to try\" is not \"they tried.\" \"I plan to stop\" is not \"they stopped.\" Honor the tense.\n\n"
 + "CURIOUS, NOT DIAGNOSTIC: NEVER use defensiveness, defensive, or similar labels. The report is curious and honoring — not pathologizing. If something seems to warrant that kind of read, ASK it as a question (and that belongs in Descent, not here). Stay curious.\n\n"
 + "NO ASSUMPTIONS ABOUT \"THE MAIN THING\": Do NOT assume what is most important in someone's life based on time, frequency, or what shows up most in sessions. Unless the subject explicitly says \"this is my main focus\" or \"the most important thing,\" do not conclude it. You may observe: \"After X sessions, this keeps coming up — an interesting question is why it's in the background\" — but never \"this is the main thing.\" The subject's life has many parts; don't collapse it into one.\n\n"
@@ -8391,10 +8416,22 @@ return (
 <div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontSize: fontSize, textAlign: "left", textIndent: 0 }}>
 {bulletLines.map(function(line, li) {
 var clean = line.replace(/^[-•]\s*/, "").replace(/^\d+\.\s*/, "");
+var key = normalizeSentKey(clean);
+var fb = sentenceFeedback && sentenceFeedback[key];
+var opt = fb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === fb; }) : null;
+var optC = opt && (opt.color || PICKER_ACCENT);
+var _isRgba = optC && typeof optC === "string" && optC.indexOf("rgba") >= 0;
+var _bg = optC ? (_isRgba ? "rgba(0,0,0,0.06)" : optC + "28") : "transparent";
+var _bord = optC ? (_isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optC) : "1px solid transparent";
+var _txtColor = optC ? (_isRgba ? "rgba(0,0,0,0.72)" : optC) : "inherit";
 return (
 <div key={li} style={{ display: "flex", gap: 10, marginBottom: li < bulletLines.length - 1 ? 8 : 0, lineHeight: 1.7, textAlign: "left", textIndent: 0 }}>
 <span style={{ flexShrink: 0, color: "rgba(0,0,0,0.5)", fontWeight: 600 }}>•</span>
+{onSentenceClick ? (
+<span onClick={function(){ onSentenceClick(clean); }} style={{ flex: 1, textAlign: "left", cursor: "pointer", borderRadius: 4, padding: "2px 4px", margin: "0 -4px", background: _bg, borderBottom: _bord, color: _txtColor, transition: "all 0.2s" }} onMouseEnter={function(e){ if(!fb) e.currentTarget.style.background="rgba(0,0,0,0.04)"; }} onMouseLeave={function(e){ if(!fb) e.currentTarget.style.background="transparent"; }}>{clean}</span>
+) : (
 <span style={{ flex: 1, textAlign: "left" }}>{clean}</span>
+)}
 </div>
 );
 })}
@@ -8473,7 +8510,7 @@ fontFamily:FB }}>
 <div style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", animation: "riseUp 0.2s ease both" }}
 onClick={function(){ if (!_greyFlowActive) { _setEditingSentence(null); _setGreyFlowActive(false); } }}>
 <div onClick={function(e){ e.stopPropagation(); }}>
-<SentenceFeedbackButtons text={_editingSentence} onFeedback={function(text, id, comment){ _handleReportSentenceFeedback(text, id, comment); _setEditingSentence(null); _setGreyFlowActive(false); }} onClose={function(){ _setEditingSentence(null); _setGreyFlowActive(false); }} onGreyFlowActive={_setGreyFlowActive} />
+<SentenceFeedbackButtons text={_editingSentence} onFeedback={function(text, id, comment){ _handleReportSentenceFeedback(text, id, comment); _setEditingSentence(null); _setGreyFlowActive(false); }} onClose={function(){ _setEditingSentence(null); _setGreyFlowActive(false); }} onGreyFlowActive={_setGreyFlowActive} captureSource="report" />
 </div>
 </div>,
 document.body
@@ -10234,6 +10271,8 @@ function JourneysPhase({ onStart, onBack }) {
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
+var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
+useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
 if (window.currentUser) { onStart(); return; }
@@ -10248,9 +10287,9 @@ return (
 </div>
 <div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ textAlign: "center", marginBottom: 32 }}>
-<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(184,107,255,0.6)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
-<div style={{ fontSize: 13, letterSpacing: "0.4em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 8 }}>YOUR JOURNEYS</div>
-<h1 style={{ fontSize: "clamp(28px, 6vw, 36px)", fontFamily: FD, fontWeight: 300, color: "rgba(255,255,255,0.95)", lineHeight: 1.2 }}>Your sessions over time</h1>
+<div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+<div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>YOUR JOURNEYS</div>
+<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, letterSpacing: "-0.02em" }}>Your sessions over time</h1>
 </div>
 {sessions.length === 0 ? (
 <div style={{ padding: "32px 24px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 24, textAlign: "center" }}>
@@ -10271,8 +10310,8 @@ return (
 <div style={{ fontSize: isMilestone ? 12 : 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.8)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
 {dateStr && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{dateStr}</div>}
 </div>
-<div style={{ fontSize: isMilestone ? 14 : 13, color: "rgba(255,255,255,0.75)", fontFamily: FD, lineHeight: 1.45 }}>{String(th).slice(0, isMilestone ? 80 : 40)}{String(th).length > (isMilestone ? 80 : 40) ? "…" : ""}</div>
-{arch && <div style={{ marginTop: 8, fontSize: 12, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FB }}>{arch}</div>}
+<div style={{ fontSize: isMilestone ? 15 : 14, color: "rgba(255,255,255,0.85)", fontFamily: FD, lineHeight: 1.5, letterSpacing: "0.01em" }}>{String(th).slice(0, isMilestone ? 80 : 40)}{String(th).length > (isMilestone ? 80 : 40) ? "…" : ""}</div>
+{arch && <div style={{ marginTop: 8, fontSize: 13, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FD, fontStyle: "italic" }}>{arch}</div>}
 </div>
 );
 })}
@@ -10290,11 +10329,28 @@ return (
 <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
 {dateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{dateStr}</div>}
 </div>
-<div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FD, lineHeight: 1.5 }}>{(s.map_title || s.mapTitle || th || "—").slice(0, 60)}{(s.map_title || s.mapTitle || th || "").length > 60 ? "…" : ""}</div>
-{arch && <div style={{ marginTop: 8, fontSize: 12, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FB }}>{arch}</div>}
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontFamily: FD, lineHeight: 1.55, letterSpacing: "0.01em" }}>{(s.map_title || s.mapTitle || th || "—").slice(0, 60)}{(s.map_title || s.mapTitle || th || "").length > 60 ? "…" : ""}</div>
+{arch && <div style={{ marginTop: 8, fontSize: 13, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FD, fontStyle: "italic" }}>{arch}</div>}
 </div>
 );
 })}
+</div>
+)}
+{captures.length > 0 && (
+<div style={{ marginBottom: 32, maxHeight: 260, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+<div style={{ fontSize: 11, letterSpacing: "0.45em", color: "rgba(107,184,255,0.7)", fontFamily: FB, marginBottom: 16, fontWeight: 600 }}>YOUR CAPTURES</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+{captures.slice(0, 15).map(function(c, i) {
+var d = c.date ? new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+return (
+<div key={i} style={{ padding: "16px 18px", background: "rgba(107,184,255,0.06)", borderRadius: 14, border: "1px solid rgba(107,184,255,0.15)" }}>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.9)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.55, marginBottom: c.note ? 10 : 0 }}>"{c.text}"</div>
+{c.note && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontFamily: FB, lineHeight: 1.6 }}>{c.note}</div>}
+{d && <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, letterSpacing: "0.08em" }}>{d}</div>}
+</div>
+);
+})}
+</div>
 </div>
 )}
 {onBack && (
@@ -10305,11 +10361,11 @@ return (
 <button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
 Start a new session
 </button>
-<div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+<div style={{ marginTop: 24, fontSize: 14, color: "rgba(255,255,255,0.45)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5 }}>
 Your field grows with each session.
 </div>
 {sessions.length >= 2 && isMobile && (
-<div style={{ marginTop: 16, fontSize: 12, color: "rgba(184,107,255,0.6)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+<div style={{ marginTop: 16, fontSize: 13, color: "rgba(184,107,255,0.6)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
 Your next session could deepen this thread.
 </div>
 )}
@@ -10327,6 +10383,8 @@ var themes = (lastSession && lastSession.themes) ? lastSession.themes : [];
 var arch = lastSession && lastSession.archetypes && lastSession.archetypes[0] ? lastSession.archetypes[0] : null;
 var dateStr = lastSession && lastSession.date ? new Date(lastSession.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
 var SG = "Space Grotesk, " + FB;
+var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
+useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
 function guardedStart() {
 if (window.currentUser) { onStart(); return; }
@@ -10342,31 +10400,74 @@ return (
 </div>
 <div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ textAlign: "center", marginBottom: 40 }}>
-<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(184,107,255,0.6)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
-<div style={{ fontSize: 13, letterSpacing: "0.4em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 8 }}>SESSION COMPLETE</div>
-<h1 style={{ fontSize: "clamp(28px, 6vw, 36px)", fontFamily: FD, fontWeight: 300, color: "rgba(255,255,255,0.95)", lineHeight: 1.2, marginBottom: 24 }}>You've woven another thread.</h1>
+<div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+<div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>SESSION COMPLETE</div>
+<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 24, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
 </div>
-<div style={{ padding: "24px 20px", background: isMobile ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", backdropFilter: isMobile ? "blur(12px)" : "none", WebkitBackdropFilter: isMobile ? "blur(12px)" : "none", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 32 }}>
+<div style={{ padding: "26px 22px", background: isMobile ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", backdropFilter: isMobile ? "blur(12px)" : "none", WebkitBackdropFilter: isMobile ? "blur(12px)" : "none", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 32 }}>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.3em", color: "rgba(255,255,255,0.4)", fontFamily: FB }}>SESSIONS</div>
-<div style={{ fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,0.95)", fontFamily: FB }}>{sessions.length}</div>
+<div style={{ fontSize: 12, letterSpacing: "0.35em", color: "rgba(255,255,255,0.45)", fontFamily: FB, fontWeight: 600 }}>SESSIONS</div>
+<div style={{ fontSize: 28, fontWeight: 700, color: "rgba(255,255,255,0.98)", fontFamily: FB, letterSpacing: "-0.03em" }}>{sessions.length}</div>
 </div>
-{dateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic", marginBottom: 12 }}>{dateStr}</div>}
+{dateStr && <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", fontFamily: FD, fontStyle: "italic", marginBottom: 12, letterSpacing: "0.02em" }}>{dateStr}</div>}
 {themes.length > 0 && (
 <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.25em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 8 }}>THIS SESSION</div>
+<div style={{ fontSize: 11, letterSpacing: "0.3em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 600 }}>THIS SESSION</div>
 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-{themes.slice(0, 5).map(function(t, i){ return <span key={i} style={{ padding: "4px 10px", borderRadius: 8, background: (t.color || "#6BB8FF") + "22", color: t.color || "#6BB8FF", fontSize: 12, fontFamily: FB }}>{t.label}</span>; })}
+{themes.slice(0, 5).map(function(t, i){ return <span key={i} style={{ padding: "6px 12px", borderRadius: 10, background: (t.color || "#6BB8FF") + "22", color: t.color || "#6BB8FF", fontSize: 13, fontFamily: FB, fontWeight: 500, letterSpacing: "0.02em" }}>{t.label}</span>; })}
 </div>
 </div>
 )}
 {arch && arch.name && (
 <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ fontSize: 10, letterSpacing: "0.25em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 4 }}>YOUR PATTERN</div>
-<div style={{ fontSize: 16, fontWeight: 600, color: (arch.color || "#E84393") + "dd", fontFamily: FB }}>{arch.name}</div>
+<div style={{ fontSize: 11, letterSpacing: "0.3em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 6, fontWeight: 600 }}>YOUR PATTERN</div>
+<div style={{ fontSize: 18, fontWeight: 600, color: (arch.color || "#E84393") + "ee", fontFamily: FD, fontStyle: "italic", letterSpacing: "0.01em" }}>{arch.name}</div>
 </div>
 )}
 </div>
+{sessions.length >= 2 && (function(){
+var insights = [];
+var seenBlind = {};
+sessions.slice(-12).forEach(function(s, i) {
+var bs = typeof s.blind_spot === "string" ? s.blind_spot.trim() : "";
+if (bs && bs.length > 15 && !seenBlind[bs.slice(0,50)]) { seenBlind[bs.slice(0,50)] = 1; insights.push({ type: "blind_spot", text: bs, date: s.date }); }
+var syn = (s.synthesis || "").trim();
+if (syn && syn.length > 30) insights.push({ type: "synthesis", text: syn.slice(0, 120) + (syn.length > 120 ? "…" : ""), date: s.date });
+});
+return insights.length > 0 ? (
+<div style={{ marginBottom: 32, maxHeight: 220, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+<div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(184,107,255,0.5)", fontFamily: FB, marginBottom: 14, fontWeight: 600 }}>FROM YOUR SESSIONS</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+{insights.slice(-8).reverse().map(function(x, i) {
+var d = x.date ? new Date(x.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+return (
+<div key={i} style={{ padding: "14px 16px", background: "rgba(184,107,255,0.05)", borderRadius: 12, border: "1px solid rgba(184,107,255,0.12)" }}>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.88)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6 }}>{x.text}</div>
+{d && <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, letterSpacing: "0.06em" }}>{d}</div>}
+</div>
+);
+})}
+</div>
+</div>
+) : null;
+})()}
+{captures.length > 0 && (
+<div style={{ marginBottom: 32, maxHeight: 280, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+<div style={{ fontSize: 11, letterSpacing: "0.45em", color: "rgba(107,184,255,0.7)", fontFamily: FB, marginBottom: 16, fontWeight: 600 }}>YOUR CAPTURES</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+{captures.slice(0, 20).map(function(c, i) {
+var d = c.date ? new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+return (
+<div key={i} style={{ padding: "16px 18px", background: "rgba(107,184,255,0.06)", borderRadius: 14, border: "1px solid rgba(107,184,255,0.15)", animation: "riseUp 0.4s ease " + (i * 0.05) + "s both" }}>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.9)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.55, marginBottom: c.note ? 10 : 0 }}>"{c.text}"</div>
+{c.note && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", fontFamily: FB, lineHeight: 1.6 }}>{c.note}</div>}
+{d && <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, letterSpacing: "0.08em" }}>{d}</div>}
+</div>
+);
+})}
+</div>
+</div>
+)}
 {isMobile && onNavigateToJourneys && sessions.length > 0 && (
 <button onClick={onNavigateToJourneys} style={{ width: "100%", padding: "14px 24px", marginBottom: 12, borderRadius: 20, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", fontSize: 14, fontFamily: FB, fontWeight: 600, letterSpacing: "0.15em", cursor: "pointer" }}>
 Your Journeys →
@@ -10375,11 +10476,11 @@ Your Journeys →
 <button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
 Start a new session
 </button>
-<div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+<div style={{ marginTop: 24, fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5 }}>
 Your field grows with each session.
 </div>
 {sessions.length >= 2 && isMobile && (
-<div style={{ marginTop: 16, fontSize: 12, color: "rgba(184,107,255,0.6)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
+<div style={{ marginTop: 16, fontSize: 13, color: "rgba(184,107,255,0.65)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
 Your next session could deepen this thread.
 </div>
 )}
