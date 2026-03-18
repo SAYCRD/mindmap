@@ -338,7 +338,7 @@ return (
 {children}
 {loading ? (
 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(2,8,24,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", padding: "24px 20px", zIndex: 5, transition: "opacity 0.4s ease" }}>
-<div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6BB8FF", animation: "pulse 1.5s ease infinite", marginBottom: 20 }}/>
+<div className="saycrd-loading-indicator" style={{ width: 8, height: 8, borderRadius: "50%", background: "#6BB8FF", animation: "pulse 1.5s ease infinite", marginBottom: 20 }}/>
 <div style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.95)", fontFamily: FB, letterSpacing: "0.04em", textAlign: "center", marginBottom: 8 }}>{label}</div>
 {sublabel ? <div style={{ fontSize: 13, color: "rgba(150,200,255,0.7)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5, maxWidth: 320 }}>{sublabel}</div> : null}
 </div>
@@ -360,11 +360,11 @@ return (
 <div style={{ width: "100%", maxWidth: 560, margin: "0 auto", opacity: 0.5 }}>
 <svg viewBox="0 0 400 280" style={{ width: "100%", height: 260 }}>
 {positions.map(function(p, i) {
-return <circle key={i} cx={p.x} cy={p.y} r="20" fill={NC[i % NC.length] + "18"} stroke={NC[i % NC.length] + "44"} strokeWidth="1" opacity="0.8" style={{ animation: "nodeBreathe 2.5s ease-in-out infinite", animationDelay: (i * 0.2) + "s" }}/>;
+return <circle key={i} className="saycrd-loading-indicator" cx={p.x} cy={p.y} r="20" fill={NC[i % NC.length] + "18"} stroke={NC[i % NC.length] + "44"} strokeWidth="1" opacity="0.8" style={{ animation: "nodeBreathe 2.5s ease-in-out infinite", animationDelay: (i * 0.2) + "s" }}/>;
 })}
 </svg>
 <div style={{ marginTop: 16, padding: "0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-{[1,2,3].map(function(i){ return <div key={i} style={{ height: 36, borderRadius: 8, background: "rgba(107,184,255,0.08)", animation: "pulse 2s ease-in-out infinite", animationDelay: (i * 0.3) + "s" }}/>; })}
+{[1,2,3].map(function(i){ return <div key={i} className="saycrd-loading-indicator" style={{ height: 36, borderRadius: 8, background: "rgba(107,184,255,0.08)", animation: "pulse 2s ease-in-out infinite", animationDelay: (i * 0.3) + "s" }}/>; })}
 </div>
 </div>
 );
@@ -395,7 +395,7 @@ return (
 </div>
 {shafts.map(function(sh, si) {
 return (
-<div key={si} style={{ position: "absolute", top: 0, left: sh.x + "%", width: sh.w + "%", height: "60%", background: "linear-gradient(180deg, rgba(107,200,255," + sh.opacity + ") 0%, rgba(78,160,200," + Math.round(sh.opacity * 0.4 * 100) / 100 + ") 40%, transparent 100%)", transform: "skewX(-8deg)", transformOrigin: "top center", animation: "shaftPulse " + sh.dur + "s ease-in-out " + sh.delay + "s infinite", pointerEvents: "none" }}/>
+<div key={si} className="saycrd-loading-indicator" style={{ position: "absolute", top: 0, left: sh.x + "%", width: sh.w + "%", height: "60%", background: "linear-gradient(180deg, rgba(107,200,255," + sh.opacity + ") 0%, rgba(78,160,200," + Math.round(sh.opacity * 0.4 * 100) / 100 + ") 40%, transparent 100%)", transform: "skewX(-8deg)", transformOrigin: "top center", animation: "shaftPulse " + sh.dur + "s ease-in-out " + sh.delay + "s infinite", pointerEvents: "none" }}/>
 );
 })}
 <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible", pointerEvents: "none" }}>
@@ -437,7 +437,7 @@ return (
 <div key={i} style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
 <div style={{ width: isMobile ? 58 : 72, minWidth: isMobile ? 58 : 72, fontSize: isMobile ? 9 : 10, color: "rgba(255,255,255,0.5)", fontFamily: FB, letterSpacing: "0.12em", flexShrink: 0 }}>{labels[i] || labels[0]}</div>
 <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
-<div style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", WebkitTransformOrigin: "left center", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite", WebkitAnimation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
+<div className="saycrd-loading-indicator" style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", WebkitTransformOrigin: "left center", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite", WebkitAnimation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
 </div>
 </div>
 );
@@ -5984,7 +5984,7 @@ background:"linear-gradient(0deg, #03010F 0%, rgba(5,7,18,0.6) 60%, transparent 
 
 {_dShafts.map(function(sh, si) {
 return (
-<div key={si} style={{
+<div key={si} className="saycrd-loading-indicator" style={{
 position:"absolute",
 top:0,
 left: sh.x + "%",
@@ -9740,7 +9740,7 @@ width:500, height:320,
 background:"radial-gradient(ellipse at 50% 100%, rgba(30,80,160,0.18) 0%, rgba(20,50,120,0.08) 45%, transparent 70%)",
 pointerEvents:"none" }} />
 {bsAlive && [0,1,2].map(function(_,i) {
-return <div key={i} style={{ position:"absolute", left: (20+i*30)+"%", top:0, bottom:0, width:1,
+return <div key={i} className="saycrd-loading-indicator" style={{ position:"absolute", left: (20+i*30)+"%", top:0, bottom:0, width:1,
 background:"linear-gradient(180deg,transparent,rgba(80,140,255,0.06),transparent)",
 animation:"sweep "+(4+i*1.5)+"s ease-in-out infinite", animationDelay:i*0.8+"s", pointerEvents:"none" }} />;
 })}
@@ -10536,6 +10536,9 @@ alignItems:"center", padding:"calc(20px + env(safe-area-inset-top, 0px)) 7vw 20p
 background:"rgba(10,9,20,0.8)", backdropFilter:"blur(20px)",
 borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
+<div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
+background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
+WebkitTextFillColor:"transparent", flexShrink:0 }}>SAYCRD</div>
 {authUser ? (
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
@@ -10545,15 +10548,12 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 Log in / Sign up
 </button>
 )}
-<div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
-background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
-WebkitTextFillColor:"transparent" }}>SAYCRD</div>
 </div>
 <button onClick={guardedStart} style={{ padding:"10px 26px", borderRadius:999,
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
 fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"pointer" }}>
-{authUser ? (returning ? "new session" : "start a session") : (returning ? "continue" : "begin")}
+{authUser ? (returning ? "new session" : "start a session") : "begin"}
 </button>
 </nav>
 
@@ -11289,8 +11289,9 @@ button:active{transform:scale(0.97)}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
 @media (prefers-reduced-motion: reduce){
-*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+*:not(.saycrd-loading-indicator){animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
 }
+.saycrd-loading-indicator{will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:translateZ(0);-webkit-transform:translateZ(0);animation-play-state:running!important;-webkit-animation-play-state:running!important}
 @media (max-width:640px){
 .saycrd-landing-grid{grid-template-columns:repeat(2,1fr)!important}
 }
