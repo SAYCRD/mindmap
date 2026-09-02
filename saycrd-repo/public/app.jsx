@@ -6293,7 +6293,7 @@ fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break
 );
 }
 
-function MirrorCard({ themes, sd, sessionCount, rawText, allSessions, portrait, portraitReady, goNext, setSlider, sliderValues }) {
+function MirrorCard({ themes, sd, sessionCount, rawText, allSessions, portrait, portraitReady, goNext, setSlider, sliderValues, onReadyChange }) {
 themes = themes || [];
 allSessions = allSessions || [];
 var isMobile = React.useContext(FieldMobileContext);
@@ -6307,6 +6307,7 @@ var _currColor = themes[0] ? themes[0].color : "#E8B87C";
 
 var [_mirrorData, _setMirrorData] = useState(null);
 var [_ready, _setReady] = useState(false);
+useEffect(function() { onReadyChange && onReadyChange(_ready); }, [_ready]);
 
 useEffect(function() {
 if (_isFirst) { _setReady(true); return; }
@@ -9137,6 +9138,7 @@ useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480);
 
 var [portrait, setPortrait] = useState(null);
 var [portraitReady, setPortraitReady] = useState(false);
+var [mirrorReady, setMirrorReady] = useState(false);
 
 useEffect(function() {
 var cancelled = false;
@@ -9284,6 +9286,17 @@ return c;
 
 var card = CARDS[current];
 
+// Cards below still show a loading skeleton while they wait on their own
+// async content (portrait-dependent cards share portraitReady; the_mirror
+// generates its own AI reflection and reports back via onReadyChange).
+// Without this gate, ANY tap on the card body — even one meant to check
+// if the screen is responsive during a long AI wait — silently calls
+// advance() and skips to the next card with no feedback, and repeated
+// impatient taps can cascade all the way to the last card before its
+// own content has loaded ("stuck, then it just jumped to the end").
+var LOADING_GATED_TYPES = { field_condition: 1, arch_billboard: 1, depths_field: 1, whats_growing: 1, the_mirror: 1 };
+var cardStillLoading = card && LOADING_GATED_TYPES[card.type] && (card.type === "the_mirror" ? !mirrorReady : !portraitReady);
+
 var advance = function() {
 if (card && card.interactive && !clicked) { setClicked(true); return; }
 if (current < CARDS.length - 1) { setCurrent(function(c) { return c + 1; }); setClicked(false); }
@@ -9291,6 +9304,7 @@ if (current < CARDS.length - 1) { setCurrent(function(c) { return c + 1; }); set
 var goBack = function() { if (current > 0) { setCurrent(function(c) { return c - 1; }); setClicked(false); } };
 var handleClick = function(e) {
 if (e.target.closest && (e.target.closest("button") || e.target.closest("[data-noadvance]") || e.target.tagName === "circle" || e.target.tagName === "svg")) return;
+if (cardStillLoading) return;
 var rect = containerRef.current ? containerRef.current.getBoundingClientRect() : null;
 if (!rect) return;
 var x = (e.clientX || (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : 0)) - rect.left;
@@ -9324,7 +9338,7 @@ return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} por
 }
 
 case "the_mirror": {
-return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} allSessions={allSessions} portrait={portrait} portraitReady={portraitReady} goNext={advance} setSlider={setSlider} sliderValues={sliderValues}/>;
+return <MirrorCard themes={themes} sd={sd} sessionCount={sessionCount} rawText={rawText} allSessions={allSessions} portrait={portrait} portraitReady={portraitReady} goNext={advance} setSlider={setSlider} sliderValues={sliderValues} onReadyChange={setMirrorReady}/>;
 }
 case "the_realm": {
 return <RealmCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
@@ -10248,7 +10262,7 @@ return <div style={{position:"absolute",inset:0,background:"#060910",display:"fl
 
 return (
 <FieldMobileContext.Provider value={isMobile}>
-<div ref={containerRef} onClick={handleClick} style={{ width: "100%", height: "100%", background: card.bg, position: "absolute", inset: 0, cursor: "pointer", userSelect: "none", transition: "background 0.7s ease" }}>
+<div ref={containerRef} onClick={handleClick} style={{ width: "100%", height: "100%", background: card.bg, position: "absolute", inset: 0, cursor: cardStillLoading ? "wait" : "pointer", userSelect: "none", transition: "background 0.7s ease" }}>
 <div style={{ display:"flex", flexDirection:"column", gap:0, padding:"calc(14px + env(safe-area-inset-top, 0px)) 16px 0", position:"absolute", top:0, left:0, right:0, zIndex:10 }}>
 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
 <div style={{ flex:1, display:"flex", gap:3 }}>
