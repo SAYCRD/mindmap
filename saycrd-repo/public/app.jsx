@@ -10543,10 +10543,11 @@ borderRadius:"50%", background:"radial-gradient(circle, rgba(107,255,184,0.07), 
 filter:"blur(80px)", animation:"floatWord 18s ease-in-out infinite", animationDelay:"-4s" }} />
 </div>
 
-<nav style={{ position:"sticky", top:0, zIndex:20, display:"flex", justifyContent:"space-between",
-alignItems:"center", padding:"calc(20px + env(safe-area-inset-top, 0px)) 7vw 20px",
+<nav style={{ position:"sticky", top:0, zIndex:20, display:"flex", justifyContent:"center",
+padding:"calc(20px + env(safe-area-inset-top, 0px)) 0 20px",
 background:"rgba(10,9,20,0.8)", backdropFilter:"blur(20px)",
 borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", maxWidth:1400, margin:"0 auto", padding:"0 7vw" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
@@ -10567,9 +10568,10 @@ border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
 fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"pointer" }}>
 {authUser ? (returning ? "new session" : "start a session") : "begin"}
 </button>
+</div>
 </nav>
 
-<div style={{ position:"relative", zIndex:1, maxWidth:1100, padding:"0 7vw calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+<div style={{ position:"relative", zIndex:1, maxWidth:1400, margin:"0 auto", padding:"0 7vw calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 
 <section style={{ padding:"72px 0 56px" }}>
 <div style={{ fontSize:13, letterSpacing:"0.4em", fontFamily:FB, textTransform:"uppercase",
