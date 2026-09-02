@@ -2643,26 +2643,38 @@ onMouseDown={startEnergyHold} onMouseUp={endEnergyHold} onMouseLeave={endEnergyH
 onTouchStart={startEnergyHold} onTouchEnd={endEnergyHold}
 style={{ borderRadius: 22, padding: "40px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", textAlign: "center", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", position: "relative", overflow: "hidden", touchAction: "none" }}
 >
-<div style={{ position:"absolute", bottom:0, left:0, width:(ans ? 100 : holdProg * 100)+"%", height:4, background:c.color, transition:energyHolding?"none":"width 0.3s ease", opacity:0.7, borderRadius:"0 0 22px 22px" }} />
-<div style={{ display:"flex", gap:12, justifyContent:"center", marginBottom:20 }}>
-{[1,2,3,4,5].map(function(dot) {
-var lit = ans ? (answers[ci] || 0) >= dot : holdProg * 5 >= dot;
-var dotSz = isMobile ? 28 : 18;
-return <div key={dot}
-onClick={function(e){ if(!ans){ e.stopPropagation(); record(dot); } }}
-style={{ width: dotSz, height: dotSz, minWidth: dotSz, minHeight: dotSz, borderRadius:"50%",
-background: lit ? c.color : "rgba(255,255,255,0.08)",
-boxShadow: lit ? "0 0 12px "+c.color+"88" : "none",
-border:"1px solid "+(lit ? c.color+"88" : "rgba(255,255,255,0.12)"),
-cursor: ans ? "default" : "pointer",
-transition:"all 0.2s", touchAction: "manipulation" }} />;
-})}
-</div>
-<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 20 }}>{c.phrase}</div>
-{ans && <div style={{ fontSize: 11, color: c.color + "88", fontFamily: FB, letterSpacing: "0.12em", animation: "riseUp 0.3s ease" }}>
-{"●".repeat(answers[ci])}{"○".repeat(5 - answers[ci])} marked
-</div>}
-</div>}
+			<div style={{ position:"absolute", bottom:0, left:0, width:(ans ? 100 : holdProg * 100)+"%", height:4, background:c.color, transition:energyHolding?"none":"width 0.3s ease", opacity:0.7, borderRadius:"0 0 22px 22px" }} />
+			{!ans && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.32)", fontFamily: FB, letterSpacing: "0.08em", marginBottom: 14 }}>
+			how much does this land?
+			</div>}
+			{(function(){
+			var dotSz = isMobile ? 28 : 18;
+			var rowW = dotSz * 5 + 12 * 4;
+			return <div style={{ width: rowW, margin: "0 auto" }}>
+			<div style={{ display:"flex", gap:12, justifyContent:"center" }}>
+			{[1,2,3,4,5].map(function(dot) {
+			var lit = ans ? (answers[ci] || 0) >= dot : holdProg * 5 >= dot;
+			return <div key={dot}
+			onClick={function(e){ if(!ans){ e.stopPropagation(); record(dot); } }}
+			style={{ width: dotSz, height: dotSz, minWidth: dotSz, minHeight: dotSz, borderRadius:"50%",
+			background: lit ? c.color : "rgba(255,255,255,0.08)",
+			boxShadow: lit ? "0 0 12px "+c.color+"88" : "none",
+			border:"1px solid "+(lit ? c.color+"88" : "rgba(255,255,255,0.12)"),
+			cursor: ans ? "default" : "pointer",
+			transition:"all 0.2s", touchAction: "manipulation" }} />;
+			})}
+			</div>
+			<div style={{ display:"flex", justifyContent:"space-between", marginTop: 8, marginBottom: 20 }}>
+			<span style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", fontFamily: FB, letterSpacing: "0.06em" }}>not really</span>
+			<span style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", fontFamily: FB, letterSpacing: "0.06em" }}>fully</span>
+			</div>
+			</div>;
+			})()}
+			<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 20 }}>{c.phrase}</div>
+			{ans && <div style={{ fontSize: 11, color: c.color + "88", fontFamily: FB, letterSpacing: "0.12em", animation: "riseUp 0.3s ease" }}>
+			{"●".repeat(answers[ci])}{"○".repeat(5 - answers[ci])} marked
+			</div>}
+			</div>}
 
 {c.type === "binary" && <div
 onTouchStart={!ans ? onTouchStart : undefined}
