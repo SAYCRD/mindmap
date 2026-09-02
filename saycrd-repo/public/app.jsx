@@ -1574,41 +1574,12 @@ color: c.color || NC[0]
 return [];
 }, [sd]);
 
-if (needsSynthesis) {
-if (synth.status === "crisis") {
-return (
-<>
-<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", animation: "riseUp 0.25s ease both" }}>
-<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "linear-gradient(180deg, #0d0d1a 0%, #15152a 100%)", borderRadius: 24, padding: "32px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06) inset", border: "1px solid rgba(107,184,255,0.2)" }}>
-<div style={{ fontSize: 11, letterSpacing: "0.35em", color: "rgba(255,255,255,0.5)", fontFamily: FB, marginBottom: 16, textTransform: "uppercase" }}>We noticed something</div>
-<div style={{ fontSize: 17, fontFamily: FD, color: "rgba(255,255,255,0.95)", lineHeight: 1.5, marginBottom: 24 }}>We noticed some language that might suggest you're going through something difficult. If you're struggling, these resources are here for you:</div>
-<div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
-{CRISIS_RESOURCES.map(function(r) {
-return (
-<a key={r.name} href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "14px 18px", background: "rgba(107,184,255,0.12)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.3)", color: "#6BB8FF", fontFamily: FB, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}>
-<div style={{ marginBottom: 2 }}>{r.name}</div>
-<div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{r.line}</div>
-</a>
-);
-})}
-</div>
-<div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FB, lineHeight: 1.5, marginBottom: 24 }}>If you're okay and want to continue, you can proceed.</div>
-<button onClick={synth.clearCrisis} style={{ width: "100%", padding: "14px 24px", borderRadius: 20, border: "none", background: "linear-gradient(135deg, rgba(107,184,255,0.35), rgba(107,184,255,0.2))", color: "#fff", fontFamily: FB, fontSize: 14, fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.2)" }}>Continue</button>
-</div>
-</div>
-</>
-);
-}
-if (synth.status === "error") {
-return (
-<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px" }}>
-<div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,107,107,0.8)", margin: "0 auto 28px" }}/>
-<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(255,107,107,0.9)", lineHeight: 1.4 }}>Error: {(synth.error && synth.error.length > 90 ? synth.error.slice(0,90)+"\u2026" : synth.error)}</div>
-<button onClick={function(){ window.location.reload(); }} style={{ marginTop: 20, padding: "10px 24px", borderRadius: 999, border: "1px solid rgba(255,107,107,0.4)", background: "transparent", color: "rgba(255,107,107,0.7)", fontFamily: FB, fontSize: 13, cursor: "pointer" }}>go back and retry</button>
-</div>
-);
-}
-}
+// NOTE: crisis/error states are NOT handled via an early `return` here on purpose.
+// This component still has many hooks (useMemo/useState/useRef/useEffect/useLayoutEffect)
+// declared below. An early return here would make React call a different number of
+// hooks between a normal render and an error/crisis render, which throws
+// "Rendered fewer hooks than expected" and crashes the whole tree. The actual
+// crisis/error rendering happens at the very end, after every hook has run.
 
 function extractSnippet(txt, label) {
 try {
@@ -2031,6 +2002,43 @@ window.addEventListener("pointermove", m);
 window.addEventListener("pointerup", u);
 return () => { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
 }, [dragging, selectedNode]);
+
+// All hooks above have now run unconditionally on every render — safe to branch here.
+if (needsSynthesis) {
+if (synth.status === "crisis") {
+return (
+<>
+<div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", animation: "riseUp 0.25s ease both" }}>
+<div onClick={function(e){ e.stopPropagation(); }} style={{ position: "relative", zIndex: 100000, background: "linear-gradient(180deg, #0d0d1a 0%, #15152a 100%)", borderRadius: 24, padding: "32px 28px", maxWidth: 360, boxShadow: "0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06) inset", border: "1px solid rgba(107,184,255,0.2)" }}>
+<div style={{ fontSize: 11, letterSpacing: "0.35em", color: "rgba(255,255,255,0.5)", fontFamily: FB, marginBottom: 16, textTransform: "uppercase" }}>We noticed something</div>
+<div style={{ fontSize: 17, fontFamily: FD, color: "rgba(255,255,255,0.95)", lineHeight: 1.5, marginBottom: 24 }}>We noticed some language that might suggest you're going through something difficult. If you're struggling, these resources are here for you:</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
+{CRISIS_RESOURCES.map(function(r) {
+return (
+<a key={r.name} href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: "block", padding: "14px 18px", background: "rgba(107,184,255,0.12)", borderRadius: 16, border: "1px solid rgba(107,184,255,0.3)", color: "#6BB8FF", fontFamily: FB, fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}>
+<div style={{ marginBottom: 2 }}>{r.name}</div>
+<div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{r.line}</div>
+</a>
+);
+})}
+</div>
+<div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FB, lineHeight: 1.5, marginBottom: 24 }}>If you're okay and want to continue, you can proceed.</div>
+<button onClick={synth.clearCrisis} style={{ width: "100%", padding: "14px 24px", borderRadius: 20, border: "none", background: "linear-gradient(135deg, rgba(107,184,255,0.35), rgba(107,184,255,0.2))", color: "#fff", fontFamily: FB, fontSize: 14, fontWeight: 600, cursor: "pointer", letterSpacing: "0.04em", boxShadow: "0 4px 20px rgba(107,184,255,0.2)" }}>Continue</button>
+</div>
+</div>
+</>
+);
+}
+if (synth.status === "error") {
+return (
+<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 32px" }}>
+<div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,107,107,0.8)", margin: "0 auto 28px" }}/>
+<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(255,107,107,0.9)", lineHeight: 1.4 }}>Error: {(synth.error && synth.error.length > 90 ? synth.error.slice(0,90)+"…" : synth.error)}</div>
+<button onClick={function(){ window.location.reload(); }} style={{ marginTop: 20, padding: "10px 24px", borderRadius: 999, border: "1px solid rgba(255,107,107,0.4)", background: "transparent", color: "rgba(255,107,107,0.7)", fontFamily: FB, fontSize: 13, cursor: "pointer" }}>go back and retry</button>
+</div>
+);
+}
+}
 
 var _bottomPad = isMobile ? "calc(80px + env(safe-area-inset-bottom, 0px))" : "calc(70px + env(safe-area-inset-bottom, 0px))";
 return (
