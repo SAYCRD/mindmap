@@ -422,7 +422,7 @@ return (
 }
 
 function LoadingWaveBox(props) {
-var title = props.title, labels = props.labels;
+var title = props.title, labels = props.labels, isDesktopWide = !!props.isDesktopWide;
 if (!labels) labels = ["sessions","patterns","themes","threads","weaving"];
 var palette = ["#D6B26D","#B86BFF","#6BB8FF","#E84393","#4EC9B8"];
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
@@ -430,14 +430,14 @@ var bars = useMemo(function() {
 return palette.map(function(c, i) { return { color: c, dur: 2.4 + i * 0.35, delay: -i * 0.5 }; });
 }, []);
 return (
-<div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 12, padding: isMobile ? "14px 12px" : "16px 12px", background: "rgba(0,0,0,0.2)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ fontSize: 9, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: 4 }}>{title}</div>
+<div style={{ display: "flex", flexDirection: "column", gap: isDesktopWide ? 16 : isMobile ? 10 : 12, padding: isDesktopWide ? "26px 24px" : isMobile ? "14px 12px" : "16px 12px", background: "rgba(0,0,0,0.2)", borderRadius: isDesktopWide ? 18 : 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+<div style={{ fontSize: isDesktopWide ? 13 : 9, letterSpacing: "0.3em", color: "rgba(255,255,255,0.35)", fontFamily: FB, marginBottom: isDesktopWide ? 8 : 4 }}>{title}</div>
 {bars.map(function(b, i) {
 return (
-<div key={i} style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12 }}>
-<div style={{ width: isMobile ? 58 : 72, minWidth: isMobile ? 58 : 72, fontSize: isMobile ? 9 : 10, color: "rgba(255,255,255,0.5)", fontFamily: FB, letterSpacing: "0.12em", flexShrink: 0 }}>{labels[i] || labels[0]}</div>
-<div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
-<div className="saycrd-loading-indicator" style={{ height: "100%", width: "100%", borderRadius: 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", WebkitTransformOrigin: "left center", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite", WebkitAnimation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
+<div key={i} style={{ display: "flex", alignItems: "center", gap: isDesktopWide ? 16 : isMobile ? 8 : 12 }}>
+<div style={{ width: isDesktopWide ? 96 : isMobile ? 58 : 72, minWidth: isDesktopWide ? 96 : isMobile ? 58 : 72, fontSize: isDesktopWide ? 13 : isMobile ? 9 : 10, color: "rgba(255,255,255,0.5)", fontFamily: FB, letterSpacing: "0.12em", flexShrink: 0 }}>{labels[i] || labels[0]}</div>
+<div style={{ flex: 1, minWidth: 0, height: isDesktopWide ? 11 : 8, borderRadius: isDesktopWide ? 6 : 4, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+<div className="saycrd-loading-indicator" style={{ height: "100%", width: "100%", borderRadius: isDesktopWide ? 6 : 4, background: "linear-gradient(90deg, " + palette[i] + "99, " + palette[i] + ")", transformOrigin: "left center", WebkitTransformOrigin: "left center", animation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite", WebkitAnimation: "reportStreamBar " + b.dur + "s ease-in-out " + b.delay + "s infinite" }}/>
 </div>
 </div>
 );
@@ -1505,21 +1505,23 @@ var MAP_LOADING_PHRASES = ["weaving your themes together", "finding what connect
 
 function MapLoadingOverlay() {
 var [idx, setIdx] = useState(0);
+var [isDesktopWide, setIsDesktopWide] = useState(typeof window !== "undefined" && window.innerWidth >= 1024);
 useEffect(function() {
 var t = setInterval(function() { setIdx(function(i) { return (i + 1) % MAP_LOADING_PHRASES.length; }); }, 2200);
 return function() { clearInterval(t); };
 }, []);
+useEffect(function(){ function onResize(){ setIsDesktopWide(window.innerWidth >= 1024); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 var phrase = MAP_LOADING_PHRASES[idx];
 return (
 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", background: "transparent", zIndex: 10 }}>
-<div style={{ flexShrink: 0, padding: "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
-<div style={{ fontSize: 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR MAP</div>
-<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
-<div style={{ fontSize: 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: 12 }}>Click connections to uncover relationships</div>
+<div style={{ flexShrink: 0, padding: isDesktopWide ? "56px 20px 0" : "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
+<div style={{ fontSize: isDesktopWide ? 26 : 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: isDesktopWide ? 16 : 8 }}>YOUR MAP</div>
+<div style={{ fontSize: isDesktopWide ? 34 : 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: isDesktopWide ? 52 : 32, maxWidth: isDesktopWide ? 720 : undefined }}>{phrase}</div>
+<div style={{ fontSize: isDesktopWide ? 16 : 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: isDesktopWide ? 18 : 12 }}>Click connections to uncover relationships</div>
 </div>
 <div style={{ flex: 1, minHeight: 0 }} />
-<div style={{ flexShrink: 0, padding: "0 20px calc(10% + env(safe-area-inset-bottom, 0px)) 20px", width: "100%", maxWidth: 340, margin: "0 auto", boxSizing: "border-box" }}>
-<LoadingWaveBox title="Weaving your map" labels={["themes","connections","patterns","threads","emerging"]}/>
+<div style={{ flexShrink: 0, padding: isDesktopWide ? "0 20px calc(6% + env(safe-area-inset-bottom, 0px)) 20px" : "0 20px calc(10% + env(safe-area-inset-bottom, 0px)) 20px", width: "100%", maxWidth: isDesktopWide ? 480 : 340, margin: isDesktopWide ? "0 8% 0 auto" : "0 auto", boxSizing: "border-box" }}>
+<LoadingWaveBox title="Weaving your map" labels={["themes","connections","patterns","threads","emerging"]} isDesktopWide={isDesktopWide}/>
 </div>
 </div>
 );
@@ -1904,9 +1906,10 @@ const snapRef = useRef(null);
 const posRef = useRef(pos);
 posRef.current = pos;
 const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
+const [isDesktopWide, setIsDesktopWide] = useState(typeof window !== "undefined" && window.innerWidth >= 1024);
 const [pointerDownKey, setPointerDownKey] = useState(null);
 const pointerDownPos = useRef(null);
-useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
+useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); setIsDesktopWide(window.innerWidth >= 1024); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 useEffect(function(){
 if (!pointerDownKey) return;
 var m = function(e){
@@ -2050,9 +2053,9 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 <div ref={fieldRef} onClick={function(e){ if (!e.target.closest || (!e.target.closest("button") && !e.target.closest("[data-node]"))) { setActiveConn(null); setSelectedNode(null); } }} style={{ flex: 1, position: "relative", zIndex: 1, minHeight: 0, overflow: "hidden", boxShadow: "inset 0 2px 8px rgba(0,0,0,0.15), inset 0 0 80px rgba(0,0,0,0.08)" }}>
 {isLoading && <MapLoadingOverlay />}
 {!isLoading && nodes.length > 0 && (
-<div style={{ position: "absolute", top: 12, left: "8%", right: 16, zIndex: 2, pointerEvents: "none" }}>
-<div style={{ fontSize: 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR MAP</div>
-<div style={{ fontSize: 17, color: "rgba(200,235,255,0.85)", fontFamily: FD, fontStyle: "italic" }}>Click on connections to uncover relationships</div>
+<div style={{ position: "absolute", top: isDesktopWide ? 32 : 12, left: "8%", right: 16, zIndex: 2, pointerEvents: "none" }}>
+<div style={{ fontSize: isDesktopWide ? 24 : 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: isDesktopWide ? 12 : 8 }}>YOUR MAP</div>
+<div style={{ fontSize: isDesktopWide ? 22 : 17, color: "rgba(200,235,255,0.85)", fontFamily: FD, fontStyle: "italic" }}>Click on connections to uncover relationships</div>
 </div>
 )}
 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)", pointerEvents: "none", zIndex: 2 }}/>
@@ -2101,12 +2104,12 @@ if(!_lpa||!_lpb)return null;
 return (
 <div key={k} onClick={function(e){e.stopPropagation();setActiveConn(c);}} style={{
 position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
-padding: "6px 12px", borderRadius: 8, fontSize: 10, fontWeight: 700, fontFamily: FB,
+padding: isDesktopWide ? "8px 16px" : "6px 12px", borderRadius: isDesktopWide ? 10 : 8, fontSize: isDesktopWide ? 12 : 10, fontWeight: 700, fontFamily: FB,
 letterSpacing: "0.06em", textTransform: "uppercase",
 color: isAct?"white":isUserDefined?"#D6B264":isExp?accent:"#fff",
 background: isAct?accent+"66":isUserDefined?"rgba(50,40,15,0.95)":"rgba(12,14,28,0.92)",
 border:"1.5px solid "+(isAct?accent:isUserDefined?"rgba(214,178,100,0.6)":isExp?accent+"66":accent+"99"),
-cursor: "pointer", whiteSpace: "normal", maxWidth: 160, textAlign: "center", lineHeight: 1.25,
+cursor: "pointer", whiteSpace: "normal", maxWidth: isDesktopWide ? 200 : 160, textAlign: "center", lineHeight: 1.25,
 zIndex: isAct ? 15 : 5,
 transition: "all 0.3s ease",
 animation: !isExp ? "connBlink 2s ease-in-out infinite" : "none",
@@ -2141,14 +2144,15 @@ position: "absolute", left: p.x, top: p.y,
 borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center",
 fontSize: (function(){
 var l = String(n.display || n.key || "").trim().length;
-return l <= 10 ? 12 : l <= 14 ? 11 : l <= 18 ? 10 : 9;
+var base = l <= 10 ? 12 : l <= 14 ? 11 : l <= 18 ? 10 : 9;
+return isDesktopWide ? base + 3 : base;
 })(),
 fontWeight: 700, fontFamily: FB, color: "white",
 textAlign: "center", lineHeight: 1.2,
-padding: isMobile ? "14px 22px" : "10px 18px",
+padding: isDesktopWide ? "15px 26px" : isMobile ? "14px 22px" : "10px 18px",
 minWidth: isMobile ? 44 : undefined, minHeight: isMobile ? 44 : undefined,
 textTransform: "uppercase", letterSpacing: "0.06em",
-whiteSpace: "nowrap", maxWidth: 140,
+whiteSpace: "nowrap", maxWidth: isDesktopWide ? 200 : 140,
 background: isSnap
 ? "rgba(125,183,174,0.28)"
 : n.w > 0.7 ? `rgba(214,178,109,0.35)` : n.color + "25",
@@ -2936,8 +2940,9 @@ const [claritySaved, setClaritySaved] = useState(false);
 const [showNoticing, setShowNoticing] = useState(false);
 const scrollRef = useRef(null);
 const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 480);
+const [isDesktopWide, setIsDesktopWide] = useState(typeof window !== "undefined" && window.innerWidth >= 1024);
 const [showSwipeHint, setShowSwipeHint] = useState(function(){ try { return !localStorage.getItem("saycrd-" + getCurrentUid() + "-session-swipe-hint-seen"); } catch(e){ return true; } });
-useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
+useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); setIsDesktopWide(window.innerWidth >= 1024); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 
 
 const [reactions, setReactions] = useState({});
@@ -3056,36 +3061,36 @@ var descentCards = (sd.descent_cards && sd.descent_cards.length > 0) ? sd.descen
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
 <Particles color="rgba(214,178,109,0.15)" count={isMobile ? 4 : 8} />
-<div style={{ maxWidth: 380, margin: "0 auto", padding: (isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1, userSelect: "text", WebkitUserSelect: "text" }}>
+<div style={{ maxWidth: isDesktopWide ? 720 : 380, margin: "0 auto", padding: (isDesktopWide ? "88px" : isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1, userSelect: "text", WebkitUserSelect: "text" }}>
 
 <div style={{ marginBottom: archData ? 18 : 28, animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 16, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", fontFamily: FB, fontWeight: 700 }}>
+<div style={{ fontSize: isDesktopWide ? 19 : 16, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", fontFamily: FB, fontWeight: 700 }}>
 SESSION {sessionNum} · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" }).toUpperCase()}
 </div>
 </div>
 
-{archData && <div style={{ marginBottom: isMobile ? 24 : 36, animation: "riseUp 0.7s ease 0.05s both" }}>
-<div style={{ fontSize: 11, letterSpacing: "0.5em", color: "#E84393", fontFamily: FB, marginBottom: isMobile ? 8 : 12, textTransform: "uppercase", fontWeight: 700 }}>YOUR PATTERN</div>
-<div style={{ fontSize: isMobile ? 30 : 40, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: isMobile ? 8 : 10 }}>{archData.name}</div>
-{archData.line && <div style={{ fontSize: isMobile ? 17 : 19, color: "rgba(255,255,255,0.85)", fontFamily: FD, lineHeight: 1.6 }}>{archData.line}</div>}
+{archData && <div style={{ marginBottom: isMobile ? 24 : isDesktopWide ? 44 : 36, animation: "riseUp 0.7s ease 0.05s both" }}>
+<div style={{ fontSize: isDesktopWide ? 14 : 11, letterSpacing: "0.5em", color: "#E84393", fontFamily: FB, marginBottom: isMobile ? 8 : isDesktopWide ? 16 : 12, textTransform: "uppercase", fontWeight: 700 }}>YOUR PATTERN</div>
+<div style={{ fontSize: isMobile ? 30 : isDesktopWide ? 58 : 40, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: isMobile ? 8 : isDesktopWide ? 14 : 10 }}>{archData.name}</div>
+{archData.line && <div style={{ fontSize: isMobile ? 17 : isDesktopWide ? 24 : 19, color: "rgba(255,255,255,0.85)", fontFamily: FD, lineHeight: 1.6 }}>{archData.line}</div>}
 </div>}
 
-{THEMES.length > 0 && <div style={{ marginBottom: 32, animation: "riseUp 0.5s ease 0.08s both" }}>
-<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#E84393", marginBottom: 14, fontFamily: FB, textTransform: "uppercase", opacity: 0.9 }}>
+{THEMES.length > 0 && <div style={{ marginBottom: isDesktopWide ? 44 : 32, animation: "riseUp 0.5s ease 0.08s both" }}>
+<div style={{ fontSize: isDesktopWide ? 16 : 13, letterSpacing: "0.45em", fontWeight: 600, color: "#E84393", marginBottom: isDesktopWide ? 18 : 14, fontFamily: FB, textTransform: "uppercase", opacity: 0.9 }}>
 {THEMES.length} forces
 </div>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+<div style={{ display: "flex", flexWrap: "wrap", gap: isDesktopWide ? 12 : 9 }}>
 {THEMES.map(function(t, i) {
-var sz = Math.round(11 + t.weight * 10);
-var pad = t.weight > 0.7 ? "11px 22px" : "8px 16px";
+var sz = Math.round((isDesktopWide ? 14 : 11) + t.weight * (isDesktopWide ? 13 : 10));
+var pad = t.weight > 0.7 ? (isDesktopWide ? "14px 28px" : "11px 22px") : (isDesktopWide ? "11px 20px" : "8px 16px");
 return <div key={t.name} style={{ padding: pad, borderRadius: 24, background: t.color + "18", border: "1px solid " + t.color + "40", fontSize: sz, color: t.color, fontFamily: FB, fontWeight: 700, letterSpacing: "0.04em", animation: "riseUp 0.5s ease " + (i * 0.07) + "s both", lineHeight: 1 }}>{t.name}</div>;
 })}
 </div>
 </div>}
 
-{synthesis && <div style={{ marginBottom: 32, animation: "riseUp 0.6s ease 0.12s both" }}>
-<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#D6B26D", fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>the reading</div>
+{synthesis && <div style={{ marginBottom: isDesktopWide ? 44 : 32, animation: "riseUp 0.6s ease 0.12s both" }}>
+<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isDesktopWide ? 18 : 14 }}>
+<div style={{ fontSize: isDesktopWide ? 16 : 13, letterSpacing: "0.45em", fontWeight: 600, color: "#D6B26D", fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>the reading</div>
 {isRevising && <div style={{ fontSize:14, color:"rgba(214,178,109,0.6)", fontFamily:FB, letterSpacing:"0.14em", animation:"pulse 1.5s ease infinite" }}>recomputing...</div>}
 {!isRevising && signalStatus === "new_connection" && <div style={{ fontSize:14, color:"rgba(107,184,255,0.65)", fontFamily:FB, letterSpacing:"0.12em" }}>new connection found ↓</div>}
 {!isRevising && signals.resisted_count > 0 && signalStatus !== "new_connection" && <div style={{ fontSize:14, color:"rgba(255,255,255,0.25)", fontFamily:FB, letterSpacing:"0.1em" }}>incorporated</div>}
@@ -3095,16 +3100,16 @@ return <div key={t.name} style={{ padding: pad, borderRadius: 24, background: t.
 
 {revisedSynthesis
 ? <div style={{ animation: "riseUp 0.6s ease" }}>
-<p style={{ fontSize: 20, color: "rgba(255,255,255,0.9)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
+<p style={{ fontSize: isDesktopWide ? 26 : 20, color: "rgba(255,255,255,0.9)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
 <HighlightableReading text={revisedSynthesis.synthesis} feedbackMap={sentenceFeedback} onFeedback={handleSentenceFeedback} dark />
 </p>
-{revisedSynthesis.new_connection && <div style={{ marginTop:16, padding:"12px 16px", borderRadius:10,
+{revisedSynthesis.new_connection && <div style={{ marginTop:16, padding: isDesktopWide ? "16px 20px" : "12px 16px", borderRadius:10,
 background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", animation:"riseUp 0.5s ease both" }}>
-<div style={{ fontSize:14, color:"rgba(107,184,255,0.6)", fontFamily:FB, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:6 }}>new connection</div>
-<div style={{ fontSize:16, color:"rgba(107,184,255,0.85)", fontFamily:FD, lineHeight:1.6 }}>{revisedSynthesis.new_connection}</div>
+<div style={{ fontSize: isDesktopWide ? 16 : 14, color:"rgba(107,184,255,0.6)", fontFamily:FB, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:6 }}>new connection</div>
+<div style={{ fontSize: isDesktopWide ? 19 : 16, color:"rgba(107,184,255,0.85)", fontFamily:FD, lineHeight:1.6 }}>{revisedSynthesis.new_connection}</div>
 </div>}
 </div>
-: <p style={{ fontSize: 20, color: "rgba(255,255,255,0.88)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
+: <p style={{ fontSize: isDesktopWide ? 26 : 20, color: "rgba(255,255,255,0.88)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
 <HighlightableReading text={synthesis} feedbackMap={sentenceFeedback} onFeedback={handleSentenceFeedback} dark />
 </p>
 }
@@ -11000,21 +11005,23 @@ var SESSION_LOADING_PHRASES = ["weaving your feedback into the reading", "your s
 
 function SessionLoadingOverlay() {
 var [idx, setIdx] = useState(0);
+var [isDesktopWide, setIsDesktopWide] = useState(typeof window !== "undefined" && window.innerWidth >= 1024);
 useEffect(function() {
 var t = setInterval(function() { setIdx(function(i) { return (i + 1) % SESSION_LOADING_PHRASES.length; }); }, 2200);
 return function() { clearInterval(t); };
 }, []);
+useEffect(function(){ function onResize(){ setIsDesktopWide(window.innerWidth >= 1024); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 var phrase = SESSION_LOADING_PHRASES[idx];
 return (
 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", background: "transparent", zIndex: 10 }}>
-<div style={{ flexShrink: 0, padding: "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
-<div style={{ fontSize: 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 8 }}>YOUR SESSION</div>
-<div style={{ fontSize: 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: 32 }}>{phrase}</div>
-<div style={{ fontSize: 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: 12 }}>Your reading will appear in a moment</div>
+<div style={{ flexShrink: 0, padding: isDesktopWide ? "56px 20px 0" : "24px 20px 0", paddingLeft: "8%", width: "100%", boxSizing: "border-box" }}>
+<div style={{ fontSize: isDesktopWide ? 26 : 17, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: isDesktopWide ? 16 : 8 }}>YOUR SESSION</div>
+<div style={{ fontSize: isDesktopWide ? 34 : 18, fontFamily: FD, fontStyle: "italic", color: "rgba(200,235,255,0.95)", lineHeight: 1.5, transition: "opacity 0.5s ease", minHeight: isDesktopWide ? 52 : 32, maxWidth: isDesktopWide ? 720 : undefined }}>{phrase}</div>
+<div style={{ fontSize: isDesktopWide ? 16 : 13, color: "rgba(150,200,255,0.5)", fontFamily: FB, letterSpacing: "0.08em", marginTop: isDesktopWide ? 18 : 12 }}>Your reading will appear in a moment</div>
 </div>
 <div style={{ flex: 1, minHeight: 0 }} />
-<div style={{ flexShrink: 0, padding: "0 20px calc(10% + env(safe-area-inset-bottom, 0px)) 20px", width: "100%", maxWidth: 340, margin: "0 auto", boxSizing: "border-box" }}>
-<LoadingWaveBox title="Weaving your reading" labels={["feedback","patterns","threads","reading","mirror"]}/>
+<div style={{ flexShrink: 0, padding: isDesktopWide ? "0 20px calc(6% + env(safe-area-inset-bottom, 0px)) 20px" : "0 20px calc(10% + env(safe-area-inset-bottom, 0px)) 20px", width: "100%", maxWidth: isDesktopWide ? 480 : 340, margin: isDesktopWide ? "0 8% 0 auto" : "0 auto", boxSizing: "border-box" }}>
+<LoadingWaveBox title="Weaving your reading" labels={["feedback","patterns","threads","reading","mirror"]} isDesktopWide={isDesktopWide}/>
 </div>
 </div>
 );
