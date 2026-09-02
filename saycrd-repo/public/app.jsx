@@ -3061,36 +3061,36 @@ var descentCards = (sd.descent_cards && sd.descent_cards.length > 0) ? sd.descen
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
 <Particles color="rgba(214,178,109,0.15)" count={isMobile ? 4 : 8} />
-<div style={{ maxWidth: 380, margin: "0 auto", padding: (isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1, userSelect: "text", WebkitUserSelect: "text" }}>
+<div style={{ maxWidth: isDesktopWide ? 720 : 380, margin: "0 auto", padding: (isDesktopWide ? "88px" : isMobile ? "40px" : "60px") + " 20px calc(40px + env(safe-area-inset-bottom, 0px))", position: "relative", zIndex: 1, userSelect: "text", WebkitUserSelect: "text" }}>
 
 <div style={{ marginBottom: archData ? 18 : 28, animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 16, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", fontFamily: FB, fontWeight: 700 }}>
+<div style={{ fontSize: isDesktopWide ? 19 : 16, letterSpacing: "0.25em", textTransform: "uppercase", color: "rgba(255,255,255,0.75)", fontFamily: FB, fontWeight: 700 }}>
 SESSION {sessionNum} · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" }).toUpperCase()}
 </div>
 </div>
 
-{archData && <div style={{ marginBottom: isMobile ? 24 : 36, animation: "riseUp 0.7s ease 0.05s both" }}>
-<div style={{ fontSize: 11, letterSpacing: "0.5em", color: "#E84393", fontFamily: FB, marginBottom: isMobile ? 8 : 12, textTransform: "uppercase", fontWeight: 700 }}>YOUR PATTERN</div>
-<div style={{ fontSize: isMobile ? 30 : 40, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: isMobile ? 8 : 10 }}>{archData.name}</div>
-{archData.line && <div style={{ fontSize: isMobile ? 17 : 19, color: "rgba(255,255,255,0.85)", fontFamily: FD, lineHeight: 1.6 }}>{archData.line}</div>}
+{archData && <div style={{ marginBottom: isMobile ? 24 : isDesktopWide ? 44 : 36, animation: "riseUp 0.7s ease 0.05s both" }}>
+<div style={{ fontSize: isDesktopWide ? 14 : 11, letterSpacing: "0.5em", color: "#E84393", fontFamily: FB, marginBottom: isMobile ? 8 : isDesktopWide ? 16 : 12, textTransform: "uppercase", fontWeight: 700 }}>YOUR PATTERN</div>
+<div style={{ fontSize: isMobile ? 30 : isDesktopWide ? 58 : 40, color: "white", fontFamily: FB, fontWeight: 900, letterSpacing: "0.01em", lineHeight: 1.1, marginBottom: isMobile ? 8 : isDesktopWide ? 14 : 10 }}>{archData.name}</div>
+{archData.line && <div style={{ fontSize: isMobile ? 17 : isDesktopWide ? 24 : 19, color: "rgba(255,255,255,0.85)", fontFamily: FD, lineHeight: 1.6 }}>{archData.line}</div>}
 </div>}
 
-{THEMES.length > 0 && <div style={{ marginBottom: 32, animation: "riseUp 0.5s ease 0.08s both" }}>
-<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#E84393", marginBottom: 14, fontFamily: FB, textTransform: "uppercase", opacity: 0.9 }}>
+{THEMES.length > 0 && <div style={{ marginBottom: isDesktopWide ? 44 : 32, animation: "riseUp 0.5s ease 0.08s both" }}>
+<div style={{ fontSize: isDesktopWide ? 16 : 13, letterSpacing: "0.45em", fontWeight: 600, color: "#E84393", marginBottom: isDesktopWide ? 18 : 14, fontFamily: FB, textTransform: "uppercase", opacity: 0.9 }}>
 {THEMES.length} forces
 </div>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+<div style={{ display: "flex", flexWrap: "wrap", gap: isDesktopWide ? 12 : 9 }}>
 {THEMES.map(function(t, i) {
-var sz = Math.round(11 + t.weight * 10);
-var pad = t.weight > 0.7 ? "11px 22px" : "8px 16px";
+var sz = Math.round((isDesktopWide ? 14 : 11) + t.weight * (isDesktopWide ? 13 : 10));
+var pad = t.weight > 0.7 ? (isDesktopWide ? "14px 28px" : "11px 22px") : (isDesktopWide ? "11px 20px" : "8px 16px");
 return <div key={t.name} style={{ padding: pad, borderRadius: 24, background: t.color + "18", border: "1px solid " + t.color + "40", fontSize: sz, color: t.color, fontFamily: FB, fontWeight: 700, letterSpacing: "0.04em", animation: "riseUp 0.5s ease " + (i * 0.07) + "s both", lineHeight: 1 }}>{t.name}</div>;
 })}
 </div>
 </div>}
 
-{synthesis && <div style={{ marginBottom: 32, animation: "riseUp 0.6s ease 0.12s both" }}>
-<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-<div style={{ fontSize: 13, letterSpacing: "0.45em", fontWeight: 600, color: "#D6B26D", fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>the reading</div>
+{synthesis && <div style={{ marginBottom: isDesktopWide ? 44 : 32, animation: "riseUp 0.6s ease 0.12s both" }}>
+<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isDesktopWide ? 18 : 14 }}>
+<div style={{ fontSize: isDesktopWide ? 16 : 13, letterSpacing: "0.45em", fontWeight: 600, color: "#D6B26D", fontFamily: FB, opacity: 0.9, textTransform: "uppercase" }}>the reading</div>
 {isRevising && <div style={{ fontSize:14, color:"rgba(214,178,109,0.6)", fontFamily:FB, letterSpacing:"0.14em", animation:"pulse 1.5s ease infinite" }}>recomputing...</div>}
 {!isRevising && signalStatus === "new_connection" && <div style={{ fontSize:14, color:"rgba(107,184,255,0.65)", fontFamily:FB, letterSpacing:"0.12em" }}>new connection found ↓</div>}
 {!isRevising && signals.resisted_count > 0 && signalStatus !== "new_connection" && <div style={{ fontSize:14, color:"rgba(255,255,255,0.25)", fontFamily:FB, letterSpacing:"0.1em" }}>incorporated</div>}
@@ -3100,16 +3100,16 @@ return <div key={t.name} style={{ padding: pad, borderRadius: 24, background: t.
 
 {revisedSynthesis
 ? <div style={{ animation: "riseUp 0.6s ease" }}>
-<p style={{ fontSize: 20, color: "rgba(255,255,255,0.9)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
+<p style={{ fontSize: isDesktopWide ? 26 : 20, color: "rgba(255,255,255,0.9)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
 <HighlightableReading text={revisedSynthesis.synthesis} feedbackMap={sentenceFeedback} onFeedback={handleSentenceFeedback} dark />
 </p>
-{revisedSynthesis.new_connection && <div style={{ marginTop:16, padding:"12px 16px", borderRadius:10,
+{revisedSynthesis.new_connection && <div style={{ marginTop:16, padding: isDesktopWide ? "16px 20px" : "12px 16px", borderRadius:10,
 background:"rgba(107,184,255,0.06)", border:"1px solid rgba(107,184,255,0.15)", animation:"riseUp 0.5s ease both" }}>
-<div style={{ fontSize:14, color:"rgba(107,184,255,0.6)", fontFamily:FB, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:6 }}>new connection</div>
-<div style={{ fontSize:16, color:"rgba(107,184,255,0.85)", fontFamily:FD, lineHeight:1.6 }}>{revisedSynthesis.new_connection}</div>
+<div style={{ fontSize: isDesktopWide ? 16 : 14, color:"rgba(107,184,255,0.6)", fontFamily:FB, letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:6 }}>new connection</div>
+<div style={{ fontSize: isDesktopWide ? 19 : 16, color:"rgba(107,184,255,0.85)", fontFamily:FD, lineHeight:1.6 }}>{revisedSynthesis.new_connection}</div>
 </div>}
 </div>
-: <p style={{ fontSize: 20, color: "rgba(255,255,255,0.88)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
+: <p style={{ fontSize: isDesktopWide ? 26 : 20, color: "rgba(255,255,255,0.88)", fontFamily: FD, lineHeight: 1.75, margin: 0 }}>
 <HighlightableReading text={synthesis} feedbackMap={sentenceFeedback} onFeedback={handleSentenceFeedback} dark />
 </p>
 }
