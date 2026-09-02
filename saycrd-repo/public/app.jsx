@@ -10569,7 +10569,7 @@ fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"poin
 </button>
 </nav>
 
-<div style={{ position:"relative", zIndex:1, maxWidth:660, margin:"0 auto", padding:"0 7vw calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+<div style={{ position:"relative", zIndex:1, maxWidth:1100, padding:"0 7vw calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 
 <section style={{ padding:"72px 0 56px" }}>
 <div style={{ fontSize:13, letterSpacing:"0.4em", fontFamily:FB, textTransform:"uppercase",
@@ -10582,6 +10582,7 @@ A place to go in the moment
 
 <h1 style={{ fontFamily:FD, fontSize:"clamp(42px,6.5vw,68px)", fontWeight:300,
 lineHeight:1.1, color:"rgba(255,255,255,0.95)", marginBottom:28, letterSpacing:"-0.01em",
+maxWidth:820,
 opacity:show?1:0, transform:show?"translateY(0)":"translateY(24px)",
 transition:"all 1s cubic-bezier(.25,.46,.45,.94) 0.1s" }}>
 The space between your inner world and the next true move.
