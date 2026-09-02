@@ -8263,7 +8263,7 @@ peLines.push(gapLines.join(" "));
 }
 _setLifeFieldGap(lifeFieldGap || null);
 if (pe.regression_context && pe.regression_context.length) peLines.push("Regressions (when themes/map values dropped — prior context): " + pe.regression_context.map(function(r){ return "S" + (r.sessionIndex + 1) + " " + r.type + " " + r.key + (r.priorContext ? " — prior: " + r.priorContext.slice(0, 60) : ""); }).join("; "));
-if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' — never state as fact.\n\n";
+if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' ��� never state as fact.\n\n";
 }
 }
 
@@ -11239,7 +11239,7 @@ setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 return (
 <div className="saycrd-app-shell" style={{width:"100%",background:cp==="map"?GRADIENTS.map:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys") ? "100%" : 420,height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys") ? "100%" : "var(--saycrd-shell-w)",height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
