@@ -2387,21 +2387,23 @@ var [holding, setHolding] = useState(false);
 var ref = useRef(null);
 var startT = useRef(0);
 function start(e) {
-e.stopPropagation(); setHolding(true); startT.current = Date.now();
+e.stopPropagation(); if (e.preventDefault) e.preventDefault();
+setHolding(true); startT.current = Date.now();
 ref.current = setInterval(function() {
 var p = Math.min((Date.now() - startT.current) / (isMobile ? 800 : 900), 1);
 setProg(p);
 if (p >= 1) { clearInterval(ref.current); setHolding(false); setProg(0); onSave(); }
-}, 30);
+}, 16);
 }
 function end() { if (ref.current) clearInterval(ref.current); setHolding(false); setProg(0); }
+var pct = Math.round(prog * 100);
 return <div
 onMouseDown={start} onMouseUp={end} onMouseLeave={end}
-onTouchStart={start} onTouchEnd={end}
-style={{ position: "relative", padding: "6px 18px", borderRadius: 20, minHeight: isMobile ? 44 : undefined, display: "inline-flex", alignItems: "center", background: color + (Math.round(8 + prog * 40)).toString(16).padStart(2, "0"), border: "1px solid " + color + "44", color: color, fontSize: 12, fontFamily: FB, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", overflow: "hidden", touchAction: "manipulation" }}
+onTouchStart={start} onTouchEnd={end} onTouchCancel={end}
+style={{ position: "relative", padding: "7px 20px", borderRadius: 20, minHeight: isMobile ? 44 : 36, minWidth: 66, display: "inline-flex", alignItems: "center", justifyContent: "center", background: color + (Math.round(10 + prog * 90)).toString(16).padStart(2, "0"), border: "1px solid " + color + (holding ? "cc" : "44"), color: color, fontSize: 12, fontWeight: 700, fontFamily: FB, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", overflow: "hidden", touchAction: "manipulation", transform: holding ? "scale(0.94)" : "scale(1)", transition: holding ? "transform 0.15s ease, border-color 0.15s" : "transform 0.2s ease, background 0.2s, border-color 0.2s" }}
 >
-<div style={{ position: "absolute", bottom: 0, left: 0, width: prog * 100 + "%", height: 2, background: color, transition: holding ? "none" : "width 0.2s" }} />
-{holding ? "..." : "hold"}
+<div style={{ position: "absolute", bottom: 0, left: 0, width: pct + "%", height: 4, background: color, boxShadow: holding ? "0 0 10px " + color : "none", transition: holding ? "none" : "width 0.2s" }} />
+<span style={{ position: "relative", zIndex: 1, textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>{holding ? pct + "%" : "hold"}</span>
 </div>;
 }
 
@@ -2444,7 +2446,7 @@ animation: `riseUp 0.5s ease ${0.1 + index * 0.15}s both`,
 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
 <span style={{ fontSize: 16, color: gt.color }}>{gt.icon}</span>
 <span style={{ fontSize: 13, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: gt.color, fontFamily: FB }}>{item.type}</span>
-{saved && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontFamily: FB, marginLeft: "auto" }}>responded</span>}
+{saved && <span style={{ fontSize: 11, fontWeight: 700, color: gt.color, fontFamily: FB, marginLeft: "auto", animation: "riseUp 0.3s ease" }}>✓ saved</span>}
 </div>
 <p style={{ fontSize: 17, color: "rgba(255,255,255,0.85)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, margin: 0 }}>{item.text}</p>
 {expanded && !saved && (
@@ -2454,7 +2456,7 @@ onKeyDown={function(e){ if (e.key === "Enter" && !e.shiftKey && response.trim())
 placeholder="In your words…" rows={2} autoFocus
 style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: `1px solid ${gt.color}33`, borderRadius: 10, color: "rgba(255,255,255,0.8)", padding: "10px 14px", fontFamily: FB, fontSize: 14, resize: "none", outline: "none", lineHeight: 1.5 }} />
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-<span style={{ fontSize: 11, color: "rgba(255,255,255,0.1)", fontFamily: FB }}>hold to save</span>
+<span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FB }}>hold to save</span>
 {response.trim() && <GuideHoldSave color={gt.color} onSave={submit} isMobile={isMobile} />}
 </div>
 </div>
