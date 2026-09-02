@@ -1249,7 +1249,8 @@ if (onSynthesis) onSynthesis(parsed);
 } else { throw new Error("No themes parsed from AI response"); }
 } catch (e) {
 console.error("[SAYCRD] Synthesis error:", e);
-if (e.message && (e.message.indexOf("empty response") >= 0 || e.message.indexOf("timed out") >= 0 || e.message.indexOf("JSON parse failed") >= 0)) {
+var _msg = (e.message || "").toLowerCase();
+if (_msg && (_msg.indexOf("empty response") >= 0 || _msg.indexOf("timed out") >= 0 || _msg.indexOf("json parse failed") >= 0 || _msg.indexOf("proxy 504") >= 0 || _msg.indexOf("proxy 502") >= 0 || _msg.indexOf("proxy 503") >= 0 || _msg.indexOf("gateway timeout") >= 0 || _msg.indexOf("failed to fetch") >= 0)) {
 console.warn("[SAYCRD] Retrying synthesis in 2s...");
 setFindingPhase("sending");
 setFindingDetail("Retrying — sending to Claude again...");
