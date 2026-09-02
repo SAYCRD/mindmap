@@ -2508,226 +2508,6 @@ fontStyle:"italic", lineHeight:1.6, margin:0 }}>{echo}</p>
 );
 }
 
-function DescentGame({ cards: propCards, onDone, onSkip, isMobile }) {
-const DESCENT_CARDS = (propCards && propCards.length > 0 ? propCards.slice(0, 4) : [
-{ type: "energy", phrase: "wanting to be seen but not watched", color: "#FFB86B" },
-{ type: "binary", prompt: "right now you're drawn to", option_a: "building slowly", option_b: "leaping first", color: "#FF6B9D" },
-{ type: "spectrum", prompt: "where does this live?", pole_a: "still forming", pole_b: "ready to move", color: "#6BFFB8" },
-{ type: "binary", prompt: "the tension feels more like", option_a: "two things pulling apart", option_b: "one thing trying to split", color: "#6BB8FF" },
-]).map(function(c,i){return Object.assign({},c,{color:c.color||NC[i%NC.length]});});
-const [ci, setCi] = useState(0);
-const [answers, setAnswers] = useState({});
-const [showCompletion, setShowCompletion] = useState(false);
-const c = DESCENT_CARDS[ci], ans = answers[ci] !== undefined;
-function record(v) {
-var newAnswers = Object.assign({}, answers, {[ci]: v});
-setAnswers(newAnswers);
-if (ci < DESCENT_CARDS.length - 1) {
-setTimeout(function(){ setCi(ci + 1); }, 1600);
-} else {
-setTimeout(function(){ setShowCompletion(true); }, 1200);
-}
-}
-const allDone = Object.keys(answers).length >= DESCENT_CARDS.length;
-
-const [swipeX, setSwipeX] = useState(0);
-const [swiping, setSwiping] = useState(false);
-const swipeStart = useRef(0);
-const swipeThreshold = 80;
-
-function onTouchStart(e) { swipeStart.current = e.touches[0].clientX; setSwiping(true); setSwipeX(0); }
-function onTouchMove(e) { if (!swiping) return; var dx = e.touches[0].clientX - swipeStart.current; setSwipeX(dx); }
-function onTouchEnd() {
-if (!swiping) return;
-setSwiping(false);
-if (swipeX < -swipeThreshold) { record("a"); }
-else if (swipeX > swipeThreshold) { record("b"); }
-setSwipeX(0);
-}
-function onMouseDown(e) { swipeStart.current = e.clientX; setSwiping(true); setSwipeX(0); }
-function onMouseMove(e) { if (!swiping) return; setSwipeX(e.clientX - swipeStart.current); }
-function onMouseUp() { onTouchEnd(); }
-
-useEffect(function() {
-setSwipeX(0); setSwiping(false); setHoldProg(0); setEnergyHolding(false);
-}, [ci]);
-
-useEffect(function() {
-if (!swiping) return;
-function m(e) { var cx = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : swipeStart.current); setSwipeX(cx - swipeStart.current); }
-function u() { onTouchEnd(); }
-window.addEventListener("pointermove", m);
-window.addEventListener("pointerup", u);
-return function() { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
-}, [swiping]);
-
-const [holdProg, setHoldProg] = useState(0);
-const [energyHolding, setEnergyHolding] = useState(false);
-const holdRef = useRef(null);
-const holdStartT = useRef(0);
-
-function startEnergyHold(e) {
-if (ans) return;
-e.stopPropagation();
-setEnergyHolding(true);
-holdStartT.current = Date.now();
-holdRef.current = setInterval(function() {
-var p = Math.min((Date.now() - holdStartT.current) / (isMobile ? 1200 : 1800), 1);
-setHoldProg(p);
-if (p >= 1) { clearInterval(holdRef.current); setEnergyHolding(false); record(5); }
-}, 30);
-}
-function endEnergyHold() {
-if (holdRef.current) clearInterval(holdRef.current);
-if (energyHolding) {
-setEnergyHolding(false);
-if (holdProg >= 1) return;
-if (holdProg > 0.08) {
-var val = Math.max(1, Math.ceil(holdProg * 5));
-record(val);
-}
-setHoldProg(0);
-}
-}
-
-useEffect(function() {
-if (!energyHolding) return;
-function u() { endEnergyHold(); }
-window.addEventListener("pointerup", u);
-window.addEventListener("touchend", u);
-return function() { window.removeEventListener("pointerup", u); window.removeEventListener("touchend", u); };
-}, [energyHolding]);
-
-var swipeRatio = Math.min(Math.abs(swipeX) / swipeThreshold, 1);
-var swipeDir = swipeX < 0 ? "a" : swipeX > 0 ? "b" : null;
-
-return (
-<div style={{ padding: "20px 0" }}>
-{showCompletion && <div style={{ textAlign: "center", padding: "28px 0", animation: "riseUp 0.6s ease" }}>
-<div style={{ fontSize: 32, marginBottom: 16 }}>◆</div>
-<div style={{ fontSize: 18, color: "rgba(214,178,109,0.85)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.5, marginBottom: 12 }}>Descent complete.</div>
-<div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB, letterSpacing: "0.1em" }}>
-{Object.keys(answers).length} questions, {Object.keys(answers).length} honest answers.
-</div>
-<button onClick={function(){ onDone({ answers: answers, cards: DESCENT_CARDS }); }} style={{ marginTop: 24, padding: "14px 32px", borderRadius: 24, border: "none", background: "rgba(214,178,109,0.2)", color: "#D6B26D", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", touchAction: "manipulation", minHeight: 48 }}>
-Continue →
-</button>
-<div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", maxWidth: 280, margin: "20px auto 0" }}>
-{DESCENT_CARDS.map(function(card, i) {
-var ans = answers[i];
-var display;
-if (ans === undefined || ans === null) { display = "—"; }
-else if (card.type === "energy" && typeof ans === "number") {
-var lvl = Math.max(0, Math.min(5, Math.round(ans)));
-display = "●".repeat(lvl) + "○".repeat(5 - lvl);
-} else if (card.type === "spectrum" && typeof ans === "number") {
-display = ans + "% → " + (ans >= 50 ? (card.pole_b || "b") : (card.pole_a || "a"));
-} else if (card.type === "binary" && typeof ans === "string") {
-display = ans === "a" ? (card.option_a || "a") : (card.option_b || "b");
-} else { display = String(ans); }
-return <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-<div style={{ width: 6, height: 6, borderRadius: "50%", background: card.color, opacity: 0.5, flexShrink: 0 }} />
-<div style={{ fontSize: 12, color: card.color + "AA", fontFamily: FB, letterSpacing: "0.04em" }}>{display}</div>
-</div>;
-})}
-</div>
-</div>}
-
-{!showCompletion && <><div style={{ display: "flex", gap: 8, marginBottom: 20, justifyContent: "center" }}>
-{DESCENT_CARDS.map(function(_, i) { var w = isMobile ? (i === ci ? 14 : 10) : (i === ci ? 12 : 7); return <div key={i} style={{ width: w, height: w, borderRadius: 4, background: i < ci ? DESCENT_CARDS[i].color + "88" : i === ci ? "white" : "rgba(255,255,255,0.1)", transition: "all 0.4s" }} />; })}
-</div>
-
-<div key={ci} style={{ animation: "slideIn 0.4s ease" }}>
-{c.type === "energy" && <div
-onMouseDown={startEnergyHold} onMouseUp={endEnergyHold} onMouseLeave={endEnergyHold}
-onTouchStart={startEnergyHold} onTouchEnd={endEnergyHold}
-style={{ borderRadius: 22, padding: "40px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", textAlign: "center", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", position: "relative", overflow: "hidden", touchAction: "none" }}
->
-			<div style={{ position:"absolute", bottom:0, left:0, width:(ans ? 100 : holdProg * 100)+"%", height:4, background:c.color, transition:energyHolding?"none":"width 0.3s ease", opacity:0.7, borderRadius:"0 0 22px 22px" }} />
-			{!ans && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.32)", fontFamily: FB, letterSpacing: "0.08em", marginBottom: 14 }}>
-			how much does this land?
-			</div>}
-			{(function(){
-			var dotSz = isMobile ? 28 : 18;
-			var rowW = dotSz * 5 + 12 * 4;
-			return <div style={{ width: rowW, margin: "0 auto" }}>
-			<div style={{ display:"flex", gap:12, justifyContent:"center" }}>
-			{[1,2,3,4,5].map(function(dot) {
-			var lit = ans ? (answers[ci] || 0) >= dot : holdProg * 5 >= dot;
-			return <div key={dot}
-			onClick={function(e){ if(!ans){ e.stopPropagation(); record(dot); } }}
-			style={{ width: dotSz, height: dotSz, minWidth: dotSz, minHeight: dotSz, borderRadius:"50%",
-			background: lit ? c.color : "rgba(255,255,255,0.08)",
-			boxShadow: lit ? "0 0 12px "+c.color+"88" : "none",
-			border:"1px solid "+(lit ? c.color+"88" : "rgba(255,255,255,0.12)"),
-			cursor: ans ? "default" : "pointer",
-			transition:"all 0.2s", touchAction: "manipulation" }} />;
-			})}
-			</div>
-			<div style={{ display:"flex", justifyContent:"space-between", marginTop: 8, marginBottom: 20 }}>
-			<span style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", fontFamily: FB, letterSpacing: "0.06em" }}>not really</span>
-			<span style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", fontFamily: FB, letterSpacing: "0.06em" }}>fully</span>
-			</div>
-			</div>;
-			})()}
-			<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 20 }}>{c.phrase}</div>
-			{ans && <div style={{ fontSize: 11, color: c.color + "88", fontFamily: FB, letterSpacing: "0.12em", animation: "riseUp 0.3s ease" }}>
-			{"●".repeat(answers[ci])}{"○".repeat(5 - answers[ci])} marked
-			</div>}
-			</div>}
-
-{c.type === "binary" && <div
-onTouchStart={!ans ? onTouchStart : undefined}
-onTouchMove={!ans ? onTouchMove : undefined}
-onTouchEnd={!ans ? onTouchEnd : undefined}
-onMouseDown={!ans ? onMouseDown : undefined}
-onMouseMove={!ans ? onMouseMove : undefined}
-onMouseUp={!ans ? onMouseUp : undefined}
-onMouseLeave={!ans ? onMouseUp : undefined}
-style={{ borderRadius: 22, padding: "36px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", textAlign: "center", userSelect: "none", WebkitUserSelect: "none", cursor: ans ? "default" : "grab", position: "relative", overflow: "hidden", transform: ans ? "none" : "translateX(" + swipeX * 0.3 + "px) rotate(" + swipeX * 0.02 + "deg)", transition: swiping ? "none" : "transform 0.3s ease", touchAction: !ans ? "pan-y" : undefined }}
->
-<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 24 }}>{c.prompt}</div>
-
-{!ans && <div style={{ display: "flex", gap: 12 }}>
-<button onClick={function(e){ e.stopPropagation(); record("a"); }}
-style={{ flex:1, padding:"12px 8px", borderRadius:14, minHeight: isMobile ? 44 : undefined,
-background: swipeDir==="a" ? c.color+"22" : "rgba(255,255,255,0.04)",
-border:"1px solid "+(swipeDir==="a" ? c.color+"66" : "rgba(255,255,255,0.1)"),
-color: swipeDir==="a" ? c.color : "rgba(255,255,255,0.55)",
-fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
-whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
-transition:"all 0.2s", touchAction:"manipulation" }}>{c.option_a}</button>
-<button onClick={function(e){ e.stopPropagation(); record("b"); }}
-style={{ flex:1, padding:"12px 8px", borderRadius:14, minHeight: isMobile ? 44 : undefined,
-background: swipeDir==="b" ? c.color+"22" : "rgba(255,255,255,0.04)",
-border:"1px solid "+(swipeDir==="b" ? c.color+"66" : "rgba(255,255,255,0.1)"),
-color: swipeDir==="b" ? c.color : "rgba(255,255,255,0.55)",
-fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
-whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
-transition:"all 0.2s", touchAction:"manipulation" }}>{c.option_b}</button>
-</div>}
-
-{ans && <div style={{ animation: "riseUp 0.4s ease" }}>
-<div style={{ fontSize: 16, fontFamily: FB, fontWeight: 600, color: c.color }}>{answers[ci] === "a" ? c.option_a : c.option_b}</div>
-</div>}
-</div>}
-
-{c.type === "spectrum" && <div style={{ borderRadius: 22, padding: "32px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", position: "relative", overflow: "hidden" }}>
-<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, textAlign: "center", marginBottom: 24 }}>{c.prompt}</div>
-<SpectrumSlider color={c.color} poleA={c.pole_a} poleB={c.pole_b} onSet={function(v){ record(v); }} value={answers[ci] !== undefined ? answers[ci] : null} />
-</div>}
-</div>
-
-<div style={{ display: "flex", gap: 12, marginTop: 14, justifyContent: "space-between" }}>
-{ci > 0 && <button onClick={function() { setCi(ci - 1); }} style={{ padding: "8px 16px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "rgba(255,255,255,0.25)", fontSize: 12, fontFamily: FB, cursor: "pointer" }}>←</button>}
-<div style={{ flex: 1 }} />
-{ans && ci < DESCENT_CARDS.length - 1 && <button onClick={function() { setCi(ci + 1); }} style={{ padding: "8px 20px", borderRadius: 20, border: "none", background: c.color + "22", color: c.color + "cc", fontSize: 12, fontFamily: FB, fontWeight: 500, cursor: "pointer" }}>→</button>}
-</div>
-</>}
-</div>
-);
-}
-
 function TappableSentence({ text, synthesisData, onReact }) {
 var [state, setState] = useState("idle"); 
 var [swipeX, setSwipeX] = useState(0);
@@ -2971,9 +2751,6 @@ touchAction: "manipulation",
 }
 
 function SessionPhase({ onComplete, synthesisData, onPatchSynthesis }) {
-const [descentOpen, setDescentOpen] = useState(false);
-const [descentDone, setDescentDone] = useState(false);
-const [descentResult, setDescentResult] = useState(null);
 const [clarity, setClarity] = useState("");
 const [claritySaved, setClaritySaved] = useState(false);
 const [showNoticing, setShowNoticing] = useState(false);
@@ -3095,7 +2872,6 @@ var tension = sd.tension || null;
 var opening = sd.opening || null;
 var noticing = sd.noticing || null;
 var mapTitle = sd.map_title || "";
-var descentCards = (sd.descent_cards && sd.descent_cards.length > 0) ? sd.descent_cards : null;
 
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
@@ -3214,56 +2990,17 @@ background: optC || "#B86BFF", opacity: 0.5 }} />
 </div>
 </div>}
 
-<div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-{!descentOpen && !descentDone && (
-<div style={{ animation: "riseUp 0.5s ease 0.55s both" }}>
-<div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }} aria-hidden="true">
-<div className="descentConnector" style={{ width: 2, height: 22, background: "linear-gradient(to bottom, rgba(214,178,109,0), rgba(214,178,109,0.6))" }} />
-</div>
-<p style={{ fontSize: 14, color: "rgba(214,178,109,0.65)", fontFamily: FB, textAlign: "center", lineHeight: 1.5, margin: "0 0 14px", letterSpacing: "0.01em" }}>
-A few quick prompts to surface what's beneath the surface — then your growth edge.
-</p>
-<div onClick={function(){ setDescentOpen(true); }} style={{
-display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-fontFamily: FB, fontSize: 18, color: "#D6B26D", textAlign: "center",
-cursor: "pointer", padding: "22px 28px", borderRadius: 16,
-border: "2px solid rgba(214,178,109,0.5)", background: "rgba(214,178,109,0.12)",
-transition: "all 0.3s", fontWeight: 700, letterSpacing: "0.04em",
-boxShadow: "0 0 24px rgba(214,178,109,0.2)",
-}}>
-<span style={{ fontSize: 20 }}>◆</span> Begin the descent
-<span style={{ fontSize: 12, fontWeight: 500, color: "rgba(214,178,109,0.55)", letterSpacing: "0.08em" }}>~1 min</span>
-</div>
-</div>
-)}
-{descentOpen && !descentDone && (
-<div style={{ animation: "riseUp 0.5s ease", position: "relative", paddingTop: 16, paddingBottom: 24 }}>
-<div style={{ position: "relative", fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 16, fontFamily: FB, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-{isMobile && <button onClick={function(){ setDescentOpen(false); }} style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>×</button>}
-<span>THE DESCENT</span>
-</div>
-<DescentGame cards={descentCards} onDone={function(data) { setDescentResult(data); setDescentDone(true); }} onSkip={isMobile ? function(){ setDescentOpen(false); } : undefined} isMobile={isMobile} />
-</div>
-)}
-{descentDone && <div style={{ textAlign: "center", padding: "16px 0", animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 14, color: "rgba(214,178,109,0.7)", fontFamily: FB, letterSpacing: "0.15em" }}>Descent complete</div>
-</div>}
-</div>
-
-<button onClick={function(){ if (!descentDone) return; onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sentenceFeedback: sentenceFeedback }); }} style={{
-width: "100%", background: descentDone ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
-border: descentDone ? "none" : "1px solid rgba(107,255,184,0.15)",
+<button onClick={function(){ onComplete({ clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sentenceFeedback: sentenceFeedback }); }} style={{
+width: "100%", background: "linear-gradient(135deg, #6BFFB8, #3DFFAA)",
+border: "none",
 borderRadius: 24, padding: "16px 28px", minHeight: 52,
-color: descentDone ? "#0A2E1A" : "rgba(107,255,184,0.3)",
-fontSize: 17, fontFamily: FB, fontWeight: descentDone ? 700 : 400,
-cursor: descentDone ? "pointer" : "not-allowed", transition: "all 0.4s", touchAction: "manipulation",
-boxShadow: descentDone ? "0 4px 24px rgba(107,255,184,0.35)" : "none",
+color: "#0A2E1A",
+fontSize: 17, fontFamily: FB, fontWeight: 700,
+cursor: "pointer", transition: "all 0.4s", touchAction: "manipulation",
+boxShadow: "0 4px 24px rgba(107,255,184,0.35)",
 }}>
 What's Growing →
 </button>
-{!descentDone && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.32)", fontFamily: FB, textAlign: "center", margin: "10px 0 0", letterSpacing: "0.02em" }}>
-Complete the descent above to continue
-</p>}
 </div>
 </div>
 );
