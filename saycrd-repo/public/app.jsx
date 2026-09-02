@@ -2389,11 +2389,17 @@ var ref = useRef(null);
 var startT = useRef(0);
 function start(e) {
 e.stopPropagation(); if (e.preventDefault) e.preventDefault();
-setHolding(true); startT.current = Date.now();
+setHolding(true); setProg(0); startT.current = Date.now();
+if (isMobile && navigator.vibrate) { try { navigator.vibrate(8); } catch(x) {} }
 ref.current = setInterval(function() {
 var p = Math.min((Date.now() - startT.current) / (isMobile ? 800 : 900), 1);
 setProg(p);
-if (p >= 1) { clearInterval(ref.current); setHolding(false); setProg(0); onSave(); }
+if (p >= 1) {
+clearInterval(ref.current);
+setHolding(false); setProg(0);
+if (isMobile && navigator.vibrate) { try { navigator.vibrate([0, 12, 40, 20]); } catch(x) {} }
+onSave();
+}
 }, 16);
 }
 function end() { if (ref.current) clearInterval(ref.current); setHolding(false); setProg(0); }
@@ -2401,10 +2407,28 @@ var pct = Math.round(prog * 100);
 return <div
 onMouseDown={start} onMouseUp={end} onMouseLeave={end}
 onTouchStart={start} onTouchEnd={end} onTouchCancel={end}
-style={{ position: "relative", padding: "7px 20px", borderRadius: 20, minHeight: isMobile ? 44 : 36, minWidth: 66, display: "inline-flex", alignItems: "center", justifyContent: "center", background: color + (Math.round(10 + prog * 90)).toString(16).padStart(2, "0"), border: "1px solid " + color + (holding ? "cc" : "44"), color: color, fontSize: 12, fontWeight: 700, fontFamily: FB, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", overflow: "hidden", touchAction: "manipulation", transform: holding ? "scale(0.94)" : "scale(1)", transition: holding ? "transform 0.15s ease, border-color 0.15s" : "transform 0.2s ease, background 0.2s, border-color 0.2s" }}
+style={{
+position: "relative", padding: "7px 22px", borderRadius: 20,
+minHeight: isMobile ? 44 : 36, minWidth: 72,
+display: "inline-flex", alignItems: "center", justifyContent: "center",
+background: holding ? color + "33" : color + "0f",
+border: "1.5px solid " + (holding ? color : color + "44"),
+boxShadow: holding ? "0 0 0 4px " + color + "22, 0 0 16px " + color + "55" : "none",
+color: color, fontSize: 12, fontWeight: 700, fontFamily: FB,
+cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+overflow: "hidden", touchAction: "manipulation",
+transform: holding ? "scale(1.06)" : "scale(1)",
+transition: holding ? "transform 0.12s ease, background 0.12s, border-color 0.12s, box-shadow 0.12s" : "transform 0.2s ease, background 0.2s, border-color 0.2s, box-shadow 0.2s",
+}}
 >
-<div style={{ position: "absolute", bottom: 0, left: 0, width: pct + "%", height: 4, background: color, boxShadow: holding ? "0 0 10px " + color : "none", transition: holding ? "none" : "width 0.2s" }} />
-<span style={{ position: "relative", zIndex: 1, textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>{holding ? pct + "%" : "hold"}</span>
+<div style={{
+position: "absolute", inset: 0,
+background: "conic-gradient(" + color + " " + (pct * 3.6) + "deg, transparent " + (pct * 3.6) + "deg)",
+opacity: holding ? 0.35 : 0,
+transition: holding ? "none" : "opacity 0.2s",
+}} />
+<div style={{ position: "absolute", bottom: 0, left: 0, width: pct + "%", height: 5, background: color, boxShadow: holding ? "0 0 10px " + color : "none", transition: holding ? "none" : "width 0.2s, opacity 0.2s", opacity: holding ? 1 : 0 }} />
+<span style={{ position: "relative", zIndex: 1, textShadow: "0 1px 3px rgba(0,0,0,0.5)", fontSize: holding ? 13 : 12, transition: "font-size 0.12s" }}>{holding ? pct + "%" : "hold"}</span>
 </div>;
 }
 
