@@ -213,7 +213,7 @@ return out;
 
 const FD = "'DM Serif Display', Georgia, serif";
 const FB = "'DM Sans', sans-serif";
-const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field", "complete", "journeys"];
+const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field", "complete", "journeys", "report"];
 const GRADIENTS = {
 landing: "#000",
 pour: "linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",
@@ -224,6 +224,7 @@ session: "linear-gradient(160deg, #0A0A1E 0%, #1A1A3B 40%, #2D1B5B 100%)",
 field: "#000",
 complete: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)",
 journeys: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)",
+report: "#FAFAF8",
 };
 
 function FloatingWords({ words, color = "#6BB8FF" }) {
@@ -3179,16 +3180,24 @@ background: optC || "#B86BFF", opacity: 0.5 }} />
 
 <div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
 {!descentOpen && !descentDone && (
+<div style={{ animation: "riseUp 0.5s ease 0.55s both" }}>
+<div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }} aria-hidden="true">
+<div className="descentConnector" style={{ width: 2, height: 22, background: "linear-gradient(to bottom, rgba(214,178,109,0), rgba(214,178,109,0.6))" }} />
+</div>
+<p style={{ fontSize: 14, color: "rgba(214,178,109,0.65)", fontFamily: FB, textAlign: "center", lineHeight: 1.5, margin: "0 0 14px", letterSpacing: "0.01em" }}>
+A few quick prompts to surface what's beneath the surface — then your growth edge.
+</p>
 <div onClick={function(){ setDescentOpen(true); }} style={{
 display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
 fontFamily: FB, fontSize: 18, color: "#D6B26D", textAlign: "center",
 cursor: "pointer", padding: "22px 28px", borderRadius: 16,
 border: "2px solid rgba(214,178,109,0.5)", background: "rgba(214,178,109,0.12)",
 transition: "all 0.3s", fontWeight: 700, letterSpacing: "0.04em",
-animation: "riseUp 0.5s ease 0.6s both",
 boxShadow: "0 0 24px rgba(214,178,109,0.2)",
 }}>
-<span style={{ fontSize: 20 }}>◆</span> See what's underneath
+<span style={{ fontSize: 20 }}>◆</span> Begin the descent
+<span style={{ fontSize: 12, fontWeight: 500, color: "rgba(214,178,109,0.55)", letterSpacing: "0.08em" }}>~1 min</span>
+</div>
 </div>
 )}
 {descentOpen && !descentDone && (
@@ -3205,17 +3214,20 @@ boxShadow: "0 0 24px rgba(214,178,109,0.2)",
 </div>}
 </div>
 
-<button onClick={function(){ onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sentenceFeedback: sentenceFeedback }); }} style={{
+<button onClick={function(){ if (!descentDone) return; onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sentenceFeedback: sentenceFeedback }); }} style={{
 width: "100%", background: descentDone ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
 border: descentDone ? "none" : "1px solid rgba(107,255,184,0.15)",
 borderRadius: 24, padding: "16px 28px", minHeight: 52,
 color: descentDone ? "#0A2E1A" : "rgba(107,255,184,0.3)",
 fontSize: 17, fontFamily: FB, fontWeight: descentDone ? 700 : 400,
-cursor: "pointer", transition: "all 0.4s", touchAction: "manipulation",
-boxShadow: descentDone ? "0 4px 24px rgba(107,255,184,0.35)" : "none", cursor: "pointer",
+cursor: descentDone ? "pointer" : "not-allowed", transition: "all 0.4s", touchAction: "manipulation",
+boxShadow: descentDone ? "0 4px 24px rgba(107,255,184,0.35)" : "none",
 }}>
 What's Growing →
 </button>
+{!descentDone && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.32)", fontFamily: FB, textAlign: "center", margin: "10px 0 0", letterSpacing: "0.02em" }}>
+Complete the descent above to continue
+</p>}
 </div>
 </div>
 );
@@ -6087,20 +6099,25 @@ background:"linear-gradient(90deg, transparent, rgba(107,184,255,0.3) 30%, rgba(
 animation:"riseUp 0.6s ease 0.3s both" }}/>
 
 <div style={{ fontSize:8, letterSpacing:"0.4em", color:"rgba(107,200,255,0.35)",
-fontFamily:FB, textTransform:"uppercase", marginBottom:12,
+fontFamily:FB, textTransform:"uppercase", marginBottom:8,
 animation:"riseUp 0.7s ease 0.4s both" }}>
 JUST OUT OF SIGHT
 </div>
+<div style={{ fontSize:11, letterSpacing:"0.06em", color:"rgba(150,200,255,0.4)",
+fontFamily:FB, marginBottom:12,
+animation:"riseUp 0.75s ease 0.42s both" }}>
+from what you shared this session
+</div>
 
-<div style={{ fontSize:16, color:"rgba(200,230,255,0.72)", fontFamily:FD,
-fontStyle:"italic", lineHeight:1.7, maxWidth:310,
+<div style={{ fontSize:isMobile?18:20, color:"rgba(210,235,255,0.86)", fontFamily:FD,
+fontStyle:"italic", lineHeight:1.8, maxWidth:340,
 minHeight:52,
 animation:"riseUp 0.9s ease 0.5s both" }}>
 {!_dReady ? (
 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-<div style={{ width:"88%", height:14, borderRadius:3,
+<div style={{ width:"88%", height:16, borderRadius:3,
 background:"rgba(107,184,255,0.07)", animation:"breathe 1.8s ease-in-out infinite alternate" }}/>
-<div style={{ width:"65%", height:14, borderRadius:3,
+<div style={{ width:"65%", height:16, borderRadius:3,
 background:"rgba(107,184,255,0.05)", animation:"breathe 1.8s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 ) : _depthText}
@@ -6336,16 +6353,16 @@ if (sd.opening) currParts.push("opening:"+String(sd.opening).slice(0,120));
 if (sd.synthesis) currParts.push("synthesis:"+(sd.synthesis||"").slice(0,150));
 if (rawText) currParts.push("raw:"+String(rawText).slice(0,200).replace(/"/g,"'"));
 var currNote = "S"+(_allSessions.length+1)+" (CURRENT): "+currParts.join(" | ");
-var p = "You are THE MIRROR. Imagine Freud, Jung, the father of cognitive psychology, quantum physicists, and imaginal scientists gathered to look at ALL of this person's session notes. They are not reflecting what the person wants to see. They are CLEANING THE MIRROR — showing what the person is actually sharing when analyzed deeply.\n\n"
+var p = "You are THE MIRROR. Imagine Freud, Jung, the father of cognitive psychology, quantum physicists, and imaginal scientists gathered to look at ALL of this person's session notes. They are not reflecting what the person wants to see. They are CLEANING THE MIRROR — showing this person what they are actually sharing when analyzed deeply.\n\n"
 + "The Y-axis is their journey over time. Aha moments. Realizations. What is difficult for humans to identify. The heart of the matter.\n"
 + "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light. Orient toward light, emergence, metamorphosis. Never go dark.\n\n"
 + "SESSION NOTES:\n"+sessNotes+"\n\n"+currNote+"\n\n"
-+ "Generate three fields. Be specific to THIS person. Nothing generic.\n\n"
-+ "before: 1-2 sentences. What APPEARS on the surface. What they've been bringing. The pattern that was present. Plain, direct, third person.\n"
-+ "after: 1-2 sentences. What's BEING REVEALED. What's surfacing. The aha, the realization, what wants to be seen. Plain, direct, third person.\n"
-+ "heart: 1 sentence, 10-18 words. The HEART OF THE MATTER for this person. The one thing that ties it together. Bold. Direct.\n\n"
++ "Generate three fields. Be specific to THIS person. Nothing generic. Speak directly TO them — address them as \"you\", never \"they\" or \"this person\".\n\n"
++ "before: 1-2 sentences. What APPEARS on the surface. What you've been bringing. The pattern that was present. Plain, direct, second person (\"you\").\n"
++ "after: 1-2 sentences. What's BEING REVEALED. What's surfacing. The aha, the realization, what wants to be seen. Plain, direct, second person (\"you\").\n"
++ "heart: 1 sentence, 10-18 words. The HEART OF THE MATTER for you. The one thing that ties it together. Bold. Direct. Second person.\n\n"
 + 'JSON only: {"before":"...","after":"...","heart":"..."}';
-var rr = await callClaudeClient(p, "mirror", 220);
+var rr = await callClaudeClient(p, "mirror", 190);
 if (!cancelled) {
 var dd = parseJSON(rr);
 if (dd && (dd.before || dd.after || dd.heart)) _setMirrorData(dd);
@@ -6460,18 +6477,58 @@ lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacin
 </>
 ) : (
 <div>
-<div style={{ width:"90%", height:24, borderRadius:4,
-background:"rgba(255,255,255,0.06)",
+<div style={{ fontSize: isMobile ? 13 : 14, color:"rgba(220,235,255,0.5)", fontFamily:FD,
+fontStyle:"italic", lineHeight:1.6, marginBottom: isMobile ? 22 : 26, animation:"riseUp 0.4s ease both" }}>
+Comparing this session against your history…
+</div>
+<div style={{ display:"flex", flexDirection:"column", gap: isMobile ? 24 : 28 }}>
+<div style={{ flex:1, minWidth:0 }}>
+<div style={{ fontSize: isMobile ? 12 : 13, fontWeight:600, letterSpacing:"0.2em",
+color:"rgba(140,170,230,0.9)", fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>
+What appears
+</div>
+<div style={{
+padding: isMobile ? "24px 22px" : "28px 24px",
+borderRadius:20,
+background:"linear-gradient(180deg, rgba(140,170,230,0.14), rgba(140,170,230,0.06))",
+border:"1px solid rgba(140,170,230,0.3)",
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+}}>
+<div style={{ width:"88%", height:16, borderRadius:3,
+background:"rgba(255,255,255,0.08)",
 animation:"breathe 1.5s ease-in-out infinite alternate",
-marginBottom:16 }}/>
-<div style={{ width:"100%", height:80, borderRadius:14,
-background:"rgba(255,255,255,0.04)",
-animation:"breathe 1.5s ease-in-out 0.2s infinite alternate",
-marginBottom:20 }}/>
-<div style={{ width:"100%", height:80, borderRadius:14,
-background:"rgba(255,255,255,0.04)",
-animation:"breathe 1.5s ease-in-out 0.4s infinite alternate" }}/>
-<div style={{ marginTop:28 }} data-noadvance>
+marginBottom:10 }}/>
+<div style={{ width:"60%", height:16, borderRadius:3,
+background:"rgba(255,255,255,0.06)",
+animation:"breathe 1.5s ease-in-out 0.2s infinite alternate" }}/>
+</div>
+</div>
+
+<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize: isMobile ? 22 : 24, flexShrink:0 }}>↓</div>
+
+<div style={{ flex:1, minWidth:0 }}>
+<div style={{ fontSize: isMobile ? 12 : 13, fontWeight:600, letterSpacing:"0.2em",
+color:_currColor, fontFamily:FB, marginBottom:12, textTransform:"uppercase" }}>
+What's being revealed
+</div>
+<div style={{
+padding: isMobile ? "24px 22px" : "28px 24px",
+borderRadius:20,
+background:"linear-gradient(180deg, "+_currColor+"22, "+_currColor+"08)",
+border:"1px solid "+_currColor+"44",
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+}}>
+<div style={{ width:"82%", height:16, borderRadius:3,
+background:"rgba(255,255,255,0.08)",
+animation:"breathe 1.5s ease-in-out 0.3s infinite alternate",
+marginBottom:10 }}/>
+<div style={{ width:"55%", height:16, borderRadius:3,
+background:"rgba(255,255,255,0.06)",
+animation:"breathe 1.5s ease-in-out 0.5s infinite alternate" }}/>
+</div>
+</div>
+</div>
+<div style={{ marginTop: isMobile ? 28 : 32 }} data-noadvance>
 <AccuracySlider value={_landVal} onSlide={_setLand} color={_currColor} leftLabel="doesn't land" rightLabel="lands big time" />
 </div>
 </div>
@@ -8462,7 +8519,7 @@ var weights = [600, 600, 550, 600, 550];
 var fw = weights[pi % weights.length];
 if (onSentenceClick && sentences.length > 0) {
 return (
-<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85, textAlign: "left", textIndent: 0 }}>
+<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 24 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85, textAlign: "left", textIndent: 0 }}>
       {sentences.map(function(sent, si) {
           var s = sent.trim();
           if (!s) return null;
@@ -8539,7 +8596,7 @@ document.body
 background:"linear-gradient(90deg, "+_accent+", "+_accent+"44)" }}/>
 
 <div style={{ padding: isMobile ? "calc(44px + env(safe-area-inset-top, 0px)) 20px 0" : "34px 30px 0", flexShrink:0 }}>
-<div style={{ display:"flex", justifyContent:"space-between",
+<div style={{ maxWidth: isMobile ? "none" : 680, margin: isMobile ? 0 : "0 auto", display:"flex", justifyContent:"space-between",
 alignItems:"flex-start", marginBottom:14, flexWrap:"wrap", gap:12 }}>
 <div style={{ flex:"1 1 140px", minWidth:0 }}>
 <div style={{ fontSize: isMobile ? 11 : 13, letterSpacing:"0.6em",
@@ -8569,7 +8626,7 @@ letterSpacing:"0.2em", fontWeight:600 }}>CONFIDENTIAL</div>
 WebkitOverflowScrolling:"touch", minHeight:0 }}>
 
 {_report ? (
-<div style={{ paddingTop:24, position: "relative" }}>
+<div style={{ paddingTop:24, position: "relative", maxWidth: isMobile ? "none" : 680, margin: isMobile ? 0 : "0 auto" }}>
 
 {_report.generationFailed ? (
 <div style={{ marginBottom:32, padding:"28px 24px", background:"rgba(0,0,0,0.02)", borderRadius:12, border:"1px solid rgba(0,0,0,0.08)" }}>
@@ -8648,7 +8705,7 @@ color: _accent, marginBottom: sub && !isConclusion ? 6 : 16, fontWeight: isConcl
 </div>
 {sub && <div style={{ fontSize:12, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic", marginBottom:16, textAlign: "left", textIndent: 0 }}>{sub}</div>}
 
-<div style={{ position: "relative", fontSize: isConclusion ? 22 : 19, color: isConclusion ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.76)",
+<div style={{ position: "relative", fontSize: isConclusion ? 22 : 20, color: isConclusion ? "rgba(0,0,0,0.9)" : "rgba(0,0,0,0.82)",
 fontFamily:FD, lineHeight: isConclusion ? 1.75 : 1.9, fontWeight: isConclusion ? 500 : 400, fontStyle: isConclusion ? "normal" : "normal", textAlign: "left", textIndent: 0 }}>
 {_revisingSection === si && (
 <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.7)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "rgba(0,0,0,0.5)", fontFamily: FB, letterSpacing: "0.1em" }}>Incorporating your feedback…</div>
@@ -8763,126 +8820,7 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 </div>
 </>
 )}
-{_report && !_report.generationFailed && (_report.sections||[]).length > 0 && (
-<button
-onClick={function(){
-var esc = function(s){ return (s||"").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>"); };
-var verdict = _report && _report.oneLineVerdict ? String(_report.oneLineVerdict).trim() : "";
-if (verdict.toLowerCase() === "omit" || verdict.length < 4) verdict = "";
-var dateRange = _report && _report.dateRange ? String(_report.dateRange).trim() : "";
-var nextEdge = _report && _report.whatMightWantToHappen ? String(_report.whatMightWantToHappen).trim() : "";
-if (nextEdge.toLowerCase() === "omit") nextEdge = "";
-var accent = (_accent||"#6BB8FF").replace(/"/g,"");
-var hex = accent.replace("#","");
-if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-var r=parseInt(hex.slice(0,2),16)||107, g=parseInt(hex.slice(2,4),16)||184, b=parseInt(hex.slice(4,6),16)||255;
-var accentRgba = "rgba("+r+","+g+","+b+",0.12)";
-var lastSd = (allSessions.length > 0 && allSessions[allSessions.length-1]) ? allSessions[allSessions.length-1] : sd;
-var currSd = currentSessionData || lastSd || sd;
-var sessUnderneath = (currSd.underneath && Array.isArray(currSd.underneath) ? currSd.underneath : (sd.underneath && Array.isArray(sd.underneath) ? sd.underneath : [])).filter(function(u){ return typeof u==="string"&&u.trim(); }).slice(0,3);
-var sessBlindSpot = (currSd.blind_spot || sd.blind_spot || "").trim();
-var sessSynthesis = (currSd.synthesis || sd.synthesis || "").trim();
-var underneath = sessUnderneath;
-var blindSpot = sessBlindSpot;
-var synthesis = sessSynthesis;
-if (_report && _report.sections && _report.sections.length > 0) {
-var secs = _report.sections;
-secs.forEach(function(sec, idx) {
-var t = (sec.title || "").toUpperCase();
-var b = (sec.body || "").trim();
-if (!b) return;
-var firstPara = b.split(/\n\n+/)[0].replace(/^◆\s*/, "").trim();
-if (t.indexOf("BLIND") >= 0) blindSpot = firstPara.slice(0, 400);
-else if (t.indexOf("REVEALED") >= 0 || (t.indexOf("CONCLUSION") >= 0 && !synthesis)) synthesis = firstPara.slice(0, 500);
-else if (t.indexOf("SHOWED") >= 0 || t.indexOf("SESSION") >= 0) synthesis = firstPara.slice(0, 500);
-else if (t.indexOf("RETURNING") >= 0 || t.indexOf("STILL") >= 0 || t.indexOf("UNDERNEATH") >= 0) {
-var sents = b.split(/[.!?]\s+/).filter(function(s){ return s.trim().length > 25; }).slice(0, 3);
-if (sents.length > 0) underneath = sents.map(function(s){ return (s.replace(/^◆\s*/, "").trim() + (s.trim().match(/[.!?]$/) ? "" : ".")).slice(0, 200); });
-}
-});
-if (secs.length >= 4 && !synthesis) synthesis = (secs[3].body || "").split(/\n\n+/)[0].replace(/^◆\s*/, "").trim().slice(0, 500);
-if (secs.length >= 1 && !synthesis) synthesis = (secs[0].body || "").split(/\n\n+/)[0].replace(/^◆\s*/, "").trim().slice(0, 500);
-if (secs.length >= 3 && underneath.length === 0) {
-var s3 = (secs[2].body || "").split(/[.!?]\s+/).filter(function(s){ return s.trim().length > 25; }).slice(0, 3);
-if (s3.length > 0) underneath = s3.map(function(s){ return (s.replace(/^◆\s*/, "").trim() + (s.trim().match(/[.!?]$/) ? "" : ".")).slice(0, 200); });
-}
-}
-var clarity = (currSd.clarity || "").trim();
-var userQuote = clarity;
-if (!userQuote && currSd.mapResponses) {
-for (var k in currSd.mapResponses) {
-var mr = currSd.mapResponses[k];
-if (mr && mr.comment && String(mr.comment).trim()) { userQuote = String(mr.comment).trim(); break; }
-}
-}
-if (!userQuote && allSessions.length > 0) {
-for (var si = allSessions.length-1; si >= 0; si--) {
-var s = allSessions[si];
-if (s && s.mapResponses) for (var k2 in s.mapResponses) {
-var mr2 = s.mapResponses[k2];
-if (mr2 && mr2.comment && String(mr2.comment).trim()) { userQuote = String(mr2.comment).trim(); break; }
-}
-if (userQuote) break;
-}
-}
-var themeCount = (themes && themes.length) ? themes.length : ((sd.themes && sd.themes.length) || 0);
-var underneathHtml = underneath.length ? '<div class="inf-block"><div class="inf-label">WHAT\'S UNDERNEATH</div>'+underneath.map(function(u){ return '<div class="inf-line">'+esc(u)+'</div>'; }).join('')+'</div>' : "";
-var blindSpotHtml = blindSpot ? '<div class="inf-block inf-blind"><div class="inf-label">THE BLIND SPOT</div><div class="inf-punch">'+esc(blindSpot)+'</div></div>' : "";
-var synthesisHtml = synthesis ? '<div class="inf-block"><div class="inf-label">WHAT THE SESSION REVEALED</div><div class="inf-punch">'+esc(synthesis)+'</div></div>' : "";
-var statsHtml = '<div class="inf-stats"><span class="inf-stat">'+sessionCount+'</span><span class="inf-stat-label">sessions</span><span class="inf-stat-sep">·</span><span class="inf-stat">'+themeCount+'</span><span class="inf-stat-label">themes</span></div>';
-var userWordsHtml = userQuote ? '<div class="inf-block inf-quote"><div class="inf-label">IN YOUR WORDS</div><div class="inf-quote-text">"'+esc(userQuote)+'"</div></div>' : "";
-var nextHtml = nextEdge ? '<div class="inf-block inf-next"><div class="inf-label">WHAT MIGHT WANT TO HAPPEN</div><div class="inf-punch">'+esc(nextEdge)+'</div></div>' : "";
-var notesHtml = _notesSummary ? '<div class="inf-block inf-notes"><div class="inf-label">YOUR REFLECTION</div><div class="inf-notes-text">'+esc(_notesSummary)+'</div></div>' : "";
-var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your Takeaway · SAYCRD</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"><style>'
-+'*{box-sizing:border-box;margin:0;padding:0}'
-+'body{font-family:"DM Sans",system-ui,sans-serif;background:linear-gradient(165deg,#04040c 0%,#080818 30%,#0a0a20 60%,#060612 100%);color:rgba(255,255,255,0.95);line-height:1.4;min-height:100vh}'
-+'.page{max-width:480px;margin:0 auto;padding:40px 24px 56px}'
-+'.brand{font-size:9px;letter-spacing:0.5em;color:rgba(255,255,255,0.3);margin-bottom:6px;font-weight:700}'
-+'.hero-count{font-size:clamp(48px,12vw,72px);font-weight:800;letter-spacing:-0.05em;background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,0.75) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:0.95;margin-bottom:6px}'
-+'.hero-meta{font-size:12px;letter-spacing:0.25em;color:rgba(255,255,255,0.45);margin-bottom:36px}'
-+'.verdict-block{background:linear-gradient(135deg,'+accentRgba+' 0%,transparent 100%);border:1px solid '+accent+'55;border-radius:16px;padding:24px 20px;margin-bottom:32px;text-align:center}'
-+'.verdict-text{font-family:"DM Serif Display",Georgia,serif;font-size:clamp(18px,3.5vw,24px);font-weight:500;line-height:1.45;color:#fff;font-style:italic}'
-+'.inf-block{margin-bottom:28px}'
-+'.inf-label{font-size:8px;letter-spacing:0.6em;color:rgba(255,255,255,0.4);margin-bottom:10px;font-weight:700;text-transform:uppercase}'
-+'.inf-line{font-family:"DM Serif Display",Georgia,serif;font-size:15px;line-height:1.6;color:rgba(255,255,255,0.9);margin-bottom:8px;padding-left:12px;border-left:2px solid '+accent+'66}'
-+'.inf-line:last-child{margin-bottom:0}'
-+'.inf-punch{font-family:"DM Serif Display",Georgia,serif;font-size:17px;line-height:1.5;color:rgba(255,255,255,0.95);font-style:italic}'
-+'.inf-blind .inf-punch{color:#B86BFF}'
-+'.inf-stats{display:flex;align-items:baseline;gap:6px;margin-bottom:32px;flex-wrap:wrap}'
-+'.inf-stat{font-size:28px;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:-0.03em}'
-+'.inf-stat-label{font-size:11px;letter-spacing:0.3em;color:rgba(255,255,255,0.4);text-transform:uppercase}'
-+'.inf-stat-sep{font-size:14px;color:rgba(255,255,255,0.25);margin:0 4px}'
-+'.inf-quote .inf-quote-text{font-size:15px;line-height:1.6;color:rgba(214,178,109,0.95);font-style:italic;padding:14px 18px;background:rgba(40,35,25,0.4);border-radius:12px;border-left:3px solid rgba(214,178,109,0.5)}'
-+'.inf-next .inf-punch{color:#6BFFB8}'
-+'.inf-notes .inf-notes-text{font-size:14px;line-height:1.65;color:rgba(255,255,255,0.85)}'
-+'.disclaimer{font-size:9px;color:rgba(255,255,255,0.25);line-height:1.5;margin-top:40px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06)}'
-+'.takeaway-back{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;padding:16px 20px;background:rgba(0,0,0,0.3);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06);margin:0 -24px 24px -24px;padding-left:24px}'
-+'.takeaway-back-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:15px;font-family:DM Sans,sans-serif;font-weight:600;color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:12px;cursor:pointer;text-decoration:none}'
-+'.takeaway-back-btn:hover{background:rgba(255,255,255,0.12);color:#fff}'
-+'@media (max-width:480px){.hero-count{font-size:clamp(36px,10vw,48px)}.hero-meta{font-size:14px}.verdict-text{font-size:clamp(20px,5vw,26px)}.inf-label{font-size:10px}.inf-line,.inf-punch{font-size:18px;line-height:1.65}.inf-stat{font-size:24px}.inf-stat-label{font-size:12px}.inf-quote .inf-quote-text{font-size:17px}.inf-next .inf-punch{font-size:18px}.inf-notes .inf-notes-text{font-size:16px}.page{padding:24px 20px 48px}}'
-+'@media print{body{background:#080818;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{padding:28px 20px 40px}}'
-+'</style></head><body><div class="page">'
-+'<div class="takeaway-back"><button type="button" class="takeaway-back-btn" onclick="window.close()">← Back to report</button></div>'
-+'<div class="brand">SAYCRD</div>'
-+'<div class="hero-count">'+sessionCount+' '+(sessionCount===1?'SESSION':'SESSIONS')+'</div>'
-+(dateRange ? '<div class="hero-meta">'+esc(dateRange)+'</div>' : '')
-+(verdict ? '<div class="verdict-block"><div class="verdict-text">'+esc(verdict)+'</div></div>' : '')
-+statsHtml
-+underneathHtml
-+blindSpotHtml
-+synthesisHtml
-+userWordsHtml
-+nextHtml
-+notesHtml
-+'<div class="disclaimer">For personal insight only. Not clinical assessment or medical advice.</div>'
-+'</div></body></html>';
-var w = window.open("","_blank","width=520,height=900");
-if(w){ w.document.write(html); w.document.close(); w.focus(); }
-}}
-style={{ marginTop:16, padding:"12px 20px", fontSize:12, letterSpacing:"0.2em", fontFamily:FB, background:_accent, color:"white", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>
-Create shareable summary
-</button>
-)}
+
 </div>
 
 <div style={{ marginBottom:20, padding:"14px 16px",
@@ -10305,7 +10243,7 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 );
 }
 
-function JourneysPhase({ onStart, onBack }) {
+function JourneysPhase({ onStart, onBack, onNavigateToReport }) {
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
@@ -10343,7 +10281,7 @@ var arch = s.archetypes && s.archetypes[0] ? s.archetypes[0].name : "";
 var isMilestone = MILESTONES.indexOf(idx) >= 0;
 var span = isMilestone ? 2 : 1;
 return (
-<div key={i} style={{ gridColumn: "span " + span, padding: isMilestone ? "22px 20px" : "16px 18px", background: "rgba(255,255,255,0.06)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)", animation: "riseUp 0.5s ease " + (i * 0.06) + "s both" }}>
+<div key={i} onClick={onNavigateToReport ? function(){ onNavigateToReport(idx - 1); } : undefined} style={{ gridColumn: "span " + span, padding: isMilestone ? "22px 20px" : "16px 18px", background: "rgba(255,255,255,0.06)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)", animation: "riseUp 0.5s ease " + (i * 0.06) + "s both", cursor: onNavigateToReport ? "pointer" : "default", minHeight: 44, touchAction: "manipulation" }}>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
 <div style={{ fontSize: isMilestone ? 12 : 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.8)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
 {dateStr && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{dateStr}</div>}
@@ -10362,13 +10300,14 @@ var dateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "sh
 var th = (s.themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ");
 var arch = s.archetypes && s.archetypes[0] ? s.archetypes[0].name : "";
 return (
-<div key={i} style={{ padding: "18px 20px", background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)" }}>
+<div key={i} onClick={onNavigateToReport ? function(){ onNavigateToReport(idx - 1); } : undefined} style={{ padding: "18px 20px", background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", cursor: onNavigateToReport ? "pointer" : "default", minHeight: 44, touchAction: "manipulation" }}>
 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
 <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
 {dateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{dateStr}</div>}
 </div>
 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontFamily: FD, lineHeight: 1.55, letterSpacing: "0.01em" }}>{(s.map_title || s.mapTitle || th || "—").slice(0, 60)}{(s.map_title || s.mapTitle || th || "").length > 60 ? "…" : ""}</div>
 {arch && <div style={{ marginTop: 8, fontSize: 13, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FD, fontStyle: "italic" }}>{arch}</div>}
+{onNavigateToReport && <div style={{ marginTop: 10, fontSize: 12, color: "rgba(184,107,255,0.6)", fontFamily: FB, letterSpacing: "0.08em" }}>Read full report →</div>}
 </div>
 );
 })}
@@ -10412,15 +10351,20 @@ Your next session could deepen this thread.
 );
 }
 
-function CompletionPhase({ onStart, onNavigateToJourneys }) {
+function CompletionPhase({ onStart, onNavigateToJourneys, onNavigateToReport }) {
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+var lastIndex = sessions.length - 1;
 var themes = (lastSession && lastSession.themes) ? lastSession.themes : [];
 var arch = lastSession && lastSession.archetypes && lastSession.archetypes[0] ? lastSession.archetypes[0] : null;
 var dateStr = lastSession && lastSession.date ? new Date(lastSession.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+var titleStr = lastSession ? (lastSession.map_title || lastSession.mapTitle || (themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ")) : "";
+var introRaw = lastSession ? (String(lastSession.synthesis || lastSession.opening || "").trim()) : "";
+var introStr = introRaw ? (introRaw.length > 160 ? introRaw.slice(0, 160).replace(/\s+\S*$/, "") + "…" : introRaw) : "";
 var SG = "Space Grotesk, " + FB;
+var isRealAccount = typeof window !== "undefined" && !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user");
 var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
@@ -10437,58 +10381,57 @@ return (
 <div style={{ position: "absolute", bottom: "20%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(107,184,255,0.08), transparent 65%)", filter: "blur(60px)" }} />
 </div>
 <div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-<div style={{ textAlign: "center", marginBottom: 40 }}>
+<div style={{ textAlign: "center", marginBottom: 32 }}>
 <div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
 <div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>SESSION COMPLETE</div>
-<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 24, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
+<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 0, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
 </div>
-<div style={{ padding: "26px 22px", background: isMobile ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", backdropFilter: isMobile ? "blur(12px)" : "none", WebkitBackdropFilter: isMobile ? "blur(12px)" : "none", borderRadius: 18, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 32 }}>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-<div style={{ fontSize: 12, letterSpacing: "0.35em", color: "rgba(255,255,255,0.45)", fontFamily: FB, fontWeight: 600 }}>SESSIONS</div>
-<div style={{ fontSize: 28, fontWeight: 700, color: "rgba(255,255,255,0.98)", fontFamily: FB, letterSpacing: "-0.03em" }}>{sessions.length}</div>
-</div>
-{dateStr && <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", fontFamily: FD, fontStyle: "italic", marginBottom: 12, letterSpacing: "0.02em" }}>{dateStr}</div>}
+
+<div style={{ padding: "28px 24px", background: "rgba(255,255,255,0.05)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 20 }}>
+{arch && arch.name && (
+<div style={{ fontSize: isMobile ? 24 : 26, fontWeight: 600, color: (arch.color || "#E84393") + "ee", fontFamily: FD, fontStyle: "italic", letterSpacing: "0.01em", marginBottom: 10, wordBreak: "break-word" }}>{arch.name}</div>
+)}
+{titleStr && <div style={{ fontSize: 16, color: "rgba(255,255,255,0.82)", fontFamily: FB, fontWeight: 600, letterSpacing: "0.01em", marginBottom: 8 }}>{titleStr}</div>}
+{dateStr && <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: FB, letterSpacing: "0.06em", marginBottom: introStr ? 14 : 0 }}>{dateStr} · SESSION {sessions.length}</div>}
+{introStr && <div style={{ fontSize: 15, color: "rgba(255,255,255,0.68)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6 }}>{introStr}</div>}
 {themes.length > 0 && (
-<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ fontSize: 11, letterSpacing: "0.3em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 600 }}>THIS SESSION</div>
-<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+<div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", flexWrap: "wrap", gap: 8 }}>
 {themes.slice(0, 5).map(function(t, i){ return <span key={i} style={{ padding: "6px 12px", borderRadius: 10, background: (t.color || "#6BB8FF") + "22", color: t.color || "#6BB8FF", fontSize: 13, fontFamily: FB, fontWeight: 500, letterSpacing: "0.02em" }}>{t.label}</span>; })}
 </div>
-</div>
-)}
-{arch && arch.name && (
-<div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-<div style={{ fontSize: 11, letterSpacing: "0.3em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 6, fontWeight: 600 }}>YOUR PATTERN</div>
-<div style={{ fontSize: 18, fontWeight: 600, color: (arch.color || "#E84393") + "ee", fontFamily: FD, fontStyle: "italic", letterSpacing: "0.01em" }}>{arch.name}</div>
-</div>
 )}
 </div>
-{sessions.length >= 2 && (function(){
-var insights = [];
-var seenBlind = {};
-sessions.slice(-12).forEach(function(s, i) {
-var bs = typeof s.blind_spot === "string" ? s.blind_spot.trim() : "";
-if (bs && bs.length > 15 && !seenBlind[bs.slice(0,50)]) { seenBlind[bs.slice(0,50)] = 1; insights.push({ type: "blind_spot", text: bs, date: s.date }); }
-var syn = (s.synthesis || "").trim();
-if (syn && syn.length > 30) insights.push({ type: "synthesis", text: syn.slice(0, 120) + (syn.length > 120 ? "…" : ""), date: s.date });
-});
-return insights.length > 0 ? (
-<div style={{ marginBottom: 32, maxHeight: 220, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-<div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(184,107,255,0.5)", fontFamily: FB, marginBottom: 14, fontWeight: 600 }}>FROM YOUR SESSIONS</div>
-<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-{insights.slice(-8).reverse().map(function(x, i) {
-var d = x.date ? new Date(x.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+
+{onNavigateToReport && lastIndex >= 0 && (
+<button onClick={function(){ onNavigateToReport(lastIndex); }} style={{ width: "100%", textAlign: "left", padding: "22px 24px", marginBottom: 32, borderRadius: 20, background: "linear-gradient(135deg, rgba(232,67,147,0.16), rgba(184,107,255,0.16))", border: "1px solid rgba(232,67,147,0.35)", cursor: "pointer", minHeight: 44, touchAction: "manipulation" }}>
+<div style={{ fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: FB, letterSpacing: "0.01em", marginBottom: 4 }}>Read Your Report →</div>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic" }}>See the full field report</div>
+</button>
+)}
+
+{sessions.length > 0 && (
+<div style={{ marginBottom: 32 }}>
+<div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(184,107,255,0.55)", fontFamily: FB, marginBottom: 14, fontWeight: 600 }}>YOUR SESSIONS</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+{sessions.slice().reverse().map(function(s, i) {
+var idx = sessions.length - i;
+var sDateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+var sTitle = s.map_title || s.mapTitle || (s.themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ") || "—";
+var sArch = s.archetypes && s.archetypes[0] ? s.archetypes[0].name : "";
 return (
-<div key={i} style={{ padding: "14px 16px", background: "rgba(184,107,255,0.05)", borderRadius: 12, border: "1px solid rgba(184,107,255,0.12)" }}>
-<div style={{ fontSize: 14, color: "rgba(255,255,255,0.88)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6 }}>{x.text}</div>
-{d && <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: FB, letterSpacing: "0.06em" }}>{d}</div>}
+<div key={i} onClick={onNavigateToReport ? function(){ onNavigateToReport(idx - 1); } : undefined} style={{ padding: "16px 18px", background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", cursor: onNavigateToReport ? "pointer" : "default", minHeight: 44, touchAction: "manipulation" }}>
+<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+<div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
+{sDateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{sDateStr}</div>}
+</div>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontFamily: FD, lineHeight: 1.55, letterSpacing: "0.01em" }}>{String(sTitle).slice(0, 60)}{String(sTitle).length > 60 ? "…" : ""}</div>
+{sArch && <div style={{ marginTop: 6, fontSize: 13, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FD, fontStyle: "italic" }}>{sArch}</div>}
 </div>
 );
 })}
 </div>
 </div>
-) : null;
-})()}
+)}
+
 {captures.length > 0 && (
 <div style={{ marginBottom: 32, maxHeight: 280, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
 <div style={{ fontSize: 11, letterSpacing: "0.45em", color: "rgba(107,184,255,0.7)", fontFamily: FB, marginBottom: 16, fontWeight: 600 }}>YOUR CAPTURES</div>
@@ -10506,24 +10449,73 @@ return (
 </div>
 </div>
 )}
-{isMobile && onNavigateToJourneys && sessions.length > 0 && (
-<button onClick={onNavigateToJourneys} style={{ width: "100%", padding: "14px 24px", marginBottom: 12, borderRadius: 20, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", fontSize: 14, fontFamily: FB, fontWeight: 600, letterSpacing: "0.15em", cursor: "pointer" }}>
-Your Journeys →
-</button>
-)}
-<button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
+
+<button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)", minHeight: 52, touchAction: "manipulation" }}>
 Start a new session
 </button>
-<div style={{ marginTop: 24, fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5 }}>
-Your field grows with each session.
+
+{isRealAccount ? (
+<div style={{ marginTop: 20, fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FB, textAlign: "center", letterSpacing: "0.02em" }}>
+Your sessions are saved to your account.
 </div>
-{sessions.length >= 2 && isMobile && (
-<div style={{ marginTop: 16, fontSize: 13, color: "rgba(184,107,255,0.65)", fontFamily: FD, fontStyle: "italic", textAlign: "center" }}>
-Your next session could deepen this thread.
+) : (
+<div style={{ marginTop: 24, padding: "18px 20px", borderRadius: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", textAlign: "center" }}>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, marginBottom: 14 }}>
+Your sessions are currently saved only on this device. Create an account to keep your maps and reports connected and available whenever you return.
+</div>
+<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(function(){}); }} style={{ padding: "12px 24px", borderRadius: 999, background: "rgba(232,67,147,0.15)", border: "1px solid rgba(232,67,147,0.35)", color: "#E84393", fontSize: 14, fontFamily: FB, fontWeight: 600, letterSpacing: "0.04em", cursor: "pointer", minHeight: 44, touchAction: "manipulation" }}>
+Save My Sessions
+</button>
 </div>
 )}
 </div>
 </div>
+);
+}
+
+function ReportViewerPhase({ sessionIndex, onBack }) {
+var sessions = [];
+try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
+var idx = (typeof sessionIndex === "number" && sessionIndex >= 0 && sessionIndex < sessions.length) ? sessionIndex : sessions.length - 1;
+var session = sessions[idx] || null;
+
+if (!session) {
+return (
+<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "#FAFAF8" }}>
+<div style={{ fontSize: 15, color: "rgba(0,0,0,0.5)", fontFamily: FD, fontStyle: "italic" }}>That report couldn't be found.</div>
+<button onClick={onBack} style={{ padding: "12px 24px", borderRadius: 999, background: "rgba(0,0,0,0.06)", border: "none", color: "rgba(0,0,0,0.7)", fontSize: 14, fontFamily: FB, fontWeight: 600, cursor: "pointer", minHeight: 44, touchAction: "manipulation" }}>← Back</button>
+</div>
+);
+}
+
+var themes = (session.themes || []).map(function(t, i) { return { label: t.label, weight: t.weight || 1, color: t.color || NC[i % NC.length] }; });
+var allSessions = sessions.slice(0, idx);
+var sliderValues = {};
+if (session.cardFeedback) {
+Object.keys(session.cardFeedback).forEach(function(k) {
+if (session.cardFeedback[k] && session.cardFeedback[k].slider !== undefined) sliderValues[k] = session.cardFeedback[k].slider;
+});
+}
+var currentSessionData = Object.assign({}, session, {
+mapResponses: session.mapResponses || {},
+descent: session.descent,
+clarity: session.clarity || session.sessionClarity || "",
+reactions: session.reactions || {},
+corrections: session.corrections || {},
+});
+
+return (
+<FieldMobileContext.Provider value={isMobile}>
+<div style={{ width: "100%", height: "100%", position: "absolute", inset: 0, background: "#FAFAF8" }}>
+<div style={{ position: "absolute", top: "calc(14px + env(safe-area-inset-top, 0px))", left: 16, zIndex: 10 }}>
+<button onClick={onBack} style={{ padding: "8px 16px", minHeight: 44, minWidth: 44, fontSize: 12, fontFamily: FB, letterSpacing: "0.12em", color: "rgba(0,0,0,0.7)", background: "rgba(0,0,0,0.06)", border: "none", borderRadius: 4, cursor: "pointer", touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}>← Back</button>
+</div>
+<div style={{ position: "absolute", top: isMobile ? 76 : 60, left: 0, right: 0, bottom: 0 }}>
+<FieldReportCard themes={themes} sd={session} sessionCount={idx + 1} allSessions={allSessions} currentSessionData={currentSessionData} sliderValues={sliderValues} portrait={null} portraitReady={true} goNext={function(){}} sentenceFeedback={session.sentenceFeedback || {}} onSentenceFeedback={function(){}} onSessionComplete={undefined} onNavigateToJourneys={undefined}/>
+</div>
+</div>
+</FieldMobileContext.Provider>
 );
 }
 
@@ -11234,6 +11226,7 @@ const [synthesisData, setSynthesisData] = useState(null);
 const [mapResponses, setMapResponses] = useState({});
 const [sessionData, setSessionData] = useState({});
 const [fieldTransition, setFieldTransition] = useState(false);
+const [reportSessionIndex, setReportSessionIndex] = useState(null);
 
 function onPatchSynthesis(patch) {
 setSynthesisData(function(prev) {
@@ -11268,7 +11261,7 @@ setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 return (
 <div className="saycrd-app-shell" style={{width:"100%",background:cp==="map"?GRADIENTS.map:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys") ? "100%" : "var(--saycrd-shell-w)",height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys" || cp === "report") ? "100%" : "var(--saycrd-shell-w)",height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
@@ -11286,8 +11279,9 @@ setPhase(3);
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
 {cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){setPhase(7);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
-{cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
-{cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onBack={function(){setPhase(7);}}/>}
+{cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}} onNavigateToJourneys={function(){setPhase(8);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
+{cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onBack={function(){setPhase(7);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
+{cp==="report"&&<ReportViewerPhase sessionIndex={reportSessionIndex} onBack={function(){setPhase(7);}}/>}
 {fieldTransition && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", animation: "morphIn 0.4s ease both" }}>
 <div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase", animation: "pulse 1.5s ease infinite" }}>entering the field</div>
 </div>}
