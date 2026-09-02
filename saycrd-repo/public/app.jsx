@@ -1362,7 +1362,7 @@ Continue
 <ProgressiveLoadingOverlay
 loading={step === 0 || step === 1}
 label={step===0?"Reading your words":step===1?"Finding what's underneath":"Your map"}
-sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?"Analyzing your words — finding patterns and connections":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
+sublabel={step===0?"Your words are being absorbed �� the AI is matching patterns in what you wrote":(step===1?"Analyzing your words — finding patterns and connections":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
 >
 <div style={{ width: "100%", maxWidth: 560, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
 {revealData && revealData.themes && revealData.themes.length > 0 ? (
@@ -11243,7 +11243,16 @@ return (
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
-{cp==="pour"&&<PourPhase onComplete={function(t){setRawText(t);setPhase(3);}} onBack={function(){setPhase(0);}}/>}
+{cp==="pour"&&<PourPhase onComplete={function(t){
+// New pour text invalidates whatever was synthesized/mapped for the PREVIOUS
+// text — without this, MapPhase's `needsSynthesis = !synthesisData && rawText`
+// stays false (synthesisData is still the old session's), so it skips
+// re-synthesizing entirely and just renders the old session's stale map.
+setSynthesisData(null);
+setMapResponses({});
+setRawText(t);
+setPhase(3);
+}} onBack={function(){setPhase(0);}}/>}
 {cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onSynthesis={setSynthesisData} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(1);}}/>}
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
