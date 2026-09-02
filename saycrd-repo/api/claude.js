@@ -36,11 +36,11 @@ export default async function handler(req, res) {
 
     // Force model to allowed list
     const allowedModels = [
-      "claude-sonnet-4-20250514",
+      "claude-sonnet-4-5-20250929",
       "claude-haiku-4-5-20251001",
     ];
     if (!allowedModels.includes(body.model)) {
-      body.model = "claude-sonnet-4-20250514";
+      body.model = "claude-sonnet-4-5-20250929";
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {

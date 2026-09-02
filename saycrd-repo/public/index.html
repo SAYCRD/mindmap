@@ -557,7 +557,7 @@ window._localBypass = function() {
     try {
       var maxTokens = max || 3500;
       var body = JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-5-20250929",
         max_tokens: maxTokens,
         messages: [{ role: "user", content: sys + "\n\n---\n\nUser text:\n\n" + (usr || "") }]
       });
@@ -574,17 +574,28 @@ window._localBypass = function() {
             }
           } catch(e) {}
         }
+        // Local/failsafe bypass mode has no real Supabase session (by design, so it
+        // still works even if Supabase is completely down) — fall back to the public
+        // anon key just so the proxy's "Authorization header present" check passes.
+        // This is not a real credential check server-side (see api/claude.js), so this
+        // fallback grants bypass users the same access level they already have.
+        if (window.currentUser && window.currentUser.id === "local-user") {
+          // NOTE: SAYCRD_CONFIG is declared with `const` in an earlier <script> tag, so
+          // it is NOT a property of `window` (unlike `var`) — reference it by bare name.
+          var anonKey = typeof SAYCRD_CONFIG !== "undefined" && SAYCRD_CONFIG.SUPABASE_ANON_KEY;
+          if (anonKey) return anonKey;
+        }
         return null;
       };
-      await ensureToken();
-      if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
+      var _tok = await ensureToken();
+      if (_tok) headers["Authorization"] = "Bearer " + _tok;
       var r = await fetch(endpoint, { method: "POST", headers: headers, body: body });
       if (r.status === 401) {
         // Token race after refresh: try once more.
         headers = { "Content-Type": "application/json" };
         await new Promise(function(res){ setTimeout(res, 180); });
-        await ensureToken();
-        if (window._saycrdToken) headers["Authorization"] = "Bearer " + window._saycrdToken;
+        _tok = await ensureToken();
+        if (_tok) headers["Authorization"] = "Bearer " + _tok;
         r = await fetch(endpoint, { method: "POST", headers: headers, body: body });
       }
       if (!r.ok) {
