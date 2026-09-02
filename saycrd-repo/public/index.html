@@ -332,6 +332,73 @@ async function _syncLocalToSupabase() {
   if (synced > 0) console.log("Synced " + synced + " local keys to Supabase");
 }
 
+/* ── Migrate pre-auth (anonymous) localStorage into the real signed-in uid ── */
+/* Sessions saved while anonymous ("local") or in the "Continue without      */
+/* account" bypass ("local-user") live under different localStorage keys    */
+/* than a real Supabase user id. Without this, they're invisible after      */
+/* sign-in — _syncLocalToSupabase only pushes keys already namespaced under */
+/* the NEW uid, so pre-auth data would otherwise never reach the account.   */
+function _migrateLegacyLocalKeys(uid) {
+  if (!uid || uid === "local-user" || uid === "local") return;
+  var legacyUids = ["local-user", "local"]; /* priority order */
+  var localUserPfx = "saycrd-local-user-";
+  var newPfx = "saycrd-" + uid + "-";
+  var migrated = 0;
+  legacyUids.forEach(function(legacyUid) {
+    var legacyPfx = "saycrd-" + legacyUid + "-";
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k || k.indexOf(legacyPfx) !== 0) continue;
+      /* "saycrd-local-" is a prefix of "saycrd-local-user-" — when scanning
+         the shorter "local" uid, skip keys that actually belong to the more
+         specific "local-user" uid (already migrated in the prior pass). */
+      if (legacyUid === "local" && k.indexOf(localUserPfx) === 0) continue;
+      keys.push(k);
+    }
+    keys.forEach(function(k) {
+      var cleanKey = k.slice(legacyPfx.length);
+      var newKey = newPfx + cleanKey;
+      var legacyVal = localStorage.getItem(k);
+      if (!legacyVal) return;
+      if (cleanKey === "sessions") {
+        /* Merge by the session's own date timestamp — the same dedup key
+           _hydrateFromServer uses — so re-running this on a later sign-in
+           can't duplicate sessions. */
+        var existing = [];
+        try { existing = JSON.parse(localStorage.getItem(newKey) || "[]"); } catch(e) {}
+        if (!Array.isArray(existing)) existing = [];
+        var legacySessions = [];
+        try { legacySessions = JSON.parse(legacyVal || "[]"); } catch(e) {}
+        if (!Array.isArray(legacySessions) || legacySessions.length === 0) return;
+        var seen = {};
+        existing.forEach(function(s) { if (s && s.date) seen[s.date] = true; });
+        var added = 0;
+        legacySessions.forEach(function(s) {
+          if (!s || !s.date || seen[s.date]) return;
+          seen[s.date] = true;
+          existing.push(s);
+          added++;
+        });
+        if (added > 0) {
+          existing.sort(function(a, b) { return a.date < b.date ? -1 : 1; });
+          localStorage.setItem(newKey, JSON.stringify(existing));
+          migrated += added;
+        }
+      } else if (localStorage.getItem(newKey) === null) {
+        /* Non-session key: only copy if the real account doesn't already have it. */
+        localStorage.setItem(newKey, legacyVal);
+        migrated++;
+      }
+      /* Leave the old anonymous-uid key in place — harmless leftover,
+         avoids data loss if migration partially fails. Just stop reading
+         from it going forward (loadSessions()/_sessionKey() already key
+         off getCurrentUid(), which resolves to the real uid post-migration). */
+    });
+  });
+  if (migrated > 0) console.log("[SAYCRD] Migrated " + migrated + " item(s) from anonymous storage into account " + uid);
+}
+
 /* ── Hydrate localStorage from Supabase (runs after auth on new/different device) ── */
 /* Fetches sessions from server and merges with local. Server wins if more recent.    */
 async function _hydrateFromServer() {
@@ -549,6 +616,7 @@ window._localBypass = function() {
           /* On sign-in: hydrate from server first (new device recovery),
              then push any local-only data up. Both are non-blocking. */
           if (event === "SIGNED_IN") {
+            try { _migrateLegacyLocalKeys(session.user.id); } catch(e) { console.warn("[SAYCRD] Legacy key migration failed:", e); }
             _hydrateFromServer().then(function() {
               return _syncLocalToSupabase();
             }).catch(function(e) { console.warn("[SAYCRD] Post-login sync failed:", e); });
