@@ -912,8 +912,8 @@ return (
 <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 {showFloating ? <FloatingWords words={words} color="#6BB8FF"/> : null}
 <Particles color="#6BB8FF" count={isMobile ? 8 : 15}/>
-<div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: isMobile ? "20px 20px 32px" : "32px 24px 40px", paddingBottom: "calc(" + (isMobile ? "100px" : "40px") + " + env(safe-area-inset-bottom, 0px))" }}>
-{isMobile ? (
+        <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", padding: isMobile ? "20px 20px 32px" : "32px 24px 40px", paddingBottom: "calc(" + (isMobile ? "100px" : "40px") + " + env(safe-area-inset-bottom, 0px))", display: isMobile ? "block" : "flex", flexDirection: isMobile ? undefined : "column", justifyContent: isMobile ? undefined : "center", minHeight: isMobile ? undefined : "100%" }}>
+          {isMobile ? (
 <div style={{ display: "flex", flexDirection: "column", minHeight: "100%", paddingTop: "env(safe-area-inset-top, 0px)" }}>
 <div style={{ flexShrink: 0, marginBottom: 24 }}>
 <div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 16, fontWeight: 600 }}>SAYCRD</div>
@@ -1362,7 +1362,7 @@ Continue
 <ProgressiveLoadingOverlay
 loading={step === 0 || step === 1}
 label={step===0?"Reading your words":step===1?"Finding what's underneath":"Your map"}
-sublabel={step===0?"Your words are being absorbed �� the AI is matching patterns in what you wrote":(step===1?"Analyzing your words — finding patterns and connections":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
+sublabel={step===0?"Your words are being absorbed ��� the AI is matching patterns in what you wrote":(step===1?"Analyzing your words — finding patterns and connections":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
 >
 <div style={{ width: "100%", maxWidth: 560, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
 {revealData && revealData.themes && revealData.themes.length > 0 ? (
@@ -8263,7 +8263,7 @@ peLines.push(gapLines.join(" "));
 }
 _setLifeFieldGap(lifeFieldGap || null);
 if (pe.regression_context && pe.regression_context.length) peLines.push("Regressions (when themes/map values dropped — prior context): " + pe.regression_context.map(function(r){ return "S" + (r.sessionIndex + 1) + " " + r.type + " " + r.key + (r.priorContext ? " — prior: " + r.priorContext.slice(0, 60) : ""); }).join("; "));
-if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' ��� never state as fact.\n\n";
+if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' ����� never state as fact.\n\n";
 }
 }
 
@@ -8455,47 +8455,50 @@ var fw = weights[pi % weights.length];
 if (onSentenceClick && sentences.length > 0) {
 return (
 <div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85, textAlign: "left", textIndent: 0 }}>
-{sentences.map(function(sent, si) {
-var s = sent.trim();
-if (!s) return null;
-var key = normalizeSentKey(s);
-var fb = sentenceFeedback && sentenceFeedback[key];
-var opt = fb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === fb; }) : null;
-var optC = opt && (opt.color || PICKER_ACCENT);
-var _isRgba = optC && typeof optC === "string" && optC.indexOf("rgba") >= 0;
-var _bg = optC ? (_isRgba ? "rgba(0,0,0,0.06)" : optC + "28") : "transparent";
-var _bord = optC ? (_isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optC) : "1px solid transparent";
-var _txtColor = optC ? (_isRgba ? "rgba(0,0,0,0.72)" : optC) : "inherit";
-return (
-<span key={si}>
-<span
-onClick={function(){ onSentenceClick(s); }}
-style={{
-cursor: "pointer",
-borderRadius: 4,
-padding: "2px 4px",
-margin: "0 1px",
-background: _bg,
-borderBottom: _bord,
-color: _txtColor,
-transition: "all 0.2s",
-}}
-onMouseEnter={function(e){ if(!fb) e.currentTarget.style.background="rgba(0,0,0,0.04)"; }}
-onMouseLeave={function(e){ if(!fb) e.currentTarget.style.background="transparent"; }}
->
-{s}
-</span>
-{si < sentences.length - 1 ? " " : null}
-</span>
-);
-})}
+      {sentences.map(function(sent, si) {
+          var s = sent.trim();
+          if (!s) return null;
+          var isAha = /^◆\s*/.test(s);
+          if (isAha) s = s.replace(/^◆\s*/, "").trim();
+          var key = normalizeSentKey(s);
+          var fb = sentenceFeedback && sentenceFeedback[key];
+          var opt = fb ? SENTENCE_FEEDBACK_OPTIONS.find(function(o){ return o.id === fb; }) : null;
+          var optC = opt && (opt.color || PICKER_ACCENT);
+          var _isRgba = optC && typeof optC === "string" && optC.indexOf("rgba") >= 0;
+          var _bg = optC ? (_isRgba ? "rgba(0,0,0,0.06)" : optC + "28") : (isAha ? "rgba(184,107,255,0.1)" : "transparent");
+          var _bord = optC ? (_isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optC) : (isAha ? "1.5px solid rgba(184,107,255,0.4)" : "1px solid transparent");
+          var _txtColor = optC ? (_isRgba ? "rgba(0,0,0,0.72)" : optC) : "inherit";
+          return (
+            <span key={si}>
+              <span
+                onClick={function(){ onSentenceClick(s); }}
+                style={{
+                  cursor: "pointer",
+                  borderRadius: 4,
+                  padding: "2px 4px",
+                  margin: "0 1px",
+                  background: _bg,
+                  borderBottom: _bord,
+                  color: _txtColor,
+                  fontWeight: isAha && !opt ? 600 : undefined,
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={function(e){ if(!fb) e.currentTarget.style.background="rgba(0,0,0,0.04)"; }}
+                onMouseLeave={function(e){ if(!fb) e.currentTarget.style.background=isAha ? "rgba(184,107,255,0.1)" : "transparent"; }}
+              >
+                {s}
+              </span>
+              {si < sentences.length - 1 ? " " : null}
+            </span>
+          );
+        })}
 </div>
 );
 }
-var _bold = boldLead(p, wc);
-return (
-<div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85, textAlign: "left", textIndent: 0 }}>
-{_bold[0] ? <span style={{ fontWeight: fw, opacity: fw >= 600 ? 1 : 0.92 }}>{_bold[0]}</span> : null}{_bold[1]}
+        var _bold = boldLead(p.replace(/^◆\s*/, ""), wc);
+        return (
+          <div key={pi} style={{ marginBottom: pi < paras.length - 1 ? 16 : 0, fontWeight: isFirst ? 500 : 400, fontSize: fontSize, lineHeight: 1.85, textAlign: "left", textIndent: 0 }}>
+            {_bold[0] ? <span style={{ fontWeight: fw, opacity: fw >= 600 ? 1 : 0.92 }}>{_bold[0]}</span> : null}{_bold[1]}
 </div>
 );
 });
