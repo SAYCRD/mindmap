@@ -6999,7 +6999,14 @@ var _topArch=Object.keys(_archFreq).sort(function(a,b){return _archFreq[b]-_arch
 var _topArchCount=_topArch?_archFreq[_topArch]:0;
 
 return (
-<div style={{ position:"absolute", inset:0, overflow:"hidden",
+// data-noadvance opts this whole page out of the story-reel's global
+// tap-to-navigate handler (any tap not on a real <button> is otherwise
+// read as "left 25% = back, rest = forward" — see handleClick above).
+// Without it, tapping an archetype row here silently advances/rewinds
+// the reel instead of doing nothing, which read as a broken hidden link.
+// The page's real Back/Next buttons are unaffected — they're separate
+// <button> elements already excluded from that handler.
+<div data-noadvance style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"linear-gradient(160deg, #0A0614 0%, #120820 40%, #0E0A1E 100%)",
 display:"flex", flexDirection:"column" }}>
 
