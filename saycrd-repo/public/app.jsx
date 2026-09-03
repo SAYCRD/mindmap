@@ -5445,11 +5445,14 @@ stroke={t.color} strokeWidth="0.5" opacity="0.3"/>;
 
 <div style={{ paddingTop:isMobile?48:80 }}>
 {_fcLoading ? (
-<div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-{[90,64,48].map(function(sz,i){
-return <div key={i} style={{ height:sz*0.85, width:[220,160,120][i], borderRadius:8,
-background:"rgba(255,255,255,0.04)", animation:"breathe 1.5s ease-in-out "+(i*0.2)+"s infinite alternate" }}/>;
-})}
+// This screen's own content (the big word-cloud "field condition" phrase)
+// is written by a live AI call and can take a few seconds, but the rest
+// of the page (network graph, THEMES/CONNECTIONS footer) is already on
+// screen, so a bare pulse here easily reads as "broken" rather than
+// "loading." Swap to the same LoadingWaveBox used on the map/report
+// generation screens so people get an unambiguous loading signal here too.
+<div style={{ maxWidth:280 }}>
+<LoadingWaveBox title="READING THE FIELD" labels={["signal","tone","pull","undercurrent","naming"]} />
 </div>
 ) : (
 <>
