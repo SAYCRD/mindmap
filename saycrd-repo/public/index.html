@@ -409,7 +409,7 @@ function _migrateLegacyLocalKeys(uid) {
 }
 
 /* ── Hydrate localStorage from Supabase (runs after auth on new/different device) ── */
-/* Fetches sessions from server and merges with local. Server wins if more recent.    */
+/* Fetches sessions from server and merges with local.                                */
 async function _hydrateFromServer() {
   if (!currentUser || !supabaseAvailable || currentUser.id === "local-user") return;
   var uid = currentUser.id;
@@ -428,14 +428,33 @@ async function _hydrateFromServer() {
     var localSessions = [];
     try { localSessions = JSON.parse(localStorage.getItem(localKey) || "[]"); } catch(e) {}
 
-    // Merge: union by date string, deduplicate, sort chronologically
-    var all = serverSessions.concat(localSessions);
-    var seen = {};
-    var merged = all.filter(function(s) {
-      if (!s || !s.date) return false;
-      if (seen[s.date]) return false;
-      seen[s.date] = true;
-      return true;
+    // Merge by date string. This used to concat server-then-local and keep
+    // whichever copy of a shared date appeared FIRST — i.e. the server's.
+    // This function runs on every SIGNED_IN event, which supabase-js also
+    // fires on a plain page reload/relaunch (not just a fresh sign-in on a
+    // new device) whenever it restores a persisted session. So on ANY
+    // reload, if the local copy has a just-generated field report (or
+    // sentence-feedback edit) that hasn't finished its own async push to
+    // Supabase yet — very easy on mobile, where the app gets backgrounded
+    // or relaunched moments after finishing a session — the server's older,
+    // report-less copy of that same date SILENTLY OVERWROTE the local one.
+    // The cached report was gone, so every later "Read Your Report" click
+    // looked like it was generating from scratch again, even for a report
+    // that had already been written once. Fix: for a shared date, merge the
+    // two objects with the LOCAL fields taking priority — local always has
+    // everything the server does (it's the source every push comes from)
+    // plus anything generated since the last successful push, so it can
+    // only ever be equal to or richer than the server's copy.
+    var localByDate = {};
+    localSessions.forEach(function(s) { if (s && s.date) localByDate[s.date] = s; });
+    var merged = serverSessions.map(function(s) {
+      if (s && s.date && localByDate[s.date]) return Object.assign({}, s, localByDate[s.date]);
+      return s;
+    }).filter(function(s) { return s && s.date; });
+    var mergedDates = {};
+    merged.forEach(function(s) { mergedDates[s.date] = true; });
+    localSessions.forEach(function(s) {
+      if (s && s.date && !mergedDates[s.date]) { merged.push(s); mergedDates[s.date] = true; }
     });
     merged.sort(function(a, b) { return a.date < b.date ? -1 : 1; });
     if (merged.length > 100) merged = merged.slice(-100);
