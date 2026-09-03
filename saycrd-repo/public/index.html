@@ -7,6 +7,20 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=Space+Grotesk:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<!-- These 4 scripts are still loaded as plain blocking <script> tags below (in this
+     exact order, since app.compiled.js assumes React/ReactDOM/supabase are already
+     defined) — that ordering can't change without risking breakage. What CAN change
+     safely is WHEN each download starts: without these hints, the browser only begins
+     fetching react.production.min.js once it finishes executing supabase-js, only
+     begins fetching react-dom once react finishes, and so on — four separate
+     download-then-run round trips stacked serially. Preloading tells the browser to
+     start ALL FOUR downloads immediately and in parallel, so by the time the parser
+     reaches each blocking <script> tag the bytes are already in flight (often already
+     cached), leaving only parse+execute time as the real serial cost. -->
+<link rel="preload" href="vendor/supabase-js.2.114.0.min.js" as="script">
+<link rel="preload" href="vendor/react.production.min.js" as="script">
+<link rel="preload" href="vendor/react-dom.production.min.js" as="script">
+<link rel="preload" href="app.compiled.js?v=20260903-1" as="script">
 <style>
 :root{
   /* ═══ Fluid layout tokens ═══
