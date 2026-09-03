@@ -4122,6 +4122,12 @@ window.storage.set("sessions", JSON.stringify(sess)).catch(function() {});
 }
 
 function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
+// Returning-user check: do they already have at least one saved session under
+// the currently-known uid? Used to route straight to the SESSION COMPLETE /
+// "Your Journeys" screen instead of the landing page on app load.
+function _hasReturningSessions() {
+  try { return JSON.parse(localStorage.getItem(_sessionKey()) || "[]").length > 0; } catch(e) { return false; }
+}
 function updateLastSession(partial) {
 try {
 var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
@@ -8576,15 +8582,15 @@ var v = String(_lifeFieldResponse || "").trim();
 var q = "Your focus has been on " + _lifeFieldGap.dominantLabel.toLowerCase() + ". You brought up " + (_lifeFieldGap.undermentioned[0] ? _lifeFieldGap.undermentioned[0].label.toLowerCase() : "other areas") + " in passing. What's there?";
 updateLastSession({ lifeFieldGapResponse: v, lifeFieldGapQuestion: v ? q : "" });
 }}
-placeholder="Your response — this is high-value. Your words will shape future reports."
-style={{
-width:"100%", minHeight:72, padding:"14px 16px",
-fontSize:15, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
-lineHeight:1.7, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
-borderRadius:6, resize:"vertical", outline:"none",
-boxSizing:"border-box"
-}}
-/>
+                  placeholder="Your response — this is high-value. Your words will shape future reports."
+                  style={{
+                    width:"100%", minHeight:88, padding:"16px 18px",
+                    fontSize:19, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
+                    lineHeight:1.75, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
+                    borderRadius:6, resize:"vertical", outline:"none",
+                    boxSizing:"border-box"
+                  }}
+                />
 </div>
 )}
 <div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
@@ -8592,25 +8598,25 @@ boxSizing:"border-box"
 <div style={{ fontSize:14, color:"rgba(0,0,0,0.45)", fontFamily:FD, fontStyle:"italic", lineHeight:1.6, marginBottom:8 }}>
 What stands out? What are you hearing yourself say?
 </div>
-<textarea
-value={_reportNotes}
-onChange={function(e){ var v=e.target.value; _setReportNotes(v); try{ localStorage.setItem(_notesKey, v); }catch(x){} }}
-placeholder="Type here — your notes stay with this report."
-style={{
-width:"100%", minHeight:80, padding:"14px 16px",
-fontSize:15, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
-lineHeight:1.7, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
-borderRadius:6, resize:"vertical", outline:"none",
-boxSizing:"border-box"
-}}
-/>
-{_reportNotes.trim() && (
-<>
-<div style={{ marginTop:16 }}>
-<div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Your notes</div>
-<div style={{ fontSize:15, color:"#5C4A3A", fontFamily:FD, fontStyle:"italic", lineHeight:1.75, padding:"12px 16px", background:"rgba(92,74,58,0.06)", borderLeft:"3px solid rgba(92,74,58,0.35)", borderRadius:4, whiteSpace:"pre-wrap" }}>
-{_reportNotes.trim()}
-</div>
+                <textarea
+                  value={_reportNotes}
+                  onChange={function(e){ var v=e.target.value; _setReportNotes(v); try{ localStorage.setItem(_notesKey, v); }catch(x){} }}
+                  placeholder="Type here — your notes stay with this report."
+                  style={{
+                    width:"100%", minHeight:96, padding:"16px 18px",
+                    fontSize:19, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
+                    lineHeight:1.75, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
+                    borderRadius:6, resize:"vertical", outline:"none",
+                    boxSizing:"border-box"
+                  }}
+                />
+                {_reportNotes.trim() && (
+                  <>
+                    <div style={{ marginTop:16 }}>
+                      <div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Your notes</div>
+                      <div style={{ fontSize:19, color:"#5C4A3A", fontFamily:FD, fontStyle:"italic", lineHeight:1.8, padding:"14px 18px", background:"rgba(92,74,58,0.06)", borderLeft:"3px solid rgba(92,74,58,0.35)", borderRadius:4, whiteSpace:"pre-wrap" }}>
+                        {_reportNotes.trim()}
+                      </div>
 {!_notesSummary && (
 <button
 onClick={function(){
@@ -8631,7 +8637,7 @@ reportExcerpt = "REPORT ONE-LINE: \"" + (_report.oneLineVerdict || "") + "\"\n";
 (_report.sections||[]).slice(0,2).forEach(function(sec){ reportExcerpt += "SECTION " + (sec.title||"") + ": " + (sec.body||"").slice(0,200) + "...\n"; });
 }
 var p = "Someone wrote notes on their field report. Their notes:\n\n\"" + _reportNotes.trim() + "\"\n\n"
-+ "EVIDENCE FROM SESSION (what the subject actually said — use ONLY these when grounding):\n" + (userWords.length ? userWords.slice(0,12).join("\n") : "(none recorded)") + "\n\n"
++ "EVIDENCE FROM SESSION (what the subject actually said �� use ONLY these when grounding):\n" + (userWords.length ? userWords.slice(0,12).join("\n") : "(none recorded)") + "\n\n"
 + "REPORT EXCERPT (what the report said — use to trace claims):\n" + (reportExcerpt || "(none)") + "\n\n"
 + "RULES: 1) GROUND every claim. If you say something came from the session, quote it: 'In the session you said: \"...\"' 2) If their note questions something in the report (e.g. 'I don\'t recall saying that'), either find the quote that supports it in EVIDENCE above, or say 'I don\'t have a direct quote from your session that supports that' — do NOT philosophize about memory or imaginal cells. 3) Never invent. Only use what's in their notes + EVIDENCE + REPORT. 4) If uncertain, say so. 5) Optional: add a brief 'sources' line listing what you drew from (e.g. 'From your note + map comment on X–Y').\n"
 + "JSON: {\"summary\":\"2-4 sentences, grounded\", \"sources\":\"optional one line\"}";
@@ -8651,14 +8657,14 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 {_notesSummarizing ? "Reflecting…" : "Reflect on my notes"}
 </button>
 )}
-{_notesSummary && (
-<div style={{ marginTop:16, padding:"14px 16px", background:"rgba(92,74,58,0.04)", borderLeft:"3px solid "+_accent, borderRadius:4 }}>
-<div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Reflection</div>
-<div style={{ fontSize:15, color:"rgba(0,0,0,0.72)", fontFamily:FD, lineHeight:1.7 }}>
-{_notesSummary}
-</div>
-</div>
-)}
+                    {_notesSummary && (
+                      <div style={{ marginTop:16, padding:"16px 18px", background:"rgba(92,74,58,0.04)", borderLeft:"3px solid "+_accent, borderRadius:4 }}>
+                        <div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:10 }}>Reflection</div>
+                        <div style={{ fontSize:19, color:"rgba(0,0,0,0.75)", fontFamily:FD, lineHeight:1.75, whiteSpace:"pre-wrap" }}>
+                          {_notesSummary}
+                        </div>
+                      </div>
+                    )}
 </div>
 </>
 )}
@@ -8700,15 +8706,36 @@ Report unavailable.
 </div>
 )}
 
-<div style={{ height:28 }}/>
+              <div style={{ height:28 }}/>
 
-{isMobile && onNavigateToJourneys && (
-<div style={{ padding:"0 20px 16px", textAlign:"center" }}>
-<button onClick={onNavigateToJourneys} style={{ fontSize: 14, letterSpacing: "0.2em", color: "rgba(0,0,0,0.65)", fontFamily: FB, fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: "12px 20px", minHeight: 44, touchAction: "manipulation" }}>
-Your Journeys →
-</button>
-</div>
-)}
+              {onSessionComplete && (
+                <div style={{ padding:"0 32px 8px", textAlign:"center" }}>
+                  <button
+                    onClick={function(){
+                      var fade = document.createElement("div");
+                      fade.style.cssText = "position:fixed;inset:0;background:#000;opacity:0;z-index:99999;transition:opacity 1.2s ease;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
+                      fade.innerHTML = "<div style=\"font-family:serif;font-size:13px;letter-spacing:0.4em;color:rgba(255,255,255,0.25);opacity:0;transition:opacity 1s ease 0.6s\">SESSION COMPLETE</div>";
+                      document.body.appendChild(fade);
+                      requestAnimationFrame(function(){ fade.style.opacity="1"; fade.querySelector("div").style.opacity="1"; });
+                      setTimeout(function(){ fade.remove(); onSessionComplete(); }, 1200);
+                    }}
+                    style={{ width:"100%", maxWidth:420, padding:"18px 28px", borderRadius:24,
+                      background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
+                      color:"#fff", fontSize:16, fontFamily:FB, fontWeight:600, letterSpacing:"0.05em",
+                      cursor:"pointer", boxShadow:"0 8px 32px rgba(184,107,255,0.3)",
+                      minHeight:52, touchAction:"manipulation" }}>
+                    Your Journey →
+                  </button>
+                </div>
+              )}
+
+              {isMobile && onNavigateToJourneys && (
+                <div style={{ padding:"0 20px 16px", textAlign:"center" }}>
+                  <button onClick={onNavigateToJourneys} style={{ fontSize: 14, letterSpacing: "0.2em", color: "rgba(0,0,0,0.65)", fontFamily: FB, fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: "12px 20px", minHeight: 44, touchAction: "manipulation" }}>
+                    Your Journeys →
+                  </button>
+                </div>
+              )}
 
 <div style={{ padding:"0 32px 40px", textAlign:"center" }}>
 <div
@@ -11062,13 +11089,33 @@ return (
 }
 
 function SAYCRDFlow() {
-const [phase, setPhase] = useState(0);
-const [rawText, setRawText] = useState("");
-const [synthesisData, setSynthesisData] = useState(null);
-const [mapResponses, setMapResponses] = useState({});
-const [sessionData, setSessionData] = useState({});
-const [fieldTransition, setFieldTransition] = useState(false);
-const [reportSessionIndex, setReportSessionIndex] = useState(null);
+  // Returning users (anyone with at least one saved session) land on the
+  // SESSION COMPLETE / "Your Journeys" screen (phase 7 = "complete") instead
+  // of the landing page. At mount, real auth (Supabase) may not have resolved
+  // yet, so this only catches the local/cached-uid case synchronously —
+  // the effect below catches up once "saycrd-auth-change" fires for a
+  // real account whose sessions weren't visible under the local uid yet.
+  const [phase, setPhase] = useState(function(){ return _hasReturningSessions() ? 7 : 0; });
+  const [rawText, setRawText] = useState("");
+  const [synthesisData, setSynthesisData] = useState(null);
+  const [mapResponses, setMapResponses] = useState({});
+  const [sessionData, setSessionData] = useState({});
+  const [fieldTransition, setFieldTransition] = useState(false);
+  const [reportSessionIndex, setReportSessionIndex] = useState(null);
+  const phaseRef = useRef(phase);
+  useEffect(function(){ phaseRef.current = phase; }, [phase]);
+  useEffect(function(){
+    var routedOnAuth = false;
+    function handleAuthChange() {
+      if (routedOnAuth) return;
+      routedOnAuth = true;
+      // Only auto-route if the user is still sitting on the untouched landing
+      // page — never yank them away from a phase they've already navigated to.
+      if (phaseRef.current === 0 && _hasReturningSessions()) setPhase(7);
+    }
+    window.addEventListener("saycrd-auth-change", handleAuthChange);
+    return function(){ window.removeEventListener("saycrd-auth-change", handleAuthChange); };
+  }, []);
 
 function onPatchSynthesis(patch) {
 setSynthesisData(function(prev) {
