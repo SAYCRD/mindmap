@@ -7804,6 +7804,12 @@ sliderValues = sliderValues || {};
 
 var [_report, _setReport] = useState(null);
 var [_ready, _setReady] = useState(false);
+// Bumped by the "Try again" button on a failed report — included in the
+// generation effect's dependency array below so a retry re-runs the whole
+// generation flow (the failure itself is never cached to localStorage, only
+// a success is, so this is safe to re-run as many times as needed).
+var [_retryToken, _setRetryToken] = useState(0);
+var [_retrying, _setRetrying] = useState(false);
 var [_lifeFieldGap, _setLifeFieldGap] = useState(null);
 var [_lifeFieldResponse, _setLifeFieldResponse] = useState(function(){ try { var s=JSON.parse(localStorage.getItem(_sessionKey())||"[]"); var l=s[s.length-1]; return l&&l.lifeFieldGapResponse ? l.lifeFieldGapResponse : ""; } catch(e){ return ""; } });
 var _notesKey = "saycrd-" + getCurrentUid() + "-report-notes-" + sessionCount;
@@ -8537,6 +8543,12 @@ WebkitOverflowScrolling:"touch", minHeight:0 }}>
 <div style={{ fontSize:15, color:"rgba(0,0,0,0.7)", fontFamily:FD, lineHeight:1.7 }}>
 The report couldn't be generated. Your session is recorded — the patterns are yours to notice.
 </div>
+<button
+onClick={_retryReportGeneration}
+disabled={_retrying}
+style={{ marginTop:18, padding:"12px 22px", borderRadius:999, background:_retrying ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.85)", border:"none", color:_retrying ? "rgba(0,0,0,0.4)" : "#fff", fontSize:13, fontFamily:FB, fontWeight:600, letterSpacing:"0.06em", cursor:_retrying ? "default" : "pointer", minHeight:44, touchAction:"manipulation" }}>
+{_retrying ? "Trying again…" : "Try generating the report again"}
+</button>
 <div style={{ marginTop:16, fontSize:14, color:"rgba(0,0,0,0.5)", fontFamily:FD, fontStyle:"italic" }}>
 Add your notes below. What stands out? What are you hearing yourself say?
 </div>
@@ -8767,14 +8779,7 @@ Report unavailable.
               {onSessionComplete && (
                 <div style={{ padding:"0 32px 8px", textAlign:"center" }}>
                   <button
-                    onClick={function(){
-                      var fade = document.createElement("div");
-                      fade.style.cssText = "position:fixed;inset:0;background:#000;opacity:0;z-index:99999;transition:opacity 1.2s ease;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
-                      fade.innerHTML = "<div style=\"font-family:serif;font-size:13px;letter-spacing:0.4em;color:rgba(255,255,255,0.25);opacity:0;transition:opacity 1s ease 0.6s\">SESSION COMPLETE</div>";
-                      document.body.appendChild(fade);
-                      requestAnimationFrame(function(){ fade.style.opacity="1"; fade.querySelector("div").style.opacity="1"; });
-                      setTimeout(function(){ fade.remove(); onSessionComplete(); }, 1200);
-                    }}
+                    onClick={onSessionComplete}
                     style={{ width:"100%", maxWidth:420, padding:"18px 28px", borderRadius:24,
                       background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
                       color:"#fff", fontSize:16, fontFamily:FB, fontWeight:600, letterSpacing:"0.05em",
@@ -8796,21 +8801,19 @@ Report unavailable.
 <div style={{ padding:"0 32px 40px", textAlign:"center" }}>
 <div
 onClick={function(){
-if (onSessionComplete) {
-var fade = document.createElement("div");
-fade.style.cssText = "position:fixed;inset:0;background:#000;opacity:0;z-index:99999;transition:opacity 1.2s ease;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
-fade.innerHTML = "<div style=\"font-family:serif;font-size:13px;letter-spacing:0.4em;color:rgba(255,255,255,0.25);opacity:0;transition:opacity 1s ease 0.6s\">SESSION COMPLETE</div>";
-document.body.appendChild(fade);
-requestAnimationFrame(function(){ fade.style.opacity="1"; fade.querySelector("div").style.opacity="1"; });
-setTimeout(function(){ fade.remove(); onSessionComplete(); }, 1200);
-} else {
-var fade = document.createElement("div");
-fade.style.cssText = "position:fixed;inset:0;background:#000;opacity:0;z-index:99999;transition:opacity 1.2s ease;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
-fade.innerHTML = "<div style=\"font-family:serif;font-size:13px;letter-spacing:0.4em;color:rgba(255,255,255,0.25);opacity:0;transition:opacity 1s ease 0.6s\">SESSION COMPLETE</div>";
-document.body.appendChild(fade);
-requestAnimationFrame(function(){ fade.style.opacity="1"; fade.querySelector("div").style.opacity="1"; });
-setTimeout(function(){ try{ window.close(); } catch(e){} }, 1400);
-}
+// Closing should land the subject straight on the page that lists every
+// session ("Your Journeys"), not the ceremonial "session complete" screen —
+// that screen belongs to the primary "Your Journey →" CTA above, not to a
+// plain close action. This also drops the old raw DOM fade-overlay + 1.2s
+// setTimeout choreography entirely: on some mobile browsers that detached
+// timer could get stuck mid-transition (visible as a frozen, empty black
+// screen with only the fade's own leftover "SESSION COMPLETE" text), since
+// nothing in React was driving it. Navigating immediately removes that
+// failure mode — the phase container already animates in via its own
+// "phaseIn" CSS transition, so the change doesn't feel abrupt.
+if (onNavigateToJourneys) onNavigateToJourneys();
+else if (onSessionComplete) onSessionComplete();
+else { try{ window.close(); } catch(e){} }
 }}
 style={{ display:"inline-block", fontSize:10, letterSpacing:"0.35em",
 color:"rgba(0,0,0,0.2)", fontFamily:FB, cursor:"pointer",
@@ -9073,11 +9076,21 @@ setPortrait(dd);
 } catch(e) {
 console.warn("[SAYCRD] Portrait generation failed:", e);
 } finally {
-if (!cancelled) setPortraitReady(true);
+if (!cancelled) { _setReady(true); _setRetrying(false); }
 }
 })();
 return function(){ cancelled = true; };
-}, []);
+}, [_retryToken]);
+
+function _retryReportGeneration() {
+// The failure state is intentionally never written to localStorage (see
+// generationFailed branch above), so the cache check at the top of the
+// effect above will find nothing and always attempt a fresh generation.
+_setRetrying(true);
+_setReady(false);
+_setReport(null);
+_setRetryToken(function(t){ return t + 1; });
+}
 // "What's growing" line: previously this card fired its OWN Claude call only
 // once the user actually navigated onto it, so it was a fresh, un-started
 // network wait every time — the one visibly slow card in the deck even
