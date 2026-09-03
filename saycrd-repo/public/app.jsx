@@ -10241,6 +10241,11 @@ function CompletionPhase({ onStart, onNavigateToJourneys, onNavigateToReport }) 
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
+// Previously this whole phase used a single fixed maxWidth:480 column at every
+// viewport size, so on desktop it sat as a narrow strip with large empty
+// margins on either side. isWide lets the sessions list (and the page's own
+// max-width) actually use the extra room on tablet/desktop instead.
+var isWide = typeof window !== "undefined" && window.innerWidth >= 860;
 var lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
 var lastIndex = sessions.length - 1;
 var themes = (lastSession && lastSession.themes) ? lastSession.themes : [];
@@ -10266,14 +10271,14 @@ return (
 <div style={{ position: "absolute", top: "-10%", right: "-5%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(184,107,255,0.12), transparent 65%)", filter: "blur(80px)" }} />
 <div style={{ position: "absolute", bottom: "20%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(107,184,255,0.08), transparent 65%)", filter: "blur(60px)" }} />
 </div>
-<div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-<div style={{ textAlign: "center", marginBottom: 32 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
-<div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>SESSION COMPLETE</div>
-<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 0, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
-</div>
+    <div style={{ position: "relative", zIndex: 1, maxWidth: isWide ? 720 : 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+        <div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>SESSION COMPLETE</div>
+        <h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 0, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
+      </div>
 
-<div style={{ padding: "28px 24px", background: "rgba(255,255,255,0.05)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 20 }}>
+      <div style={{ padding: isWide ? "32px 36px" : "28px 24px", background: "rgba(255,255,255,0.05)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 20 }}>
 {arch && arch.name && (
 <div style={{ fontSize: isMobile ? 24 : 26, fontWeight: 600, color: (arch.color || "#E84393") + "ee", fontFamily: FD, fontStyle: "italic", letterSpacing: "0.01em", marginBottom: 10, wordBreak: "break-word" }}>{arch.name}</div>
 )}
@@ -10294,29 +10299,45 @@ return (
 </button>
 )}
 
-{sessions.length > 0 && (
-<div style={{ marginBottom: 32 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(184,107,255,0.55)", fontFamily: FB, marginBottom: 14, fontWeight: 600 }}>YOUR SESSIONS</div>
-<div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-{sessions.slice().reverse().map(function(s, i) {
-var idx = sessions.length - i;
-var sDateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
-var sTitle = s.map_title || s.mapTitle || (s.themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ") || "—";
-var sArch = s.archetypes && s.archetypes[0] ? s.archetypes[0].name : "";
-return (
-<div key={i} onClick={onNavigateToReport ? function(){ onNavigateToReport(idx - 1); } : undefined} style={{ padding: "16px 18px", background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", cursor: onNavigateToReport ? "pointer" : "default", minHeight: 44, touchAction: "manipulation" }}>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
-{sDateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{sDateStr}</div>}
-</div>
-<div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontFamily: FD, lineHeight: 1.55, letterSpacing: "0.01em" }}>{String(sTitle).slice(0, 60)}{String(sTitle).length > 60 ? "…" : ""}</div>
-{sArch && <div style={{ marginTop: 6, fontSize: 13, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FD, fontStyle: "italic" }}>{sArch}</div>}
-</div>
-);
-})}
-</div>
-</div>
-)}
+      {sessions.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(184,107,255,0.55)", fontFamily: FB, marginBottom: 14, fontWeight: 600 }}>YOUR SESSIONS</div>
+          {/* Each card's identity color/archetype used to render as its LAST
+              line, directly against the next card's "SESSION N" label above
+              it, with barely-visible card backgrounds — on mobile widths that
+              read as if the text was overlapping. The archetype name now
+              lives at the TOP of its own card, next to the session badge, so
+              every line unambiguously belongs to the card it's inside of.
+              Cards also get a real border/background and more breathing room
+              between them. On wide viewports the list becomes a 2-column
+              grid instead of one long narrow strip. */}
+          <div style={{
+            display: isWide ? "grid" : "flex",
+            gridTemplateColumns: isWide ? "1fr 1fr" : undefined,
+            flexDirection: isWide ? undefined : "column",
+            gap: 14, maxHeight: 420, overflowY: "auto", WebkitOverflowScrolling: "touch", paddingRight: 4
+          }}>
+            {sessions.slice().reverse().map(function(s, i) {
+              var idx = sessions.length - i;
+              var sDateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+              var sTitle = s.map_title || s.mapTitle || (s.themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ") || "—";
+              var sArchObj = s.archetypes && s.archetypes[0];
+              var sArch = sArchObj ? sArchObj.name : "";
+              var sColor = (sArchObj && sArchObj.color) || "#E84393";
+              return (
+                <div key={i} onClick={onNavigateToReport ? function(){ onNavigateToReport(idx - 1); } : undefined} style={{ padding: "18px 20px", background: "rgba(255,255,255,0.06)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", cursor: onNavigateToReport ? "pointer" : "default", minHeight: 44, touchAction: "manipulation" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600, flexShrink: 0 }}>SESSION {idx}</div>
+                    {sDateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic", textAlign: "right" }}>{sDateStr}</div>}
+                  </div>
+                  {sArch && <div style={{ fontSize: 16, color: sColor, fontFamily: FD, fontStyle: "italic", fontWeight: 600, lineHeight: 1.3, marginBottom: 8 }}>{sArch}</div>}
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", fontFamily: FD, lineHeight: 1.55, letterSpacing: "0.01em" }}>{String(sTitle).slice(0, 60)}{String(sTitle).length > 60 ? "…" : ""}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
 {captures.length > 0 && (
 <div style={{ marginBottom: 32, maxHeight: 280, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
