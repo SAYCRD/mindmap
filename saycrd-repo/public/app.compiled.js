@@ -333,6 +333,9 @@ function HighlightableText({
   var bord = optColor ? isRgba ? "1.5px solid rgba(0,0,0,0.18)" : "1.5px solid " + optColor : "1px solid transparent";
   var txtColor = "inherit";
   return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+    className: "hl-sentence",
+    "data-dark": dark ? "true" : "false",
+    "data-fb": feedback ? "true" : "false",
     onClick: function () {
       setOpen(true);
     },
@@ -3176,7 +3179,14 @@ function InsightDrawer({
   const ref = useRef(null);
   const [dragOff, setDragOff] = useState(null);
   const [dragPos, setDragPos] = useState(null);
+  // Drag-to-reposition is a desktop-only affordance. On mobile the drawer is meant to
+  // stay locked as a bottom sheet (see mobileSheet below); without this guard, any tap
+  // on the drawer picks up the slightest touch jitter between pointerdown and pointerup
+  // as a "drag", which flips mobileSheet to false and relocates the whole drawer into a
+  // small floating box wherever that jitter landed — reading as the drawer "jumping to
+  // the side" the instant it's tapped.
   var handlePD = function (e) {
+    if (isMobile) return;
     if (e.target.closest("[data-slider]")) return;
     var r = ref.current ? ref.current.getBoundingClientRect() : null;
     if (!r) return;
@@ -6431,7 +6441,16 @@ function SessionPhase({
       fontFamily: FB,
       letterSpacing: "0.1em"
     }
-  }, "incorporated")), mapTitle && /*#__PURE__*/React.createElement("div", {
+  }, "incorporated")), isMobile && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "rgba(255,255,255,0.32)",
+      fontFamily: FB,
+      letterSpacing: "0.04em",
+      marginTop: -6,
+      marginBottom: 12
+    }
+  }, "tap any line below to react to it"), mapTitle && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 15,
       color: "rgba(214,178,109,0.3)",
@@ -13439,10 +13458,16 @@ function WhatsGrowingCard({
           _wgSetReady(true);
           return;
         }
-        var top3 = _branches.slice(0, 3).map(function (b) {
-          return b.label;
-        }).join(", ");
-        var p = "Someone's inner life. The themes growing most in recent sessions: " + top3 + ".\n" + "Write ONE sentence (8-12 words). Not advice. Not analysis.\n" + "What is this person's life reaching toward? Poetic, warm, surprising. No clichés.\n" + 'JSON only: {"line":"sentence here"}';
+        // Same grounding + no-gendered-pronoun rule as the SAYCRDFlow prefetch version of this
+        // prompt above — this is the local fallback path when prefetching wasn't wired in.
+        var top3Detail = _branches.slice(0, 3).map(function (b) {
+          var match = themes.find(function (t) {
+            return t.label === b.label;
+          });
+          var extra = match ? match.short_desc || match.why || "" : "";
+          return extra ? b.label + " (" + extra + ")" : b.label;
+        }).join("; ");
+        var p = "Someone's inner life — their gender is unknown and not implied by anything below.\n" + "The themes actually growing most across their recent sessions:\n" + top3Detail + ".\n" + "Write ONE sentence (8-12 words), grounded specifically in THESE themes — not a generic mood line that could apply to anyone.\n" + "Not advice. Not analysis. What is THIS life, with these exact themes, reaching toward? Poetic, warm, surprising. No clichés.\n" + "Never use a gendered pronoun (he/she/him/her/his/hers) — address them directly as 'you'/'your', or use 'they/their' if third person is unavoidable.\n" + 'JSON only: {"line":"sentence here"}';
         var rr = await callClaudeClient(p, "whats growing", 80);
         if (cancelled) return;
         var dd = parseJSON(rr);
@@ -19324,14 +19349,25 @@ function FieldPhase({
           if (!t.label) return;
           wgFreq[t.label] = (wgFreq[t.label] || 0) + 6;
         });
-        var wgTop3 = Object.keys(wgFreq).sort(function (a, b) {
+        var wgTop3Labels = Object.keys(wgFreq).sort(function (a, b) {
           return wgFreq[b] - wgFreq[a];
-        }).slice(0, 3).join(", ");
-        if (!wgTop3) {
+        }).slice(0, 3);
+        if (wgTop3Labels.length === 0) {
           setWgLineReady(true);
           return;
         }
-        var wp = "Someone's inner life. The themes growing most in recent sessions: " + wgTop3 + ".\n" + "Write ONE sentence (8-12 words). Not advice. Not analysis.\n" + "What is this person's life reaching toward? Poetic, warm, surprising. No clichés.\n" + 'JSON only: {"line":"sentence here"}';
+        // Ground the line in each top theme's actual why/short_desc (when we have it) instead of
+        // just the bare label — a label alone ("SELF CARE, POWER GIVEN") gives the model nothing
+        // real to point at, so it drifts into a generic, unmoored poetic line that can read as a
+        // random thought rather than something tied to what's actually growing.
+        var wgTop3Detail = wgTop3Labels.map(function (lbl) {
+          var match = themes.find(function (t) {
+            return t.label === lbl;
+          });
+          var extra = match ? match.short_desc || match.why || "" : "";
+          return extra ? lbl + " (" + extra + ")" : lbl;
+        }).join("; ");
+        var wp = "Someone's inner life — their gender is unknown and not implied by anything below.\n" + "The themes actually growing most across their recent sessions:\n" + wgTop3Detail + ".\n" + "Write ONE sentence (8-12 words), grounded specifically in THESE themes — not a generic mood line that could apply to anyone.\n" + "Not advice. Not analysis. What is THIS life, with these exact themes, reaching toward? Poetic, warm, surprising. No clichés.\n" + "Never use a gendered pronoun (he/she/him/her/his/hers) — address them directly as 'you'/'your', or use 'they/their' if third person is unavoidable.\n" + 'JSON only: {"line":"sentence here"}';
         var wr = await callClaudeClient(wp, "whats growing", 80);
         if (cancelled) return;
         var wd = parseJSON(wr);
@@ -25561,6 +25597,13 @@ button:active{transform:scale(0.97)}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
 @media (prefers-reduced-motion: reduce){
 *:not(.saycrd-loading-indicator){animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+}
+/* Touch devices have no hover state, so the tap-to-react sentences in HighlightableText
+   are invisible as interactive until this gives them a permanent, subtle dotted underline
+   affordance (skipped once feedback is set, since that already shows its own colored border). */
+@media (hover: none){
+.hl-sentence[data-dark="true"][data-fb="false"]{border-bottom:1px dotted rgba(255,255,255,0.28)!important}
+.hl-sentence[data-dark="false"][data-fb="false"]{border-bottom:1px dotted rgba(0,0,0,0.28)!important}
 }
 .saycrd-loading-indicator{will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:translateZ(0);-webkit-transform:translateZ(0);animation-play-state:running!important;-webkit-animation-play-state:running!important}
 @media (max-width:640px){
