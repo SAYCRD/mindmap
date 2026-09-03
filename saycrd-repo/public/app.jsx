@@ -174,6 +174,24 @@ try { var c = raw.replace(/```json|```/g, "").trim(); var m = c.match(/\{[\s\S]*
 }
 function getCurrentUid() { return (typeof window !== "undefined" && window.currentUser && window.currentUser.id) ? window.currentUser.id : "local"; }
 
+// First-time disclaimer ("Before we begin") acknowledgment. Stored per-uid in
+// localStorage (works for guests and logged-in users alike, synchronously,
+// so it can gate the very first "begin" click with no async wait). For real
+// logged-in accounts we also best-effort mirror it into window.storage
+// (Supabase user_data) so it follows them across devices/browsers.
+function _disclaimerAckKey() { return "saycrd-disclaimer-ack-" + getCurrentUid(); }
+function hasAcknowledgedDisclaimer() {
+try { return localStorage.getItem(_disclaimerAckKey()) === "1"; } catch(e) { return false; }
+}
+function markDisclaimerAcknowledged() {
+try { localStorage.setItem(_disclaimerAckKey(), "1"); } catch(e) {}
+try {
+if (typeof window !== "undefined" && window.storage && window.currentUser && window.currentUser.id !== "local-user") {
+window.storage.set("disclaimer_ack", "1").catch(function(){});
+}
+} catch(e) {}
+}
+
 // Crisis resources — official US services (988 is the national Suicide & Crisis Lifeline; Crisis Text Line is the main text-based option)
 var CRISIS_RESOURCES = [
   { name: "988 Suicide & Crisis Lifeline", line: "Call or text 988", url: "https://988lifeline.org" },
@@ -216,7 +234,7 @@ return out;
 
 const FD = "'DM Serif Display', Georgia, serif";
 const FB = "'DM Sans', sans-serif";
-const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field", "complete", "journeys", "report"];
+const PHASES = ["landing", "pour", "synthesize", "map", "cosynth", "session", "field", "complete", "journeys", "report", "privacy", "terms", "disclaimer-info"];
 const GRADIENTS = {
 landing: "#000",
 pour: "linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",
@@ -228,6 +246,9 @@ field: "#000",
 complete: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)",
 journeys: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)",
 report: "#FAFAF8",
+privacy: "#0A0914",
+terms: "#0A0914",
+"disclaimer-info": "#0A0914",
 };
 
 function FloatingWords({ words, color = "#6BB8FF" }) {
@@ -10525,7 +10546,7 @@ return (
 );
 }
 
-function LandingPhase({ onStart }) {
+function LandingPhase({ onStart, onNavigateLegal }) {
 var [show, setShow] = useState(false);
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 var sessions = [];
@@ -11010,6 +11031,131 @@ boxShadow:"0 16px 48px rgba(184,107,255,0.25)" }}>
 </button>
 </section>
 
+<footer style={{ display:"flex", justifyContent:"center", gap:24, flexWrap:"wrap",
+padding:"8px 0 32px" }}>
+{[
+{ label:"Privacy", page:"privacy" },
+{ label:"Terms", page:"terms" },
+{ label:"Disclaimer", page:"disclaimer-info" },
+].map(function(l){
+return <button key={l.page} onClick={function(){ if (onNavigateLegal) onNavigateLegal(l.page); }}
+style={{ background:"none", border:"none", cursor:"pointer", padding:0,
+fontFamily:FB, fontSize:12, letterSpacing:"0.06em",
+color:"rgba(255,255,255,0.32)" }}>{l.label}</button>;
+})}
+</footer>
+
+</div>
+</div>
+);
+}
+
+function LegalPage({ page, onBack }) {
+var SG = "Space Grotesk, " + FB;
+var CONTENT = {
+privacy: {
+title:"Privacy",
+body:[
+"Mind Map is built to hold what you share with care.",
+"What you write during a session is used to generate your reflections and, if you create an account, to remember your patterns across sessions. If you continue without an account, your sessions stay on this device only.",
+"We do not sell your data. We do not use what you share to train third-party advertising profiles. Session content is processed by our AI provider solely to generate your reflections and is not used to improve models beyond that purpose.",
+"You can download everything you've shared at any time from the landing page (\"Download my data\"), and you can request deletion of your account and its data by contacting us.",
+]
+},
+terms: {
+title:"Terms",
+body:[
+"By using Mind Map, you agree to use it as a space for personal reflection — not as a substitute for professional, medical, or mental health advice.",
+"You're responsible for what you choose to share and for how you act on your own reflections. Mind Map's AI-generated content is offered as a mirror, not a directive — you remain the authority on your own experience.",
+"We may update these terms as the product evolves. Continued use after an update means you accept the current terms.",
+"Mind Map is provided \"as is,\" without warranties of any kind. We are not liable for decisions made based on reflections generated within the product.",
+]
+},
+"disclaimer-info": {
+title:"Disclaimer",
+body:[
+"This is a space for reflection, not diagnosis.",
+"Mind Map uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.",
+"You are always the authority on your own experience. Keep what feels useful. Question what doesn't.",
+"If you are in crisis or thinking about harming yourself, please reach out to a crisis line — in the US, call or text 988 (Suicide & Crisis Lifeline), or text HOME to 741741 (Crisis Text Line).",
+]
+}
+};
+var c = CONTENT[page] || CONTENT.privacy;
+return (
+<div style={{ width:"100%", height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch",
+background:"#0A0914" }}>
+<div style={{ maxWidth:680, margin:"0 auto", padding:"calc(64px + env(safe-area-inset-top, 0px)) 7vw 80px" }}>
+<button onClick={onBack} style={{ marginBottom:40, padding:"8px 18px", borderRadius:999,
+background:"transparent", border:"1px solid rgba(255,255,255,0.14)",
+color:"rgba(255,255,255,0.55)", fontFamily:SG, fontSize:13,
+letterSpacing:"0.04em", cursor:"pointer" }}>← Back</button>
+<div style={{ fontSize:13, letterSpacing:"0.4em", fontFamily:FB, textTransform:"uppercase",
+marginBottom:16, fontWeight:600,
+background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
+WebkitTextFillColor:"transparent" }}>{c.title}</div>
+<h1 style={{ fontFamily:FD, fontSize:"clamp(32px,5vw,46px)", fontWeight:300,
+color:"rgba(255,255,255,0.95)", marginBottom:36, letterSpacing:"-0.01em" }}>
+{page==="disclaimer-info" ? "Before we begin" : c.title}
+</h1>
+{c.body.map(function(p,i){
+return <p key={i} style={{ fontFamily:FD, fontSize:18, fontWeight:300,
+fontStyle: page==="disclaimer-info" ? "italic" : "normal",
+color:"rgba(210,200,225,0.72)", lineHeight:1.75, marginBottom:24 }}>{p}</p>;
+})}
+</div>
+</div>
+);
+}
+
+function DisclaimerGate({ onBegin, onNavigateLegal }) {
+var [show, setShow] = useState(false);
+useEffect(function(){ setTimeout(function(){ setShow(true); }, 60); }, []);
+var SG = "Space Grotesk, " + FB;
+return (
+<div style={{ position:"fixed", inset:0, zIndex:1000, background:"#0A0914",
+display:"flex", alignItems:"center", justifyContent:"center", padding:"7vw",
+opacity:show?1:0, transition:"opacity 0.6s ease" }}>
+<div style={{ position:"absolute", inset:0, pointerEvents:"none", overflow:"hidden" }}>
+<div style={{ position:"absolute", top:"-10%", right:"-5%", width:700, height:700,
+borderRadius:"50%", background:"radial-gradient(circle, rgba(184,107,255,0.12), transparent 65%)",
+filter:"blur(120px)" }} />
+</div>
+<div style={{ position:"relative", maxWidth:560, textAlign:"center" }}>
+<div style={{ fontSize:12, letterSpacing:"0.4em", fontFamily:FB, textTransform:"uppercase",
+marginBottom:28, fontWeight:600, color:"rgba(200,185,230,0.5)" }}>
+Before we begin
+</div>
+<p style={{ fontFamily:FD, fontSize:23, fontWeight:300, fontStyle:"italic",
+color:"rgba(255,255,255,0.92)", lineHeight:1.6, marginBottom:28 }}>
+This is a space for reflection, not diagnosis.
+</p>
+<p style={{ fontFamily:FD, fontSize:17, fontWeight:300,
+color:"rgba(210,200,225,0.68)", lineHeight:1.8, marginBottom:24 }}>
+Mind Map uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.
+</p>
+<p style={{ fontFamily:FD, fontSize:17, fontWeight:300,
+color:"rgba(210,200,225,0.68)", lineHeight:1.8, marginBottom:44 }}>
+You are always the authority on your own experience. Keep what feels useful. Question what doesn't.
+</p>
+<button onClick={onBegin} style={{ padding:"16px 52px", borderRadius:999,
+background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
+color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
+letterSpacing:"0.05em", cursor:"pointer",
+boxShadow:"0 16px 48px rgba(184,107,255,0.25)", marginBottom:28 }}>
+Begin
+</button>
+<div style={{ display:"flex", justifyContent:"center", gap:16 }}>
+<button onClick={function(){ if (onNavigateLegal) onNavigateLegal("privacy"); }}
+style={{ background:"none", border:"none", cursor:"pointer", padding:0,
+fontFamily:SG, fontSize:12, letterSpacing:"0.04em", color:"rgba(255,255,255,0.32)",
+textDecoration:"underline", textUnderlineOffset:3 }}>Privacy</button>
+<span style={{ color:"rgba(255,255,255,0.2)", fontSize:12 }}>·</span>
+<button onClick={function(){ if (onNavigateLegal) onNavigateLegal("terms"); }}
+style={{ background:"none", border:"none", cursor:"pointer", padding:0,
+fontFamily:SG, fontSize:12, letterSpacing:"0.04em", color:"rgba(255,255,255,0.32)",
+textDecoration:"underline", textUnderlineOffset:3 }}>Terms</button>
+</div>
 </div>
 </div>
 );
@@ -11239,6 +11385,8 @@ function SAYCRDFlow() {
   const [sessionData, setSessionData] = useState({});
   const [fieldTransition, setFieldTransition] = useState(false);
   const [reportSessionIndex, setReportSessionIndex] = useState(null);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const pendingAfterDisclaimer = useRef(null);
   const phaseRef = useRef(phase);
   useEffect(function(){ phaseRef.current = phase; }, [phase]);
   useEffect(function(){
@@ -11284,13 +11432,37 @@ function enterField() {
 setFieldTransition(true);
 setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
+
+// Gate for beginning a session: shows the one-time "before we begin"
+// disclaimer only immediately before a person's very first session ever
+// (no saved sessions yet + not already acknowledged). Every later "start a
+// new session" entry point (from complete/journeys) already implies at
+// least one saved session, so it passes straight through.
+function beginSessionOrGate(next) {
+var sessions = [];
+try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+if (sessions.length === 0 && !hasAcknowledgedDisclaimer()) {
+pendingAfterDisclaimer.current = next;
+setShowDisclaimer(true);
+return;
+}
+next();
+}
+
+function goToLegalPage(page) {
+pendingAfterDisclaimer.current = null;
+setShowDisclaimer(false);
+setPhase(PHASES.indexOf(page));
+}
+
 return (
 <div className="saycrd-app-shell" style={{width:"100%",background:cp==="map"?GRADIENTS.map:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys" || cp === "report") ? "100%" : "var(--saycrd-shell-w)",height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys" || cp === "report" || cp === "privacy" || cp === "terms" || cp === "disclaimer-info") ? "100%" : "var(--saycrd-shell-w)",height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
-{cp==="landing"&&<LandingPhase onStart={function(){setPhase(1);}}/>}
+{cp==="landing"&&<LandingPhase onStart={function(){beginSessionOrGate(function(){setPhase(1);});}} onNavigateLegal={goToLegalPage}/>}
+{(cp==="privacy"||cp==="terms"||cp==="disclaimer-info")&&<LegalPage page={cp} onBack={function(){setPhase(0);}}/>}
 {cp==="pour"&&<PourPhase onComplete={function(t){
 // New pour text invalidates whatever was synthesized/mapped for the PREVIOUS
 // text — without this, MapPhase's `needsSynthesis = !synthesisData && rawText`
@@ -11314,6 +11486,13 @@ setPhase(3);
 {cp !== "landing" && <UserMenu phase={phase} setPhase={setPhase} />}
 </div>
 </div>
+{showDisclaimer && <DisclaimerGate onNavigateLegal={goToLegalPage} onBegin={function(){
+markDisclaimerAcknowledged();
+setShowDisclaimer(false);
+var next = pendingAfterDisclaimer.current;
+pendingAfterDisclaimer.current = null;
+if (next) next();
+}}/>}
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes phaseIn{from{opacity:0.6}to{opacity:1}}

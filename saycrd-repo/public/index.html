@@ -593,7 +593,15 @@ window._localBypass = function() {
   if (overlay) {
     overlay.classList.remove("is-visible");
     overlay.style.transition = "opacity .4s ease";
-    setTimeout(function() { overlay.style.display = "none"; }, 400);
+    setTimeout(function() {
+      overlay.style.display = "none";
+      // NOTE: unlike the real login/signup handlers, this used to never fire the
+      // pending onSuccess callback stashed by _showAuthOverlay — bypassing auth
+      // just closed the overlay and stranded the user on whatever screen they
+      // were already on (e.g. "start a session" silently did nothing). Match
+      // the login/signup success path so bypass actually continues the flow.
+      if (window._authSuccessCallback) { var cb = window._authSuccessCallback; window._authSuccessCallback = null; cb(); }
+    }, 400);
   }
   window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
   console.log("LOCAL BYPASS ACTIVE — using localStorage");
