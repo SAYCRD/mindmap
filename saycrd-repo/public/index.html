@@ -80,18 +80,8 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     .auth-forgot{display:block;text-align:right;font-size:.82rem;color:rgba(232,67,147,.5);cursor:pointer;margin-top:-.3rem;margin-bottom:.5rem;transition:color .2s}
     .auth-forgot:hover{color:rgba(232,67,147,.85)}
     .auth-hidden{display:none!important}
-    .ws-user{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));z-index:99998;font-size:.72rem;color:rgba(247,241,231,.3);cursor:pointer;letter-spacing:.04em;padding:8px 14px;border-radius:24px;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:color .2s,border-color .2s,background .2s}
-    .ws-user:hover{color:rgba(247,241,231,.7);border-color:rgba(255,255,255,.15);background:rgba(0,0,0,.5)}
-    @media (max-width:768px){
-      #ws-signout.ws-user{top:unset;left:unset;bottom:max(20px,env(safe-area-inset-bottom));right:max(20px,env(safe-area-inset-right));width:36px;height:36px;padding:0;font-size:0;border-radius:50%;display:flex;align-items:center;justify-content:center;min-width:36px;min-height:36px;line-height:36px}
-      #ws-signout.ws-user::before{content:attr(data-initial);font-size:14px;font-family:'Space Grotesk',sans-serif;font-weight:600;color:rgba(247,241,231,.7)}
-      #ws-signout.ws-user:hover::before{color:rgba(247,241,231,.95)}
-    }
-    body.saycrd-landing #ws-signout{display:none!important}
-    body.saycrd-internal #ws-signout{top:auto!important;bottom:max(20px,env(safe-area-inset-bottom))!important;left:auto!important;right:max(20px,env(safe-area-inset-right))!important;width:36px!important;height:36px!important;padding:0!important;font-size:0!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;min-width:36px!important;min-height:36px!important}
-    body.saycrd-internal #ws-signout::before{content:attr(data-initial);font-size:14px;font-family:'Space Grotesk',sans-serif;font-weight:600;color:rgba(247,241,231,.7)}
     @media (prefers-reduced-motion: reduce){
-      .auth-overlay,.auth-card,.auth-btn,.auth-input,.auth-social,.ws-user{transition:none}
+      .auth-overlay,.auth-card,.auth-btn,.auth-input,.auth-social{transition:none}
       .auth-overlay.is-visible .auth-card{transform:none}
     }
 </style>
@@ -137,7 +127,6 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
                 sb.auth.getSession().then(function(s){if(s.data.session)window._saycrdToken=s.data.session.access_token;});
                 if(window._authResolve)window._authResolve();
                 var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}},400);
-                var sn=document.getElementById('ws-signout');if(sn&&r.data.user.email){var u=r.data.user.email.split('@')[0];sn.textContent=u+' \u00B7 sign out';sn.dataset.initial=(u||'S').charAt(0).toUpperCase();sn.title=u+' \u00B7 sign out'}
               }catch(e){err.textContent=e.message||'Login failed';btn.disabled=false;}
             })();
           ">Enter</button>
@@ -184,7 +173,6 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
                 sb.auth.getSession().then(function(s){if(s.data.session)window._saycrdToken=s.data.session.access_token;});
                 if(window._authResolve)window._authResolve();
                 var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}},400);
-                var sn=document.getElementById('ws-signout');if(sn&&r.data.user.email){var u=r.data.user.email.split('@')[0];sn.textContent=u+' \u00B7 sign out';sn.dataset.initial=(u||'S').charAt(0).toUpperCase();sn.title=u+' \u00B7 sign out'}
               }catch(e){err.textContent=e.message||'Signup failed';btn.disabled=false;}
             })();
           ">Begin</button>
@@ -234,8 +222,6 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      compile of ~11k lines of JSX was taking ~30s on phones with nothing rendered but
      the background, since React can't draw anything until the transpile finishes. -->
 <script src="app.compiled.js?v=20260903-2"></script>
-
-        <div id="ws-signout" class="ws-user" data-initial="S" title="Sign out">Sign out</div>
 
 <script>
 /* Global error handler — shows what's breaking */
@@ -609,8 +595,6 @@ window._localBypass = function() {
     overlay.style.transition = "opacity .4s ease";
     setTimeout(function() { overlay.style.display = "none"; }, 400);
   }
-  var signoutEl = document.getElementById("ws-signout");
-  if (signoutEl) { signoutEl.textContent = "local \u00B7 sign out"; signoutEl.dataset.initial = "L"; signoutEl.title = "local \u00B7 sign out"; }
   window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
   console.log("LOCAL BYPASS ACTIVE — using localStorage");
 };
@@ -626,8 +610,6 @@ window._localBypass = function() {
           window._saycrdToken = result.data.session.access_token;
           var o = document.getElementById("auth-overlay");
           if (o) { o.classList.remove("is-visible"); o.style.transition = "opacity .4s ease"; setTimeout(function(){ o.style.display = "none"; }, 400); }
-          var sn = document.getElementById("ws-signout");
-          if (sn && currentUser.email) { var u = currentUser.email.split("@")[0]; sn.textContent = u + " \u00B7 sign out"; sn.dataset.initial = (u || "S").charAt(0).toUpperCase(); sn.title = u + " \u00B7 sign out"; }
           window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
           console.log("Session restored for:", currentUser.email);
           /* Resolve auth gate so storage ops proceed */
@@ -650,8 +632,6 @@ window._localBypass = function() {
           window._saycrdToken = session.access_token;
           var o = document.getElementById("auth-overlay");
           if (o) { o.classList.remove("is-visible"); o.style.transition = "opacity .4s ease"; setTimeout(function(){ o.style.display = "none"; }, 400); }
-          var sn = document.getElementById("ws-signout");
-          if (sn && session.user.email) { var u = session.user.email.split("@")[0]; sn.textContent = u + " \u00B7 sign out"; sn.dataset.initial = (u || "S").charAt(0).toUpperCase(); sn.title = u + " \u00B7 sign out"; }
           window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
           /* Resolve auth gate on sign-in too */
           if (_authResolve) _authResolve();
@@ -678,14 +658,11 @@ window._localBypass = function() {
     try { if (sbClient && sbClient.auth) sbClient.auth.signOut(); } catch(e) {}
     currentUser = null;
     window.currentUser = null;
-    var sn = document.getElementById("ws-signout");
-    if (sn) { sn.textContent = "Sign out"; sn.dataset.initial = "S"; sn.title = "Sign out"; }
     window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
     var o = document.getElementById("auth-overlay");
     if (o) { o.style.display = ""; o.style.opacity = "1"; }
   }
   window._signOut = doSignOut;
-  document.getElementById("ws-signout")?.addEventListener("click", function() { doSignOut(); });
 })();
 </script>
 
