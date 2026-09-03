@@ -4121,6 +4121,25 @@ window.storage.set("sessions", JSON.stringify(sess)).catch(function() {});
 } catch (e) { console.error("[SAYCRD] Save error:", e); }
 }
 
+// Persists a generated (or feedback-revised) field report onto its own session record,
+// keyed by 1-based session index, so it is written ONCE and reused on every later view
+// instead of being silently regenerated (with different wording) each time the report
+// is opened — from "Read Your Report" right after completion, or from clicking that
+// session's title later in Your Sessions/Journeys.
+function saveFieldReportToSession(idx1based, reportObj) {
+try {
+var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
+var i = idx1based - 1;
+if (i >= 0 && i < sessions.length && reportObj) {
+sessions[i].fieldReport = reportObj;
+localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
+if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
+window.storage.set("sessions", JSON.stringify(sessions)).catch(function() {});
+}
+}
+} catch(e) { console.warn("[SAYCRD] Failed to save field report:", e); }
+}
+
 function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
 // Returning-user check: do they already have at least one saved session under
 // the currently-known uid? Used to route straight to the SESSION COMPLETE /
@@ -7827,6 +7846,10 @@ if (typeof idx === "number" && idx >= 0 && idx < next.length && os.body) next[id
 var out = Object.assign({}, prev, { sections: next });
 if (d.reviseVerdict && d.reviseVerdict.trim()) out.oneLineVerdict = d.reviseVerdict.trim().slice(0, 120);
 if (d.reviseWhatMightWantToHappen && d.reviseWhatMightWantToHappen.trim()) out.whatMightWantToHappen = d.reviseWhatMightWantToHappen.trim().slice(0, 200);
+// The subject's feedback permanently corrects the saved report — overwrite the
+// cached version so the fix sticks on every future view instead of reverting
+// back to the original wording next time this session's report is opened.
+saveFieldReportToSession(sessionCount, out);
 return out;
 });
 }
@@ -7853,6 +7876,22 @@ _setLifeFieldGap(null);
 (async function() {
 try {
 var total = allSessions.length; 
+
+// CACHE CHECK: this session's report may already have been generated and saved
+// (either just now on completion, or on an earlier visit). Reuse it verbatim
+// instead of calling the AI again — regenerating produced different wording
+// every time (the prompt deliberately varies phrasing), which made revisiting
+// an old session's report look like a brand-new, unseen report.
+// `sd` is the target session's own record when viewing a PAST session (its
+// `allSessions` prop is deliberately truncated to only prior sessions, so the
+// cached report can't live there); `allSessions[sessionCount-1]` covers the
+// live, just-completed session instead, where `sd` is raw synthesis data
+// rather than the saved session record.
+var _cachedReport = (sd && sd.fieldReport) || ((allSessions[sessionCount - 1] || {}).fieldReport) || null;
+if (_cachedReport && _cachedReport.sections && _cachedReport.sections.length >= 3) {
+if (!cancelled) { _setReport(_cachedReport); _setReady(true); }
+return;
+}
 
 var slimBio = allSessions.map(function(s, si) {
 if (s.sessionSummary && String(s.sessionSummary).trim()) return "S"+(si+1)+": "+String(s.sessionSummary).trim().slice(0, 180);
@@ -8281,6 +8320,9 @@ dd.sections[i].body = b;
 if (dd.oneLineVerdict && String(dd.oneLineVerdict).trim().toLowerCase() === "omit") dd.oneLineVerdict = "";
 if (dd.whatMightWantToHappen && String(dd.whatMightWantToHappen).trim().toLowerCase() === "omit") dd.whatMightWantToHappen = "";
 _setReport(dd);
+// Lock this report in on the session record so every future view (including this
+// same one via back/forward) reuses it instead of generating a new one.
+saveFieldReportToSession(sessionCount, dd);
 try {
 var firstBody = (dd.sections[0] && dd.sections[0].body) || "";
 var firstOpen = firstBody.split(/\n\n+/)[0] || firstBody.split("\n")[0] || "";
