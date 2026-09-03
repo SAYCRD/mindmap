@@ -5931,7 +5931,7 @@ _wgFreq[t.label] = (_wgFreq[t.label] || 0) + 6;
 if (t.color) _allColors[t.label] = t.color;
 });
 
-var NC2 = ["#C4956A","#7BAE8A","#8B9EC4","#C48B7A","#9E8BC4","#C4B97A"];
+var NC2 = ["#7BD9A5","#6BB8FF","#E8B87C","#E86B9D","#A78BFA","#4EC9B8"];
 var _branches = Object.keys(_wgFreq)
 .map(function(label, idx) {
 return { label: label, score: _wgFreq[label], color: _allColors[label] || NC2[idx % NC2.length] };
@@ -5940,6 +5940,7 @@ return { label: label, score: _wgFreq[label], color: _allColors[label] || NC2[id
 .slice(0, 5);
 
 var _maxScore = _branches.length > 0 ? _branches[0].score : 1;
+var _topColor = _branches[0] ? _branches[0].color : "#7BD9A5";
 
 var [_wgLine, _wgSetLine] = useState(null);
 var [_wgReady, _wgSetReady] = useState(false);
@@ -5964,120 +5965,188 @@ finally { if (!cancelled) _wgSetReady(true); }
 return function(){ cancelled = true; };
 }, []);
 
-var _sizes = [68, 48, 34, 24, 16];
-var _weights = [700, 600, 400, 300, 300];
-var _tracking = ["-0.03em", "-0.02em", "0em", "0.02em", "0.04em"];
+var _wgMotes = useMemo(function() {
+var pts = [];
+for (var pi = 0; pi < 26; pi++) {
+var seed = pi * 137.508;
+pts.push({
+x: ((seed * 7.3) % 100),
+y: ((seed * 3.1) % 100),
+size: 1 + (pi % 3) * 0.7,
+dur: 7 + (pi % 5) * 2.2,
+delay: -(pi % 7) * 1.1,
+opacity: 0.12 + (pi % 4) * 0.1,
+color: NC2[pi % NC2.length]
+});
+}
+return pts;
+}, []);
 
 var isMobile = React.useContext(FieldMobileContext);
+var _wgBg = "linear-gradient(150deg, "+hexDarken(_topColor,0.16)+" 0%, "+hexDarken(_topColor,0.09)+" 38%, #05070A 75%, #030405 100%)";
+var _wgPad = isMobile ? "40px 22px 0" : "56px 30px 0";
+var _wgBarPad = isMobile ? "16px 20px" : "16px 24px";
+
 return (
 <div style={{
 position:"absolute", inset:0, overflow:"hidden",
-background:"#F7F4EF",
+background:_wgBg,
 display:"flex", flexDirection:"column"
 }}>
-<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch" }}>
-<div style={{ padding:isMobile ? "36px 20px 0 20px" : "52px 28px 0 24px" }}>
+<div style={{ position:"absolute", top:0, left:0, right:0, height:"48%",
+background:"linear-gradient(180deg, "+_topColor+"14 0%, transparent 100%)",
+pointerEvents:"none" }}/>
+
+<svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible", pointerEvents:"none" }}>
+{_wgMotes.map(function(p, pi) {
+return (
+<circle key={pi}
+cx={p.x+"%"} cy={p.y+"%"}
+r={p.size}
+fill={p.color}
+opacity={p.opacity}>
+<animate attributeName="cy"
+values={p.y+"%;"+(p.y-22)+"%;"+(p.y-44)+"%"}
+dur={p.dur+"s"}
+begin={p.delay+"s"}
+repeatCount="indefinite"
+calcMode="linear"/>
+<animate attributeName="opacity"
+values={p.opacity+";"+Math.min(p.opacity*2.2,0.6)+";0"}
+dur={p.dur+"s"}
+begin={p.delay+"s"}
+repeatCount="indefinite"/>
+</circle>
+);
+})}
+</svg>
+
+<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", position:"relative", zIndex:1 }}>
+<div style={{ padding:_wgPad, boxSizing:"border-box" }}>
 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-marginBottom:12 }}>
-<div style={{ fontSize:7.5, letterSpacing:"0.45em", color:"#999", fontFamily:FB,
+marginBottom:16 }}>
+<div style={{ fontSize:8, letterSpacing:"0.5em", color:_topColor+"55", fontFamily:FB,
 textTransform:"uppercase" }}>
 SAYCRD
 </div>
-<div style={{ fontSize:7.5, letterSpacing:"0.3em", color:"#bbb", fontFamily:FB,
+<div style={{ fontSize:8, letterSpacing:"0.3em", color:"rgba(255,255,255,0.28)", fontFamily:FB,
 textTransform:"uppercase" }}>
 {sessionCount > 1 ? "SESSION "+sessionCount : "FIRST SESSION"}
 </div>
 </div>
-<div style={{ height:0.75, background:"#D0C8BC", marginBottom:10 }}/>
-<div style={{ fontSize:8, letterSpacing:"0.55em", color:"#888", fontFamily:FB,
-textTransform:"uppercase", marginBottom:10 }}>
+<div style={{ height:1, marginBottom:16,
+background:"linear-gradient(90deg, "+_topColor+"88, "+_topColor+"22, transparent)",
+animation:"riseUp 0.6s ease 0.1s both" }}/>
+<div style={{ fontSize:9, letterSpacing:"0.55em", color:_topColor+"AA", fontFamily:FB,
+textTransform:"uppercase", marginBottom:4,
+animation:"riseUp 0.6s ease 0.15s both" }}>
 WHAT'S GROWING
 </div>
-<div style={{ height:0.5, background:"#E0D8D0" }}/>
 </div>
 
 <div style={{ flex:1, display:"flex", flexDirection:"column",
-justifyContent:"center", padding:"0 48px 0 24px", boxSizing:"border-box", minWidth:0 }}>
+justifyContent:"center", padding: isMobile ? "8px 22px 0" : "8px 30px 0", boxSizing:"border-box", minWidth:0 }}>
 {_branches.map(function(b, bi) {
 var isFirst = bi === 0;
-var sz = _sizes[bi] || 13;
-var wt = _weights[bi] || 300;
-var tr = _tracking[bi] || "0.04em";
 var ratio = b.score / _maxScore;
 var labelText = (b && b.label) ? String(b.label) : "";
-if (isFirst) {
+var _baseSz = isFirst ? 60 : bi===1 ? 34 : bi===2 ? 22 : 17;
 var l = labelText.trim().length;
-var scale = l <= 10 ? 1 : l <= 14 ? 0.86 : l <= 18 ? 0.74 : l <= 22 ? 0.64 : 0.56;
-sz = Math.max(34, Math.round(sz * scale));
-}
+var scale = isFirst ? (l <= 8 ? 1 : l <= 12 ? 0.84 : l <= 16 ? 0.68 : l <= 22 ? 0.56 : 0.46) : 1;
+var sz = isFirst ? Math.max(30, Math.round(_baseSz * scale)) : _baseSz;
 
 return (
-<div key={bi} style={{ marginBottom: isFirst ? 6 : bi===1 ? 8 : 10,
-animation:"riseUp 0.6s ease "+(bi*0.12)+"s both" }}>
-{isFirst && (
-<div style={{ width: Math.round(ratio * 140) + 32, height:2,
-background: b.color, borderRadius:1, marginBottom:8,
+<div key={bi} style={{ marginBottom: isFirst ? 14 : bi===1 ? 12 : 9,
+animation:"riseUp 0.7s ease "+(bi*0.1)+"s both" }}>
+<div style={{ display:"flex", alignItems:"baseline", gap:12 }}>
+{!isFirst && (
+<div style={{ width:5, height:5, borderRadius:"50%",
+background:b.color, flexShrink:0,
+marginBottom: sz * 0.18,
+boxShadow:"0 0 6px "+b.color+"88",
 opacity:0.85 }}/>
 )}
-<div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
-{!isFirst && (
-<div style={{ width:4, height:4, borderRadius:"50%",
-background:b.color, flexShrink:0,
-marginBottom: sz * 0.15,
-opacity:0.7 }}/>
-)}
 <div style={{
-fontSize: (function(){ var l=(labelText||"").length; return l<=10?sz:l<=14?Math.max(24,sz-6):Math.max(18,sz-12); })(),
-fontWeight: wt,
+fontSize: sz,
+fontWeight: isFirst ? 800 : bi===1 ? 700 : bi===2 ? 500 : 400,
 fontFamily: bi <= 1 ? FB : FD,
-fontStyle: bi >= 3 ? "italic" : "normal",
-letterSpacing: tr,
-color: isFirst ? "#1A1A1A" : bi===1 ? "#2A2A2A" : bi===2 ? "#555" : "#888",
-lineHeight: 1.05,
+fontStyle: bi >= 2 ? "italic" : "normal",
+letterSpacing: isFirst ? "-0.02em" : bi===1 ? "-0.01em" : "0.01em",
+color: isFirst ? "rgba(255,255,255,0.97)" : bi===1 ? "rgba(255,255,255,0.82)" : bi===2 ? "rgba(255,255,255,0.58)" : "rgba(255,255,255,0.38)",
+lineHeight: 1.08,
 textTransform: bi <= 1 ? "uppercase" : "none",
 flex: "1 1 auto",
 minWidth: 0,
 maxWidth: "100%",
 wordBreak: "break-word",
-overflowWrap: "break-word"
+overflowWrap: "break-word",
+textShadow: isFirst ? "0 2px 40px rgba(0,0,0,0.5), 0 0 70px "+b.color+"33" : "none"
 }}>
 {labelText}
 </div>
 {bi <= 1 && (
-<div style={{ marginLeft:"auto", display:"flex", gap:3, alignItems:"center" }}>
-{[0,1,2].map(function(di) {
+<div style={{ marginLeft:"auto", display:"flex", gap:3, alignItems:"flex-end", flexShrink:0 }}>
+{[0,1,2,3,4].map(function(di) {
+var barH = 4 + di * 3;
 return <div key={di} style={{
-width:5, height:5, borderRadius:"50%",
-background: di < Math.ceil(ratio*3) ? b.color : "#E0D8D0"
+width:3, height:barH, borderRadius:1,
+background: di < Math.round(ratio*5) ? b.color : "rgba(255,255,255,0.08)",
+boxShadow: di < Math.round(ratio*5) ? "0 0 6px "+b.color+"66" : "none",
+transition:"all 0.3s"
 }}/>;
 })}
 </div>
 )}
 </div>
-{bi < _branches.length-1 && (
-<div style={{ height:0.5, background:"#E8E2D8", marginTop: isFirst ? 10 : bi===1?10:8 }}/>
+{isFirst && (
+<div style={{ width: Math.round(ratio * 120) + 40, height:2,
+background: b.color, borderRadius:1, marginTop:10,
+boxShadow:"0 0 10px "+b.color+"aa",
+opacity:0.9 }}/>
 )}
 </div>
 );
 })}
 </div>
 
-<div style={{ padding:isMobile ? "0 24px 24px 20px" : "0 48px 40px 24px", paddingBottom:"calc("+(isMobile?24:40)+"px + env(safe-area-inset-bottom, 0px))" }}>
-<div style={{ height:0.75, background:"#D0C8BC", marginBottom:18 }}/>
-<div style={{ minHeight:52 }}>
+<div style={{ padding: isMobile ? "18px 22px 0" : "22px 30px 0", boxSizing:"border-box" }}>
+<div style={{ height:1, marginBottom:16,
+background:"linear-gradient(90deg, transparent, "+_topColor+"33 30%, "+_topColor+"33 70%, transparent)" }}/>
+<div style={{ minHeight:60 }}>
 {!_wgReady ? (
 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-<div style={{ width:"80%", height:14, borderRadius:3, background:"#E8E2D8",
+<div style={{ width:"82%", height:15, borderRadius:3, background:"rgba(255,255,255,0.06)",
 animation:"breathe 1.8s ease-in-out infinite alternate" }}/>
-<div style={{ width:"55%", height:14, borderRadius:3, background:"#EEE9E2",
+<div style={{ width:"56%", height:15, borderRadius:3, background:"rgba(255,255,255,0.04)",
 animation:"breathe 1.8s ease-in-out 0.3s infinite alternate" }}/>
 </div>
 ) : (
-<div style={{ fontSize:17, color:"#4A4038", fontFamily:FD,
-fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", maxWidth:"100%" }}>
+<div style={{ fontSize: isMobile ? 17 : 19, color:"rgba(255,255,255,0.86)", fontFamily:FD,
+fontStyle:"italic", lineHeight:1.7, wordBreak:"break-word", overflowWrap:"break-word", maxWidth:420,
+textShadow:"0 2px 30px rgba(0,0,0,0.4)" }}>
 {_wgLine || (_branches[0] ? "\u201c"+_branches[0].label+" keeps returning \u2014 it wants something.\u201d" : "The field is learning what it loves.")}
 </div>
 )}
+</div>
+</div>
+</div>
+
+<div style={{ flexShrink:0, padding:_wgBarPad, paddingBottom:"calc("+(isMobile?16:24)+"px + env(safe-area-inset-bottom, 0px))",
+background:"linear-gradient(0deg, rgba(3,4,5,0.9) 0%, rgba(3,4,5,0.7) 50%, transparent 100%)", position:"relative", zIndex:2 }}>
+<div style={{ display:"flex", gap:6, marginBottom:12, height:2, borderRadius:1, overflow:"hidden" }}>
+{_branches.map(function(b,bi){
+return <div key={bi} style={{ flex: b.score/_maxScore, background:b.color, opacity:0.75 }}/>;
+})}
+</div>
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+<div style={{ fontSize:10, color:"rgba(255,255,255,0.32)", fontFamily:FB,
+letterSpacing:"0.15em", textTransform:"uppercase" }}>
+{sessionCount > 1 ? "SESSION "+sessionCount : "FIRST SESSION"}
+</div>
+<div style={{ display:"flex", gap:5 }}>
+{_branches.map(function(b,bi){
+return <div key={bi} style={{ width:6, height:6, borderRadius:"50%", background:b.color, opacity:0.65 }}/>;
+})}
 </div>
 </div>
 </div>
