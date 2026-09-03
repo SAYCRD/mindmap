@@ -6316,7 +6316,8 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, rgba(140,170,230,0.14), rgba(140,170,230,0.06))",
 border:"1px solid rgba(140,170,230,0.3)",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
 <div style={{ fontSize: isMobile ? 19 : 21, color:"rgba(220,235,255,0.92)", fontFamily:FD,
 lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacing:"0.01em" }}>
@@ -6337,7 +6338,8 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, "+_currColor+"22, "+_currColor+"08)",
 border:"1px solid "+_currColor+"44",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
 <div style={{ fontSize: isMobile ? 19 : 21, color:"rgba(255,255,255,0.95)", fontFamily:FD,
 lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacing:"0.01em" }}>
@@ -6368,13 +6370,14 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, rgba(140,170,230,0.14), rgba(140,170,230,0.06))",
 border:"1px solid rgba(140,170,230,0.3)",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
-<div style={{ width:"88%", height:16, borderRadius:3,
+<div style={{ width:"88%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.08)",
 animation:"breathe 1.5s ease-in-out infinite alternate",
 marginBottom:10 }}/>
-<div style={{ width:"60%", height:16, borderRadius:3,
+<div style={{ width:"60%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.06)",
 animation:"breathe 1.5s ease-in-out 0.2s infinite alternate" }}/>
 </div>
@@ -6392,13 +6395,14 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, "+_currColor+"22, "+_currColor+"08)",
 border:"1px solid "+_currColor+"44",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
-<div style={{ width:"82%", height:16, borderRadius:3,
+<div style={{ width:"82%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.08)",
 animation:"breathe 1.5s ease-in-out 0.3s infinite alternate",
 marginBottom:10 }}/>
-<div style={{ width:"55%", height:16, borderRadius:3,
+<div style={{ width:"55%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.06)",
 animation:"breathe 1.5s ease-in-out 0.5s infinite alternate" }}/>
 </div>
