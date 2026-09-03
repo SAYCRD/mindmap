@@ -1,0 +1,11 @@
+{
+  "name": "saycrd",
+  "private": true,
+  "scripts": {
+    "build": "node build/compile.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.24.0"
+  }
+}
