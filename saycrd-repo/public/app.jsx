@@ -2389,11 +2389,17 @@ var ref = useRef(null);
 var startT = useRef(0);
 function start(e) {
 e.stopPropagation(); if (e.preventDefault) e.preventDefault();
-setHolding(true); startT.current = Date.now();
+setHolding(true); setProg(0); startT.current = Date.now();
+if (isMobile && navigator.vibrate) { try { navigator.vibrate(8); } catch(x) {} }
 ref.current = setInterval(function() {
 var p = Math.min((Date.now() - startT.current) / (isMobile ? 800 : 900), 1);
 setProg(p);
-if (p >= 1) { clearInterval(ref.current); setHolding(false); setProg(0); onSave(); }
+if (p >= 1) {
+clearInterval(ref.current);
+setHolding(false); setProg(0);
+if (isMobile && navigator.vibrate) { try { navigator.vibrate([0, 12, 40, 20]); } catch(x) {} }
+onSave();
+}
 }, 16);
 }
 function end() { if (ref.current) clearInterval(ref.current); setHolding(false); setProg(0); }
@@ -2401,10 +2407,28 @@ var pct = Math.round(prog * 100);
 return <div
 onMouseDown={start} onMouseUp={end} onMouseLeave={end}
 onTouchStart={start} onTouchEnd={end} onTouchCancel={end}
-style={{ position: "relative", padding: "7px 20px", borderRadius: 20, minHeight: isMobile ? 44 : 36, minWidth: 66, display: "inline-flex", alignItems: "center", justifyContent: "center", background: color + (Math.round(10 + prog * 90)).toString(16).padStart(2, "0"), border: "1px solid " + color + (holding ? "cc" : "44"), color: color, fontSize: 12, fontWeight: 700, fontFamily: FB, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", overflow: "hidden", touchAction: "manipulation", transform: holding ? "scale(0.94)" : "scale(1)", transition: holding ? "transform 0.15s ease, border-color 0.15s" : "transform 0.2s ease, background 0.2s, border-color 0.2s" }}
+style={{
+position: "relative", padding: "7px 22px", borderRadius: 20,
+minHeight: isMobile ? 44 : 36, minWidth: 72,
+display: "inline-flex", alignItems: "center", justifyContent: "center",
+background: holding ? color + "33" : color + "0f",
+border: "1.5px solid " + (holding ? color : color + "44"),
+boxShadow: holding ? "0 0 0 4px " + color + "22, 0 0 16px " + color + "55" : "none",
+color: color, fontSize: 12, fontWeight: 700, fontFamily: FB,
+cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+overflow: "hidden", touchAction: "manipulation",
+transform: holding ? "scale(1.06)" : "scale(1)",
+transition: holding ? "transform 0.12s ease, background 0.12s, border-color 0.12s, box-shadow 0.12s" : "transform 0.2s ease, background 0.2s, border-color 0.2s, box-shadow 0.2s",
+}}
 >
-<div style={{ position: "absolute", bottom: 0, left: 0, width: pct + "%", height: 4, background: color, boxShadow: holding ? "0 0 10px " + color : "none", transition: holding ? "none" : "width 0.2s" }} />
-<span style={{ position: "relative", zIndex: 1, textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>{holding ? pct + "%" : "hold"}</span>
+<div style={{
+position: "absolute", inset: 0,
+background: "conic-gradient(" + color + " " + (pct * 3.6) + "deg, transparent " + (pct * 3.6) + "deg)",
+opacity: holding ? 0.35 : 0,
+transition: holding ? "none" : "opacity 0.2s",
+}} />
+<div style={{ position: "absolute", bottom: 0, left: 0, width: pct + "%", height: 5, background: color, boxShadow: holding ? "0 0 10px " + color : "none", transition: holding ? "none" : "width 0.2s, opacity 0.2s", opacity: holding ? 1 : 0 }} />
+<span style={{ position: "relative", zIndex: 1, textShadow: "0 1px 3px rgba(0,0,0,0.5)", fontSize: holding ? 13 : 12, transition: "font-size 0.12s" }}>{holding ? pct + "%" : "hold"}</span>
 </div>;
 }
 
@@ -2480,214 +2504,6 @@ fontStyle:"italic", lineHeight:1.6, margin:0 }}>{echo}</p>
 )}
 </div>
 )}
-</div>
-);
-}
-
-function DescentGame({ cards: propCards, onDone, onSkip, isMobile }) {
-const DESCENT_CARDS = (propCards && propCards.length > 0 ? propCards.slice(0, 4) : [
-{ type: "energy", phrase: "wanting to be seen but not watched", color: "#FFB86B" },
-{ type: "binary", prompt: "right now you're drawn to", option_a: "building slowly", option_b: "leaping first", color: "#FF6B9D" },
-{ type: "spectrum", prompt: "where does this live?", pole_a: "still forming", pole_b: "ready to move", color: "#6BFFB8" },
-{ type: "binary", prompt: "the tension feels more like", option_a: "two things pulling apart", option_b: "one thing trying to split", color: "#6BB8FF" },
-]).map(function(c,i){return Object.assign({},c,{color:c.color||NC[i%NC.length]});});
-const [ci, setCi] = useState(0);
-const [answers, setAnswers] = useState({});
-const [showCompletion, setShowCompletion] = useState(false);
-const c = DESCENT_CARDS[ci], ans = answers[ci] !== undefined;
-function record(v) {
-var newAnswers = Object.assign({}, answers, {[ci]: v});
-setAnswers(newAnswers);
-if (ci < DESCENT_CARDS.length - 1) {
-setTimeout(function(){ setCi(ci + 1); }, 1600);
-} else {
-setTimeout(function(){ setShowCompletion(true); }, 1200);
-}
-}
-const allDone = Object.keys(answers).length >= DESCENT_CARDS.length;
-
-const [swipeX, setSwipeX] = useState(0);
-const [swiping, setSwiping] = useState(false);
-const swipeStart = useRef(0);
-const swipeThreshold = 80;
-
-function onTouchStart(e) { swipeStart.current = e.touches[0].clientX; setSwiping(true); setSwipeX(0); }
-function onTouchMove(e) { if (!swiping) return; var dx = e.touches[0].clientX - swipeStart.current; setSwipeX(dx); }
-function onTouchEnd() {
-if (!swiping) return;
-setSwiping(false);
-if (swipeX < -swipeThreshold) { record("a"); }
-else if (swipeX > swipeThreshold) { record("b"); }
-setSwipeX(0);
-}
-function onMouseDown(e) { swipeStart.current = e.clientX; setSwiping(true); setSwipeX(0); }
-function onMouseMove(e) { if (!swiping) return; setSwipeX(e.clientX - swipeStart.current); }
-function onMouseUp() { onTouchEnd(); }
-
-useEffect(function() {
-setSwipeX(0); setSwiping(false); setHoldProg(0); setEnergyHolding(false);
-}, [ci]);
-
-useEffect(function() {
-if (!swiping) return;
-function m(e) { var cx = e.clientX != null ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : swipeStart.current); setSwipeX(cx - swipeStart.current); }
-function u() { onTouchEnd(); }
-window.addEventListener("pointermove", m);
-window.addEventListener("pointerup", u);
-return function() { window.removeEventListener("pointermove", m); window.removeEventListener("pointerup", u); };
-}, [swiping]);
-
-const [holdProg, setHoldProg] = useState(0);
-const [energyHolding, setEnergyHolding] = useState(false);
-const holdRef = useRef(null);
-const holdStartT = useRef(0);
-
-function startEnergyHold(e) {
-if (ans) return;
-e.stopPropagation();
-setEnergyHolding(true);
-holdStartT.current = Date.now();
-holdRef.current = setInterval(function() {
-var p = Math.min((Date.now() - holdStartT.current) / (isMobile ? 1200 : 1800), 1);
-setHoldProg(p);
-if (p >= 1) { clearInterval(holdRef.current); setEnergyHolding(false); record(5); }
-}, 30);
-}
-function endEnergyHold() {
-if (holdRef.current) clearInterval(holdRef.current);
-if (energyHolding) {
-setEnergyHolding(false);
-if (holdProg >= 1) return;
-if (holdProg > 0.08) {
-var val = Math.max(1, Math.ceil(holdProg * 5));
-record(val);
-}
-setHoldProg(0);
-}
-}
-
-useEffect(function() {
-if (!energyHolding) return;
-function u() { endEnergyHold(); }
-window.addEventListener("pointerup", u);
-window.addEventListener("touchend", u);
-return function() { window.removeEventListener("pointerup", u); window.removeEventListener("touchend", u); };
-}, [energyHolding]);
-
-var swipeRatio = Math.min(Math.abs(swipeX) / swipeThreshold, 1);
-var swipeDir = swipeX < 0 ? "a" : swipeX > 0 ? "b" : null;
-
-return (
-<div style={{ padding: "20px 0" }}>
-{showCompletion && <div style={{ textAlign: "center", padding: "28px 0", animation: "riseUp 0.6s ease" }}>
-<div style={{ fontSize: 32, marginBottom: 16 }}>◆</div>
-<div style={{ fontSize: 18, color: "rgba(214,178,109,0.85)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.5, marginBottom: 12 }}>Descent complete.</div>
-<div style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", fontFamily: FB, letterSpacing: "0.1em" }}>
-{Object.keys(answers).length} questions, {Object.keys(answers).length} honest answers.
-</div>
-<button onClick={function(){ onDone({ answers: answers, cards: DESCENT_CARDS }); }} style={{ marginTop: 24, padding: "14px 32px", borderRadius: 24, border: "none", background: "rgba(214,178,109,0.2)", color: "#D6B26D", fontSize: 15, fontFamily: FB, fontWeight: 600, cursor: "pointer", letterSpacing: "0.06em", touchAction: "manipulation", minHeight: 48 }}>
-Continue →
-</button>
-<div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 8, alignItems: "stretch", maxWidth: 280, margin: "20px auto 0" }}>
-{DESCENT_CARDS.map(function(card, i) {
-var ans = answers[i];
-var display;
-if (ans === undefined || ans === null) { display = "—"; }
-else if (card.type === "energy" && typeof ans === "number") {
-var lvl = Math.max(0, Math.min(5, Math.round(ans)));
-display = "●".repeat(lvl) + "○".repeat(5 - lvl);
-} else if (card.type === "spectrum" && typeof ans === "number") {
-display = ans + "% → " + (ans >= 50 ? (card.pole_b || "b") : (card.pole_a || "a"));
-} else if (card.type === "binary" && typeof ans === "string") {
-display = ans === "a" ? (card.option_a || "a") : (card.option_b || "b");
-} else { display = String(ans); }
-return <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-<div style={{ width: 6, height: 6, borderRadius: "50%", background: card.color, opacity: 0.5, flexShrink: 0 }} />
-<div style={{ fontSize: 12, color: card.color + "AA", fontFamily: FB, letterSpacing: "0.04em" }}>{display}</div>
-</div>;
-})}
-</div>
-</div>}
-
-{!showCompletion && <><div style={{ display: "flex", gap: 8, marginBottom: 20, justifyContent: "center" }}>
-{DESCENT_CARDS.map(function(_, i) { var w = isMobile ? (i === ci ? 14 : 10) : (i === ci ? 12 : 7); return <div key={i} style={{ width: w, height: w, borderRadius: 4, background: i < ci ? DESCENT_CARDS[i].color + "88" : i === ci ? "white" : "rgba(255,255,255,0.1)", transition: "all 0.4s" }} />; })}
-</div>
-
-<div key={ci} style={{ animation: "slideIn 0.4s ease" }}>
-{c.type === "energy" && <div
-onMouseDown={startEnergyHold} onMouseUp={endEnergyHold} onMouseLeave={endEnergyHold}
-onTouchStart={startEnergyHold} onTouchEnd={endEnergyHold}
-style={{ borderRadius: 22, padding: "40px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", textAlign: "center", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", position: "relative", overflow: "hidden", touchAction: "none" }}
->
-<div style={{ position:"absolute", bottom:0, left:0, width:(ans ? 100 : holdProg * 100)+"%", height:4, background:c.color, transition:energyHolding?"none":"width 0.3s ease", opacity:0.7, borderRadius:"0 0 22px 22px" }} />
-<div style={{ display:"flex", gap:12, justifyContent:"center", marginBottom:20 }}>
-{[1,2,3,4,5].map(function(dot) {
-var lit = ans ? (answers[ci] || 0) >= dot : holdProg * 5 >= dot;
-var dotSz = isMobile ? 28 : 18;
-return <div key={dot}
-onClick={function(e){ if(!ans){ e.stopPropagation(); record(dot); } }}
-style={{ width: dotSz, height: dotSz, minWidth: dotSz, minHeight: dotSz, borderRadius:"50%",
-background: lit ? c.color : "rgba(255,255,255,0.08)",
-boxShadow: lit ? "0 0 12px "+c.color+"88" : "none",
-border:"1px solid "+(lit ? c.color+"88" : "rgba(255,255,255,0.12)"),
-cursor: ans ? "default" : "pointer",
-transition:"all 0.2s", touchAction: "manipulation" }} />;
-})}
-</div>
-<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 20 }}>{c.phrase}</div>
-{ans && <div style={{ fontSize: 11, color: c.color + "88", fontFamily: FB, letterSpacing: "0.12em", animation: "riseUp 0.3s ease" }}>
-{"●".repeat(answers[ci])}{"○".repeat(5 - answers[ci])} marked
-</div>}
-</div>}
-
-{c.type === "binary" && <div
-onTouchStart={!ans ? onTouchStart : undefined}
-onTouchMove={!ans ? onTouchMove : undefined}
-onTouchEnd={!ans ? onTouchEnd : undefined}
-onMouseDown={!ans ? onMouseDown : undefined}
-onMouseMove={!ans ? onMouseMove : undefined}
-onMouseUp={!ans ? onMouseUp : undefined}
-onMouseLeave={!ans ? onMouseUp : undefined}
-style={{ borderRadius: 22, padding: "36px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", textAlign: "center", userSelect: "none", WebkitUserSelect: "none", cursor: ans ? "default" : "grab", position: "relative", overflow: "hidden", transform: ans ? "none" : "translateX(" + swipeX * 0.3 + "px) rotate(" + swipeX * 0.02 + "deg)", transition: swiping ? "none" : "transform 0.3s ease", touchAction: !ans ? "pan-y" : undefined }}
->
-<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, marginBottom: 24 }}>{c.prompt}</div>
-
-{!ans && <div style={{ display: "flex", gap: 12 }}>
-<button onClick={function(e){ e.stopPropagation(); record("a"); }}
-style={{ flex:1, padding:"12px 8px", borderRadius:14, minHeight: isMobile ? 44 : undefined,
-background: swipeDir==="a" ? c.color+"22" : "rgba(255,255,255,0.04)",
-border:"1px solid "+(swipeDir==="a" ? c.color+"66" : "rgba(255,255,255,0.1)"),
-color: swipeDir==="a" ? c.color : "rgba(255,255,255,0.55)",
-fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
-whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
-transition:"all 0.2s", touchAction:"manipulation" }}>{c.option_a}</button>
-<button onClick={function(e){ e.stopPropagation(); record("b"); }}
-style={{ flex:1, padding:"12px 8px", borderRadius:14, minHeight: isMobile ? 44 : undefined,
-background: swipeDir==="b" ? c.color+"22" : "rgba(255,255,255,0.04)",
-border:"1px solid "+(swipeDir==="b" ? c.color+"66" : "rgba(255,255,255,0.1)"),
-color: swipeDir==="b" ? c.color : "rgba(255,255,255,0.55)",
-fontSize:13, fontFamily:FB, fontWeight:600, cursor:"pointer",
-whiteSpace:"normal", lineHeight:1.2, wordBreak:"break-word", overflowWrap:"anywhere",
-transition:"all 0.2s", touchAction:"manipulation" }}>{c.option_b}</button>
-</div>}
-
-{ans && <div style={{ animation: "riseUp 0.4s ease" }}>
-<div style={{ fontSize: 16, fontFamily: FB, fontWeight: 600, color: c.color }}>{answers[ci] === "a" ? c.option_a : c.option_b}</div>
-</div>}
-</div>}
-
-{c.type === "spectrum" && <div style={{ borderRadius: 22, padding: "32px 24px", background: "linear-gradient(160deg," + c.color + "12,rgba(10,10,30,0.9)," + c.color + "08)", border: "1px solid " + c.color + "22", position: "relative", overflow: "hidden" }}>
-<div style={{ fontSize: 22, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.92)", lineHeight: 1.45, textAlign: "center", marginBottom: 24 }}>{c.prompt}</div>
-<SpectrumSlider color={c.color} poleA={c.pole_a} poleB={c.pole_b} onSet={function(v){ record(v); }} value={answers[ci] !== undefined ? answers[ci] : null} />
-</div>}
-</div>
-
-<div style={{ display: "flex", gap: 12, marginTop: 14, justifyContent: "space-between" }}>
-{ci > 0 && <button onClick={function() { setCi(ci - 1); }} style={{ padding: "8px 16px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.06)", background: "transparent", color: "rgba(255,255,255,0.25)", fontSize: 12, fontFamily: FB, cursor: "pointer" }}>←</button>}
-<div style={{ flex: 1 }} />
-{ans && ci < DESCENT_CARDS.length - 1 && <button onClick={function() { setCi(ci + 1); }} style={{ padding: "8px 20px", borderRadius: 20, border: "none", background: c.color + "22", color: c.color + "cc", fontSize: 12, fontFamily: FB, fontWeight: 500, cursor: "pointer" }}>→</button>}
-</div>
-</>}
 </div>
 );
 }
@@ -2935,9 +2751,6 @@ touchAction: "manipulation",
 }
 
 function SessionPhase({ onComplete, synthesisData, onPatchSynthesis }) {
-const [descentOpen, setDescentOpen] = useState(false);
-const [descentDone, setDescentDone] = useState(false);
-const [descentResult, setDescentResult] = useState(null);
 const [clarity, setClarity] = useState("");
 const [claritySaved, setClaritySaved] = useState(false);
 const [showNoticing, setShowNoticing] = useState(false);
@@ -3059,7 +2872,6 @@ var tension = sd.tension || null;
 var opening = sd.opening || null;
 var noticing = sd.noticing || null;
 var mapTitle = sd.map_title || "";
-var descentCards = (sd.descent_cards && sd.descent_cards.length > 0) ? sd.descent_cards : null;
 
 return (
 <div style={{ width: "100%", height: "100%", position: "relative", overflow: "auto", WebkitOverflowScrolling: "touch" }} ref={scrollRef}>
@@ -3178,56 +2990,17 @@ background: optC || "#B86BFF", opacity: 0.5 }} />
 </div>
 </div>}
 
-<div style={{ marginBottom: 32, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-{!descentOpen && !descentDone && (
-<div style={{ animation: "riseUp 0.5s ease 0.55s both" }}>
-<div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }} aria-hidden="true">
-<div className="descentConnector" style={{ width: 2, height: 22, background: "linear-gradient(to bottom, rgba(214,178,109,0), rgba(214,178,109,0.6))" }} />
-</div>
-<p style={{ fontSize: 14, color: "rgba(214,178,109,0.65)", fontFamily: FB, textAlign: "center", lineHeight: 1.5, margin: "0 0 14px", letterSpacing: "0.01em" }}>
-A few quick prompts to surface what's beneath the surface — then your growth edge.
-</p>
-<div onClick={function(){ setDescentOpen(true); }} style={{
-display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-fontFamily: FB, fontSize: 18, color: "#D6B26D", textAlign: "center",
-cursor: "pointer", padding: "22px 28px", borderRadius: 16,
-border: "2px solid rgba(214,178,109,0.5)", background: "rgba(214,178,109,0.12)",
-transition: "all 0.3s", fontWeight: 700, letterSpacing: "0.04em",
-boxShadow: "0 0 24px rgba(214,178,109,0.2)",
-}}>
-<span style={{ fontSize: 20 }}>◆</span> Begin the descent
-<span style={{ fontSize: 12, fontWeight: 500, color: "rgba(214,178,109,0.55)", letterSpacing: "0.08em" }}>~1 min</span>
-</div>
-</div>
-)}
-{descentOpen && !descentDone && (
-<div style={{ animation: "riseUp 0.5s ease", position: "relative", paddingTop: 16, paddingBottom: 24 }}>
-<div style={{ position: "relative", fontSize: 14, letterSpacing: "0.3em", fontWeight: 600, color: "#D6B26D", marginBottom: 16, fontFamily: FB, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-{isMobile && <button onClick={function(){ setDescentOpen(false); }} style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)", fontSize: 18, cursor: "pointer", display: "grid", placeItems: "center", touchAction: "manipulation" }}>×</button>}
-<span>THE DESCENT</span>
-</div>
-<DescentGame cards={descentCards} onDone={function(data) { setDescentResult(data); setDescentDone(true); }} onSkip={isMobile ? function(){ setDescentOpen(false); } : undefined} isMobile={isMobile} />
-</div>
-)}
-{descentDone && <div style={{ textAlign: "center", padding: "16px 0", animation: "riseUp 0.5s ease" }}>
-<div style={{ fontSize: 14, color: "rgba(214,178,109,0.7)", fontFamily: FB, letterSpacing: "0.15em" }}>Descent complete</div>
-</div>}
-</div>
-
-<button onClick={function(){ if (!descentDone) return; onComplete({ descent: descentResult, clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sentenceFeedback: sentenceFeedback }); }} style={{
-width: "100%", background: descentDone ? "linear-gradient(135deg, #6BFFB8, #3DFFAA)" : "rgba(107,255,184,0.08)",
-border: descentDone ? "none" : "1px solid rgba(107,255,184,0.15)",
+<button onClick={function(){ onComplete({ clarity: clarity, claritySaved: claritySaved, reactions: reactions, corrections: corrections, signals: signals, revisedSynthesis: revisedSynthesis, sentenceFeedback: sentenceFeedback }); }} style={{
+width: "100%", background: "linear-gradient(135deg, #6BFFB8, #3DFFAA)",
+border: "none",
 borderRadius: 24, padding: "16px 28px", minHeight: 52,
-color: descentDone ? "#0A2E1A" : "rgba(107,255,184,0.3)",
-fontSize: 17, fontFamily: FB, fontWeight: descentDone ? 700 : 400,
-cursor: descentDone ? "pointer" : "not-allowed", transition: "all 0.4s", touchAction: "manipulation",
-boxShadow: descentDone ? "0 4px 24px rgba(107,255,184,0.35)" : "none",
+color: "#0A2E1A",
+fontSize: 17, fontFamily: FB, fontWeight: 700,
+cursor: "pointer", transition: "all 0.4s", touchAction: "manipulation",
+boxShadow: "0 4px 24px rgba(107,255,184,0.35)",
 }}>
 What's Growing →
 </button>
-{!descentDone && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.32)", fontFamily: FB, textAlign: "center", margin: "10px 0 0", letterSpacing: "0.02em" }}>
-Complete the descent above to continue
-</p>}
 </div>
 </div>
 );
@@ -4349,6 +4122,12 @@ window.storage.set("sessions", JSON.stringify(sess)).catch(function() {});
 }
 
 function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
+// Returning-user check: do they already have at least one saved session under
+// the currently-known uid? Used to route straight to the SESSION COMPLETE /
+// "Your Journeys" screen instead of the landing page on app load.
+function _hasReturningSessions() {
+  try { return JSON.parse(localStorage.getItem(_sessionKey()) || "[]").length > 0; } catch(e) { return false; }
+}
 function updateLastSession(partial) {
 try {
 var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
@@ -6134,7 +5913,7 @@ background:t.color, opacity:0.25 }}/>;
 );
 }
 
-function WhatsGrowingCard({ themes, sessionCount, goNext }) {
+function WhatsGrowingCard({ themes, sessionCount, goNext, wgLine: wgLineProp, wgLineReady: wgLineReadyProp }) {
 themes = themes || [];
 
 var _allSessions = (function() {
@@ -6158,7 +5937,7 @@ _wgFreq[t.label] = (_wgFreq[t.label] || 0) + 6;
 if (t.color) _allColors[t.label] = t.color;
 });
 
-var NC2 = ["#C4956A","#7BAE8A","#8B9EC4","#C48B7A","#9E8BC4","#C4B97A"];
+var NC2 = ["#7BD9A5","#6BB8FF","#E8B87C","#E86B9D","#A78BFA","#4EC9B8"];
 var _branches = Object.keys(_wgFreq)
 .map(function(label, idx) {
 return { label: label, score: _wgFreq[label], color: _allColors[label] || NC2[idx % NC2.length] };
@@ -6167,11 +5946,20 @@ return { label: label, score: _wgFreq[label], color: _allColors[label] || NC2[id
 .slice(0, 5);
 
 var _maxScore = _branches.length > 0 ? _branches[0].score : 1;
+var _topColor = _branches[0] ? _branches[0].color : "#7BD9A5";
 
-var [_wgLine, _wgSetLine] = useState(null);
-var [_wgReady, _wgSetReady] = useState(false);
+// The deck fires this same request in parallel with "portrait" the moment the
+// session opens (see the wgLine prefetch effect in SAYCRDFlow), so by the time
+// someone actually taps onto this card it has usually already resolved. Only
+// fall back to fetching locally if the caller never wired prefetching at all
+// (wgLineReadyProp === undefined); if a prefetch is genuinely still in flight
+// (=== false) just wait for it rather than firing a redundant second request.
+var [_wgLine, _wgSetLine] = useState(wgLineReadyProp ? wgLineProp : null);
+var [_wgReady, _wgSetReady] = useState(!!wgLineReadyProp);
 
 useEffect(function() {
+if (wgLineReadyProp) { _wgSetLine(wgLineProp); _wgSetReady(true); return; }
+if (wgLineReadyProp !== undefined) return; // prefetch in flight — wait for it
 var cancelled = false;
 (async function() {
 try {
@@ -6189,122 +5977,207 @@ _wgSetLine(dd && dd.line ? dd.line : null);
 finally { if (!cancelled) _wgSetReady(true); }
 })();
 return function(){ cancelled = true; };
+}, [wgLineReadyProp, wgLineProp]);
+
+var _wgMotes = useMemo(function() {
+var pts = [];
+for (var pi = 0; pi < 26; pi++) {
+var seed = pi * 137.508;
+pts.push({
+x: ((seed * 7.3) % 100),
+y: ((seed * 3.1) % 100),
+size: 1 + (pi % 3) * 0.7,
+dur: 7 + (pi % 5) * 2.2,
+delay: -(pi % 7) * 1.1,
+opacity: 0.12 + (pi % 4) * 0.1,
+color: NC2[pi % NC2.length]
+});
+}
+return pts;
 }, []);
 
-var _sizes = [68, 48, 34, 24, 16];
-var _weights = [700, 600, 400, 300, 300];
-var _tracking = ["-0.03em", "-0.02em", "0em", "0.02em", "0.04em"];
-
 var isMobile = React.useContext(FieldMobileContext);
+var _wgBg = "linear-gradient(150deg, "+hexDarken(_topColor,0.16)+" 0%, "+hexDarken(_topColor,0.09)+" 38%, #05070A 75%, #030405 100%)";
+var _wgPad = isMobile ? "40px 22px 0" : "56px 30px 0";
+var _wgBarPad = isMobile ? "16px 20px" : "16px 24px";
+
 return (
 <div style={{
 position:"absolute", inset:0, overflow:"hidden",
-background:"#F7F4EF",
+background:_wgBg,
 display:"flex", flexDirection:"column"
 }}>
-<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch" }}>
-<div style={{ padding:isMobile ? "36px 20px 0 20px" : "52px 28px 0 24px" }}>
+<div style={{ position:"absolute", top:0, left:0, right:0, height:"48%",
+background:"linear-gradient(180deg, "+_topColor+"14 0%, transparent 100%)",
+pointerEvents:"none" }}/>
+
+<svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible", pointerEvents:"none" }}>
+{_wgMotes.map(function(p, pi) {
+return (
+<circle key={pi}
+cx={p.x+"%"} cy={p.y+"%"}
+r={p.size}
+fill={p.color}
+opacity={p.opacity}>
+<animate attributeName="cy"
+values={p.y+"%;"+(p.y-22)+"%;"+(p.y-44)+"%"}
+dur={p.dur+"s"}
+begin={p.delay+"s"}
+repeatCount="indefinite"
+calcMode="linear"/>
+<animate attributeName="opacity"
+values={p.opacity+";"+Math.min(p.opacity*2.2,0.6)+";0"}
+dur={p.dur+"s"}
+begin={p.delay+"s"}
+repeatCount="indefinite"/>
+</circle>
+);
+})}
+</svg>
+
+<div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", position:"relative", zIndex:1 }}>
+<div style={{ padding:_wgPad, boxSizing:"border-box" }}>
 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-marginBottom:12 }}>
-<div style={{ fontSize:7.5, letterSpacing:"0.45em", color:"#999", fontFamily:FB,
+marginBottom:16 }}>
+<div style={{ fontSize:8, letterSpacing:"0.5em", color:_topColor+"55", fontFamily:FB,
 textTransform:"uppercase" }}>
 SAYCRD
 </div>
-<div style={{ fontSize:7.5, letterSpacing:"0.3em", color:"#bbb", fontFamily:FB,
+<div style={{ fontSize:8, letterSpacing:"0.3em", color:"rgba(255,255,255,0.28)", fontFamily:FB,
 textTransform:"uppercase" }}>
 {sessionCount > 1 ? "SESSION "+sessionCount : "FIRST SESSION"}
 </div>
 </div>
-<div style={{ height:0.75, background:"#D0C8BC", marginBottom:10 }}/>
-<div style={{ fontSize:8, letterSpacing:"0.55em", color:"#888", fontFamily:FB,
-textTransform:"uppercase", marginBottom:10 }}>
+<div style={{ height:1, marginBottom:16,
+background:"linear-gradient(90deg, "+_topColor+"88, "+_topColor+"22, transparent)",
+animation:"riseUp 0.6s ease 0.1s both" }}/>
+<div style={{ fontSize:9, letterSpacing:"0.55em", color:_topColor+"AA", fontFamily:FB,
+textTransform:"uppercase", marginBottom:4,
+animation:"riseUp 0.6s ease 0.15s both" }}>
 WHAT'S GROWING
 </div>
-<div style={{ height:0.5, background:"#E0D8D0" }}/>
 </div>
 
 <div style={{ flex:1, display:"flex", flexDirection:"column",
-justifyContent:"center", padding:"0 48px 0 24px", boxSizing:"border-box", minWidth:0 }}>
+justifyContent:"center", padding: isMobile ? "8px 22px 0" : "8px 30px 0", boxSizing:"border-box", minWidth:0 }}>
 {_branches.map(function(b, bi) {
 var isFirst = bi === 0;
-var sz = _sizes[bi] || 13;
-var wt = _weights[bi] || 300;
-var tr = _tracking[bi] || "0.04em";
 var ratio = b.score / _maxScore;
 var labelText = (b && b.label) ? String(b.label) : "";
-if (isFirst) {
+var _baseSz = isFirst ? 60 : bi===1 ? 34 : bi===2 ? 22 : 17;
 var l = labelText.trim().length;
-var scale = l <= 10 ? 1 : l <= 14 ? 0.86 : l <= 18 ? 0.74 : l <= 22 ? 0.64 : 0.56;
-sz = Math.max(34, Math.round(sz * scale));
-}
+var scale = isFirst ? (l <= 8 ? 1 : l <= 12 ? 0.84 : l <= 16 ? 0.68 : l <= 22 ? 0.56 : 0.46) : 1;
+var sz = isFirst ? Math.max(30, Math.round(_baseSz * scale)) : _baseSz;
 
 return (
-<div key={bi} style={{ marginBottom: isFirst ? 6 : bi===1 ? 8 : 10,
-animation:"riseUp 0.6s ease "+(bi*0.12)+"s both" }}>
-{isFirst && (
-<div style={{ width: Math.round(ratio * 140) + 32, height:2,
-background: b.color, borderRadius:1, marginBottom:8,
+<div key={bi} style={{ marginBottom: isFirst ? 14 : bi===1 ? 12 : 9,
+animation:"riseUp 0.7s ease "+(bi*0.1)+"s both" }}>
+<div style={{ display:"flex", alignItems:"baseline", gap:12 }}>
+{!isFirst && (
+<div style={{ width:5, height:5, borderRadius:"50%",
+background:b.color, flexShrink:0,
+marginBottom: sz * 0.18,
+boxShadow:"0 0 6px "+b.color+"88",
 opacity:0.85 }}/>
 )}
-<div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
-{!isFirst && (
-<div style={{ width:4, height:4, borderRadius:"50%",
-background:b.color, flexShrink:0,
-marginBottom: sz * 0.15,
-opacity:0.7 }}/>
-)}
 <div style={{
-fontSize: (function(){ var l=(labelText||"").length; return l<=10?sz:l<=14?Math.max(24,sz-6):Math.max(18,sz-12); })(),
-fontWeight: wt,
+fontSize: sz,
+fontWeight: isFirst ? 800 : bi===1 ? 700 : bi===2 ? 500 : 400,
 fontFamily: bi <= 1 ? FB : FD,
-fontStyle: bi >= 3 ? "italic" : "normal",
-letterSpacing: tr,
-color: isFirst ? "#1A1A1A" : bi===1 ? "#2A2A2A" : bi===2 ? "#555" : "#888",
-lineHeight: 1.05,
+fontStyle: bi >= 2 ? "italic" : "normal",
+letterSpacing: isFirst ? "-0.02em" : bi===1 ? "-0.01em" : "0.01em",
+color: isFirst ? "rgba(255,255,255,0.97)" : bi===1 ? "rgba(255,255,255,0.82)" : bi===2 ? "rgba(255,255,255,0.58)" : "rgba(255,255,255,0.38)",
+lineHeight: 1.08,
 textTransform: bi <= 1 ? "uppercase" : "none",
 flex: "1 1 auto",
 minWidth: 0,
 maxWidth: "100%",
 wordBreak: "break-word",
-overflowWrap: "break-word"
+overflowWrap: "break-word",
+textShadow: isFirst ? "0 2px 40px rgba(0,0,0,0.5), 0 0 70px "+b.color+"33" : "none"
 }}>
 {labelText}
 </div>
 {bi <= 1 && (
-<div style={{ marginLeft:"auto", display:"flex", gap:3, alignItems:"center" }}>
-{[0,1,2].map(function(di) {
+<div style={{ marginLeft:"auto", display:"flex", gap:3, alignItems:"flex-end", flexShrink:0 }}>
+{[0,1,2,3,4].map(function(di) {
+var barH = 4 + di * 3;
 return <div key={di} style={{
-width:5, height:5, borderRadius:"50%",
-background: di < Math.ceil(ratio*3) ? b.color : "#E0D8D0"
+width:3, height:barH, borderRadius:1,
+background: di < Math.round(ratio*5) ? b.color : "rgba(255,255,255,0.08)",
+boxShadow: di < Math.round(ratio*5) ? "0 0 6px "+b.color+"66" : "none",
+transition:"all 0.3s"
 }}/>;
 })}
 </div>
 )}
 </div>
-{bi < _branches.length-1 && (
-<div style={{ height:0.5, background:"#E8E2D8", marginTop: isFirst ? 10 : bi===1?10:8 }}/>
+{isFirst && (
+<div style={{ width: Math.round(ratio * 120) + 40, height:2,
+background: b.color, borderRadius:1, marginTop:10,
+boxShadow:"0 0 10px "+b.color+"aa",
+opacity:0.9 }}/>
 )}
 </div>
 );
 })}
 </div>
 
-<div style={{ padding:isMobile ? "0 24px 24px 20px" : "0 48px 40px 24px", paddingBottom:"calc("+(isMobile?24:40)+"px + env(safe-area-inset-bottom, 0px))" }}>
-<div style={{ height:0.75, background:"#D0C8BC", marginBottom:18 }}/>
-<div style={{ minHeight:52 }}>
+<div style={{ padding: isMobile ? "18px 22px 0" : "22px 30px 0", boxSizing:"border-box" }}>
+<div style={{ height:1, marginBottom:16,
+background:"linear-gradient(90deg, transparent, "+_topColor+"33 30%, "+_topColor+"33 70%, transparent)" }}/>
+<div style={{ minHeight: !_wgReady ? 116 : 60 }}>
 {!_wgReady ? (
-<div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-<div style={{ width:"80%", height:14, borderRadius:3, background:"#E8E2D8",
-animation:"breathe 1.8s ease-in-out infinite alternate" }}/>
-<div style={{ width:"55%", height:14, borderRadius:3, background:"#EEE9E2",
-animation:"breathe 1.8s ease-in-out 0.3s infinite alternate" }}/>
+<div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+{[
+{ text: "Analyzing what\u2019s growing", color: _topColor, dur: 2.6, delay: 0 },
+{ text: "Uncovering what\u2019s under the surface", color: NC2[1], dur: 2.9, delay: -0.6 },
+{ text: "Looking to see what wants to arrive", color: NC2[2], dur: 3.2, delay: -1.2 }
+].map(function(row, ri) {
+return (
+<div key={ri} style={{ display:"flex", flexDirection:"column", gap:6 }}>
+<div style={{ fontSize: isMobile ? 12 : 13, color:"rgba(255,255,255,0.42)", fontFamily:FD,
+fontStyle:"italic", letterSpacing:"0.01em" }}>
+{row.text}
+</div>
+<div style={{ height:3, borderRadius:2, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
+<div style={{ height:"100%", width:"100%", borderRadius:2,
+background:"linear-gradient(90deg, "+row.color+"55, "+row.color+")",
+transformOrigin:"left center", WebkitTransformOrigin:"left center",
+animation:"reportStreamBar "+row.dur+"s ease-in-out "+row.delay+"s infinite",
+WebkitAnimation:"reportStreamBar "+row.dur+"s ease-in-out "+row.delay+"s infinite" }}/>
+</div>
+</div>
+);
+})}
 </div>
 ) : (
-<div style={{ fontSize:17, color:"#4A4038", fontFamily:FD,
-fontStyle:"italic", lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", maxWidth:"100%" }}>
+<div style={{ fontSize: isMobile ? 17 : 19, color:"rgba(255,255,255,0.86)", fontFamily:FD,
+fontStyle:"italic", lineHeight:1.7, wordBreak:"break-word", overflowWrap:"break-word", maxWidth:420,
+textShadow:"0 2px 30px rgba(0,0,0,0.4)" }}>
 {_wgLine || (_branches[0] ? "\u201c"+_branches[0].label+" keeps returning \u2014 it wants something.\u201d" : "The field is learning what it loves.")}
 </div>
 )}
+</div>
+</div>
+</div>
+
+<div style={{ flexShrink:0, padding:_wgBarPad, paddingBottom:"calc("+(isMobile?16:24)+"px + env(safe-area-inset-bottom, 0px))",
+background:"linear-gradient(0deg, rgba(3,4,5,0.9) 0%, rgba(3,4,5,0.7) 50%, transparent 100%)", position:"relative", zIndex:2 }}>
+<div style={{ display:"flex", gap:6, marginBottom:12, height:2, borderRadius:1, overflow:"hidden" }}>
+{_branches.map(function(b,bi){
+return <div key={bi} style={{ flex: b.score/_maxScore, background:b.color, opacity:0.75 }}/>;
+})}
+</div>
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+<div style={{ fontSize:10, color:"rgba(255,255,255,0.32)", fontFamily:FB,
+letterSpacing:"0.15em", textTransform:"uppercase" }}>
+{sessionCount > 1 ? "SESSION "+sessionCount : "FIRST SESSION"}
+</div>
+<div style={{ display:"flex", gap:5 }}>
+{_branches.map(function(b,bi){
+return <div key={bi} style={{ width:6, height:6, borderRadius:"50%", background:b.color, opacity:0.65 }}/>;
+})}
 </div>
 </div>
 </div>
@@ -7118,8 +6991,6 @@ if(a) _archFreq[a]=(_archFreq[a]||0)+1;
 var _topArch=Object.keys(_archFreq).sort(function(a,b){return _archFreq[b]-_archFreq[a];})[0]||"";
 var _topArchCount=_topArch?_archFreq[_topArch]:0;
 
-var [_expanded, _setExpanded] = useState(null);
-
 return (
 <div style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"linear-gradient(160deg, #0A0614 0%, #120820 40%, #0E0A1E 100%)",
@@ -7161,19 +7032,19 @@ color:"rgba(255,255,255,0.25)", fontFamily:FB }}>ARCHETYPE</div>
 WebkitOverflowScrolling:"touch" }}>
 
 {_rows.map(function(row, ri) {
-var isExp = _expanded === ri;
 var isCurr = row.isCurrent;
-var hasDetail = !!(row.archLine || row.alchemyStage || row.mapTitle);
+// Main takeaway: the archetype's own poetic one-liner is the most compact
+// distillation of what that session was about. Fall back to the map's
+// title when a session has no archLine (e.g. older data). This now always
+// renders — there is no click/expand affordance left on this page; the
+// row itself is not interactive, only the page-level Back/Next are.
+var takeaway = row.archLine || row.mapTitle || "";
 
 return (
-<div key={ri} style={{ borderBottom:"0.5px solid rgba(255,255,255,"+(isCurr?"0.12":"0.05")+")" }}>
+<div key={ri} style={{ borderBottom:"0.5px solid rgba(255,255,255,"+(isCurr?"0.12":"0.05")+")",
+padding:"13px 0", animation:"riseUp 0.5s ease "+(ri*0.035)+"s both" }}>
 
-<div
-onClick={function(){ if(hasDetail||isCurr) _setExpanded(isExp?null:ri); }}
-style={{ display:"flex", alignItems:"center",
-padding:"13px 0",
-cursor: hasDetail?"pointer":"default",
-animation:"riseUp 0.5s ease "+(ri*0.035)+"s both" }}>
+<div style={{ display:"flex", alignItems:"center" }}>
 
 <div style={{ width:12, flexShrink:0 }}>
 <div style={{
@@ -7220,57 +7091,16 @@ fontStyle:"italic" }}>this session</div>
 fontFamily:FB }}>—</div>
 )}
 </div>
+</div>
 
-{hasDetail && (
-<div style={{ width:24, flexShrink:0, textAlign:"right" }}>
-<div style={{ fontSize:12, color:isExp?row.color:"rgba(255,255,255,0.2)",
-transition:"transform 0.35s ease, color 0.2s ease",
-transform:isExp?"rotate(180deg)":"rotate(0deg)",
-display:"inline-block" }}>▾</div>
+{takeaway && (
+<div style={{ margin:"6px 0 2px 72px", paddingRight:12 }}>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.45)",
+fontFamily:FD, fontStyle:"italic", lineHeight:1.5 }}>
+{takeaway}
+</div>
 </div>
 )}
-</div>
-
-<div style={{
-maxHeight: isExp ? "300px" : "0px",
-overflow:"hidden",
-transition:"max-height 0.45s cubic-bezier(0.32,0.72,0,1)"
-}}>
-<div style={{ padding:"4px 0 20px 12px",
-borderLeft:"2px solid "+row.color+"44",
-marginLeft:5, marginBottom:4 }}>
-
-{row.mapTitle && (
-<div style={{ fontSize:11, letterSpacing:"0.1em",
-color:"rgba(255,255,255,0.35)", fontFamily:FB,
-marginBottom:10, lineHeight:1.5 }}>
-{row.mapTitle}
-</div>
-)}
-
-{row.archLine && (
-<div style={{ fontSize:17, color:row.color,
-fontFamily:FD, fontStyle:"italic",
-lineHeight:1.7, marginBottom:12,
-textShadow:"0 0 20px "+row.color+"33" }}>
-"{row.archLine}"
-</div>
-)}
-
-{row.alchemyStage && (
-<div style={{ display:"inline-flex", alignItems:"center",
-gap:6, padding:"4px 12px", borderRadius:20,
-border:"0.75px solid "+row.color+"44",
-background:row.color+"11" }}>
-<div style={{ width:5, height:5, borderRadius:"50%",
-background:row.color, opacity:0.8 }}/>
-<div style={{ fontSize:9, letterSpacing:"0.3em",
-color:row.color+"CC", fontFamily:FB,
-textTransform:"uppercase" }}>{row.alchemyStage}</div>
-</div>
-)}
-</div>
-</div>
 
 </div>
 );
@@ -8734,15 +8564,15 @@ var v = String(_lifeFieldResponse || "").trim();
 var q = "Your focus has been on " + _lifeFieldGap.dominantLabel.toLowerCase() + ". You brought up " + (_lifeFieldGap.undermentioned[0] ? _lifeFieldGap.undermentioned[0].label.toLowerCase() : "other areas") + " in passing. What's there?";
 updateLastSession({ lifeFieldGapResponse: v, lifeFieldGapQuestion: v ? q : "" });
 }}
-placeholder="Your response — this is high-value. Your words will shape future reports."
-style={{
-width:"100%", minHeight:72, padding:"14px 16px",
-fontSize:15, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
-lineHeight:1.7, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
-borderRadius:6, resize:"vertical", outline:"none",
-boxSizing:"border-box"
-}}
-/>
+                  placeholder="Your response — this is high-value. Your words will shape future reports."
+                  style={{
+                    width:"100%", minHeight:88, padding:"16px 18px",
+                    fontSize:19, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
+                    lineHeight:1.75, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
+                    borderRadius:6, resize:"vertical", outline:"none",
+                    boxSizing:"border-box"
+                  }}
+                />
 </div>
 )}
 <div style={{ marginTop:32, marginBottom:24, paddingTop:24, borderTop:"1px solid rgba(0,0,0,0.08)" }}>
@@ -8750,25 +8580,25 @@ boxSizing:"border-box"
 <div style={{ fontSize:14, color:"rgba(0,0,0,0.45)", fontFamily:FD, fontStyle:"italic", lineHeight:1.6, marginBottom:8 }}>
 What stands out? What are you hearing yourself say?
 </div>
-<textarea
-value={_reportNotes}
-onChange={function(e){ var v=e.target.value; _setReportNotes(v); try{ localStorage.setItem(_notesKey, v); }catch(x){} }}
-placeholder="Type here — your notes stay with this report."
-style={{
-width:"100%", minHeight:80, padding:"14px 16px",
-fontSize:15, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
-lineHeight:1.7, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
-borderRadius:6, resize:"vertical", outline:"none",
-boxSizing:"border-box"
-}}
-/>
-{_reportNotes.trim() && (
-<>
-<div style={{ marginTop:16 }}>
-<div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Your notes</div>
-<div style={{ fontSize:15, color:"#5C4A3A", fontFamily:FD, fontStyle:"italic", lineHeight:1.75, padding:"12px 16px", background:"rgba(92,74,58,0.06)", borderLeft:"3px solid rgba(92,74,58,0.35)", borderRadius:4, whiteSpace:"pre-wrap" }}>
-{_reportNotes.trim()}
-</div>
+                <textarea
+                  value={_reportNotes}
+                  onChange={function(e){ var v=e.target.value; _setReportNotes(v); try{ localStorage.setItem(_notesKey, v); }catch(x){} }}
+                  placeholder="Type here — your notes stay with this report."
+                  style={{
+                    width:"100%", minHeight:96, padding:"16px 18px",
+                    fontSize:19, fontFamily:FD, fontStyle:"italic", color:"#5C4A3A",
+                    lineHeight:1.75, background:"rgba(0,0,0,0.02)", border:"1px solid rgba(0,0,0,0.08)",
+                    borderRadius:6, resize:"vertical", outline:"none",
+                    boxSizing:"border-box"
+                  }}
+                />
+                {_reportNotes.trim() && (
+                  <>
+                    <div style={{ marginTop:16 }}>
+                      <div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Your notes</div>
+                      <div style={{ fontSize:19, color:"#5C4A3A", fontFamily:FD, fontStyle:"italic", lineHeight:1.8, padding:"14px 18px", background:"rgba(92,74,58,0.06)", borderLeft:"3px solid rgba(92,74,58,0.35)", borderRadius:4, whiteSpace:"pre-wrap" }}>
+                        {_reportNotes.trim()}
+                      </div>
 {!_notesSummary && (
 <button
 onClick={function(){
@@ -8789,7 +8619,7 @@ reportExcerpt = "REPORT ONE-LINE: \"" + (_report.oneLineVerdict || "") + "\"\n";
 (_report.sections||[]).slice(0,2).forEach(function(sec){ reportExcerpt += "SECTION " + (sec.title||"") + ": " + (sec.body||"").slice(0,200) + "...\n"; });
 }
 var p = "Someone wrote notes on their field report. Their notes:\n\n\"" + _reportNotes.trim() + "\"\n\n"
-+ "EVIDENCE FROM SESSION (what the subject actually said — use ONLY these when grounding):\n" + (userWords.length ? userWords.slice(0,12).join("\n") : "(none recorded)") + "\n\n"
++ "EVIDENCE FROM SESSION (what the subject actually said �� use ONLY these when grounding):\n" + (userWords.length ? userWords.slice(0,12).join("\n") : "(none recorded)") + "\n\n"
 + "REPORT EXCERPT (what the report said — use to trace claims):\n" + (reportExcerpt || "(none)") + "\n\n"
 + "RULES: 1) GROUND every claim. If you say something came from the session, quote it: 'In the session you said: \"...\"' 2) If their note questions something in the report (e.g. 'I don\'t recall saying that'), either find the quote that supports it in EVIDENCE above, or say 'I don\'t have a direct quote from your session that supports that' — do NOT philosophize about memory or imaginal cells. 3) Never invent. Only use what's in their notes + EVIDENCE + REPORT. 4) If uncertain, say so. 5) Optional: add a brief 'sources' line listing what you drew from (e.g. 'From your note + map comment on X–Y').\n"
 + "JSON: {\"summary\":\"2-4 sentences, grounded\", \"sources\":\"optional one line\"}";
@@ -8809,14 +8639,14 @@ style={{ marginTop:12, padding:"10px 18px", fontSize:11, letterSpacing:"0.2em", 
 {_notesSummarizing ? "Reflecting…" : "Reflect on my notes"}
 </button>
 )}
-{_notesSummary && (
-<div style={{ marginTop:16, padding:"14px 16px", background:"rgba(92,74,58,0.04)", borderLeft:"3px solid "+_accent, borderRadius:4 }}>
-<div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:8 }}>Reflection</div>
-<div style={{ fontSize:15, color:"rgba(0,0,0,0.72)", fontFamily:FD, lineHeight:1.7 }}>
-{_notesSummary}
-</div>
-</div>
-)}
+                    {_notesSummary && (
+                      <div style={{ marginTop:16, padding:"16px 18px", background:"rgba(92,74,58,0.04)", borderLeft:"3px solid "+_accent, borderRadius:4 }}>
+                        <div style={{ fontSize:12, letterSpacing:"0.35em", color:"rgba(0,0,0,0.4)", fontFamily:FB, marginBottom:10 }}>Reflection</div>
+                        <div style={{ fontSize:19, color:"rgba(0,0,0,0.75)", fontFamily:FD, lineHeight:1.75, whiteSpace:"pre-wrap" }}>
+                          {_notesSummary}
+                        </div>
+                      </div>
+                    )}
 </div>
 </>
 )}
@@ -8858,15 +8688,36 @@ Report unavailable.
 </div>
 )}
 
-<div style={{ height:28 }}/>
+              <div style={{ height:28 }}/>
 
-{isMobile && onNavigateToJourneys && (
-<div style={{ padding:"0 20px 16px", textAlign:"center" }}>
-<button onClick={onNavigateToJourneys} style={{ fontSize: 14, letterSpacing: "0.2em", color: "rgba(0,0,0,0.65)", fontFamily: FB, fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: "12px 20px", minHeight: 44, touchAction: "manipulation" }}>
-Your Journeys →
-</button>
-</div>
-)}
+              {onSessionComplete && (
+                <div style={{ padding:"0 32px 8px", textAlign:"center" }}>
+                  <button
+                    onClick={function(){
+                      var fade = document.createElement("div");
+                      fade.style.cssText = "position:fixed;inset:0;background:#000;opacity:0;z-index:99999;transition:opacity 1.2s ease;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
+                      fade.innerHTML = "<div style=\"font-family:serif;font-size:13px;letter-spacing:0.4em;color:rgba(255,255,255,0.25);opacity:0;transition:opacity 1s ease 0.6s\">SESSION COMPLETE</div>";
+                      document.body.appendChild(fade);
+                      requestAnimationFrame(function(){ fade.style.opacity="1"; fade.querySelector("div").style.opacity="1"; });
+                      setTimeout(function(){ fade.remove(); onSessionComplete(); }, 1200);
+                    }}
+                    style={{ width:"100%", maxWidth:420, padding:"18px 28px", borderRadius:24,
+                      background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
+                      color:"#fff", fontSize:16, fontFamily:FB, fontWeight:600, letterSpacing:"0.05em",
+                      cursor:"pointer", boxShadow:"0 8px 32px rgba(184,107,255,0.3)",
+                      minHeight:52, touchAction:"manipulation" }}>
+                    Your Journey →
+                  </button>
+                </div>
+              )}
+
+              {isMobile && onNavigateToJourneys && (
+                <div style={{ padding:"0 20px 16px", textAlign:"center" }}>
+                  <button onClick={onNavigateToJourneys} style={{ fontSize: 14, letterSpacing: "0.2em", color: "rgba(0,0,0,0.65)", fontFamily: FB, fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: "12px 20px", minHeight: 44, touchAction: "manipulation" }}>
+                    Your Journeys →
+                  </button>
+                </div>
+              )}
 
 <div style={{ padding:"0 32px 40px", textAlign:"center" }}>
 <div
@@ -9079,6 +8930,8 @@ useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480);
 var [portrait, setPortrait] = useState(null);
 var [portraitReady, setPortraitReady] = useState(false);
 var [mirrorReady, setMirrorReady] = useState(false);
+var [wgLine, setWgLine] = useState(null);
+var [wgLineReady, setWgLineReady] = useState(false);
 
 useEffect(function() {
 var cancelled = false;
@@ -9148,6 +9001,39 @@ console.warn("[SAYCRD] Portrait generation failed:", e);
 } finally {
 if (!cancelled) setPortraitReady(true);
 }
+})();
+return function(){ cancelled = true; };
+}, []);
+// "What's growing" line: previously this card fired its OWN Claude call only
+// once the user actually navigated onto it, so it was a fresh, un-started
+// network wait every time — the one visibly slow card in the deck even
+// though "portrait" above had already finished. Firing it here, in parallel
+// with the portrait fetch, means by the time someone taps through
+// field_condition -> arch_billboard -> depths_field, this has almost always
+// already resolved in the background.
+useEffect(function() {
+var cancelled = false;
+(async function() {
+try {
+if (allSessions.length + 1 < 2) { setWgLineReady(true); return; } // whats_growing isn't shown before session 2
+var wgFreq = {};
+allSessions.slice(-5).forEach(function(s, si) {
+var w = si + 1;
+(s.themes || []).forEach(function(t) { if (!t.label) return; wgFreq[t.label] = (wgFreq[t.label] || 0) + w; });
+});
+themes.forEach(function(t) { if (!t.label) return; wgFreq[t.label] = (wgFreq[t.label] || 0) + 6; });
+var wgTop3 = Object.keys(wgFreq).sort(function(a,b){ return wgFreq[b]-wgFreq[a]; }).slice(0,3).join(", ");
+if (!wgTop3) { setWgLineReady(true); return; }
+var wp = "Someone's inner life. The themes growing most in recent sessions: " + wgTop3 + ".\n"
++ "Write ONE sentence (8-12 words). Not advice. Not analysis.\n"
++ "What is this person's life reaching toward? Poetic, warm, surprising. No clichés.\n"
++ 'JSON only: {"line":"sentence here"}';
+var wr = await callClaudeClient(wp, "whats growing", 80);
+if (cancelled) return;
+var wd = parseJSON(wr);
+setWgLine(wd && wd.line ? wd.line : null);
+} catch(e) {}
+finally { if (!cancelled) setWgLineReady(true); }
 })();
 return function(){ cancelled = true; };
 }, []);
@@ -9274,7 +9160,7 @@ case "depths_field": {
 return <DepthsFieldCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "whats_growing": {
-return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} wgLine={wgLine} wgLineReady={wgLineReady} goNext={advance}/>;
 }
 
 case "the_mirror": {
@@ -10355,6 +10241,11 @@ function CompletionPhase({ onStart, onNavigateToJourneys, onNavigateToReport }) 
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
+// Previously this whole phase used a single fixed maxWidth:480 column at every
+// viewport size, so on desktop it sat as a narrow strip with large empty
+// margins on either side. isWide lets the sessions list (and the page's own
+// max-width) actually use the extra room on tablet/desktop instead.
+var isWide = typeof window !== "undefined" && window.innerWidth >= 860;
 var lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
 var lastIndex = sessions.length - 1;
 var themes = (lastSession && lastSession.themes) ? lastSession.themes : [];
@@ -10380,14 +10271,14 @@ return (
 <div style={{ position: "absolute", top: "-10%", right: "-5%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(184,107,255,0.12), transparent 65%)", filter: "blur(80px)" }} />
 <div style={{ position: "absolute", bottom: "20%", left: "-10%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(107,184,255,0.08), transparent 65%)", filter: "blur(60px)" }} />
 </div>
-<div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
-<div style={{ textAlign: "center", marginBottom: 32 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
-<div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>SESSION COMPLETE</div>
-<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 0, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
-</div>
+    <div style={{ position: "relative", zIndex: 1, maxWidth: isWide ? 720 : 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+        <div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>SESSION COMPLETE</div>
+        <h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 0, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
+      </div>
 
-<div style={{ padding: "28px 24px", background: "rgba(255,255,255,0.05)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 20 }}>
+      <div style={{ padding: isWide ? "32px 36px" : "28px 24px", background: "rgba(255,255,255,0.05)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", marginBottom: 20 }}>
 {arch && arch.name && (
 <div style={{ fontSize: isMobile ? 24 : 26, fontWeight: 600, color: (arch.color || "#E84393") + "ee", fontFamily: FD, fontStyle: "italic", letterSpacing: "0.01em", marginBottom: 10, wordBreak: "break-word" }}>{arch.name}</div>
 )}
@@ -10408,29 +10299,45 @@ return (
 </button>
 )}
 
-{sessions.length > 0 && (
-<div style={{ marginBottom: 32 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(184,107,255,0.55)", fontFamily: FB, marginBottom: 14, fontWeight: 600 }}>YOUR SESSIONS</div>
-<div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 320, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-{sessions.slice().reverse().map(function(s, i) {
-var idx = sessions.length - i;
-var sDateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
-var sTitle = s.map_title || s.mapTitle || (s.themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ") || "—";
-var sArch = s.archetypes && s.archetypes[0] ? s.archetypes[0].name : "";
-return (
-<div key={i} onClick={onNavigateToReport ? function(){ onNavigateToReport(idx - 1); } : undefined} style={{ padding: "16px 18px", background: "rgba(255,255,255,0.04)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", cursor: onNavigateToReport ? "pointer" : "default", minHeight: 44, touchAction: "manipulation" }}>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600 }}>SESSION {idx}</div>
-{sDateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic" }}>{sDateStr}</div>}
-</div>
-<div style={{ fontSize: 14, color: "rgba(255,255,255,0.8)", fontFamily: FD, lineHeight: 1.55, letterSpacing: "0.01em" }}>{String(sTitle).slice(0, 60)}{String(sTitle).length > 60 ? "…" : ""}</div>
-{sArch && <div style={{ marginTop: 6, fontSize: 13, color: (s.archetypes && s.archetypes[0] && s.archetypes[0].color) || "#E84393", fontFamily: FD, fontStyle: "italic" }}>{sArch}</div>}
-</div>
-);
-})}
-</div>
-</div>
-)}
+      {sessions.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontSize: 11, letterSpacing: "0.4em", color: "rgba(184,107,255,0.55)", fontFamily: FB, marginBottom: 14, fontWeight: 600 }}>YOUR SESSIONS</div>
+          {/* Each card's identity color/archetype used to render as its LAST
+              line, directly against the next card's "SESSION N" label above
+              it, with barely-visible card backgrounds — on mobile widths that
+              read as if the text was overlapping. The archetype name now
+              lives at the TOP of its own card, next to the session badge, so
+              every line unambiguously belongs to the card it's inside of.
+              Cards also get a real border/background and more breathing room
+              between them. On wide viewports the list becomes a 2-column
+              grid instead of one long narrow strip. */}
+          <div style={{
+            display: isWide ? "grid" : "flex",
+            gridTemplateColumns: isWide ? "1fr 1fr" : undefined,
+            flexDirection: isWide ? undefined : "column",
+            gap: 14, maxHeight: 420, overflowY: "auto", WebkitOverflowScrolling: "touch", paddingRight: 4
+          }}>
+            {sessions.slice().reverse().map(function(s, i) {
+              var idx = sessions.length - i;
+              var sDateStr = s.date ? new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+              var sTitle = s.map_title || s.mapTitle || (s.themes || []).slice(0, 3).map(function(t){ return t.label; }).join(" · ") || "—";
+              var sArchObj = s.archetypes && s.archetypes[0];
+              var sArch = sArchObj ? sArchObj.name : "";
+              var sColor = (sArchObj && sArchObj.color) || "#E84393";
+              return (
+                <div key={i} onClick={onNavigateToReport ? function(){ onNavigateToReport(idx - 1); } : undefined} style={{ padding: "18px 20px", background: "rgba(255,255,255,0.06)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", cursor: onNavigateToReport ? "pointer" : "default", minHeight: 44, touchAction: "manipulation" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "rgba(184,107,255,0.7)", fontFamily: FB, fontWeight: 600, flexShrink: 0 }}>SESSION {idx}</div>
+                    {sDateStr && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontFamily: FD, fontStyle: "italic", textAlign: "right" }}>{sDateStr}</div>}
+                  </div>
+                  {sArch && <div style={{ fontSize: 16, color: sColor, fontFamily: FD, fontStyle: "italic", fontWeight: 600, lineHeight: 1.3, marginBottom: 8 }}>{sArch}</div>}
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", fontFamily: FD, lineHeight: 1.55, letterSpacing: "0.01em" }}>{String(sTitle).slice(0, 60)}{String(sTitle).length > 60 ? "…" : ""}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
 {captures.length > 0 && (
 <div style={{ marginBottom: 32, maxHeight: 280, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -11220,13 +11127,33 @@ return (
 }
 
 function SAYCRDFlow() {
-const [phase, setPhase] = useState(0);
-const [rawText, setRawText] = useState("");
-const [synthesisData, setSynthesisData] = useState(null);
-const [mapResponses, setMapResponses] = useState({});
-const [sessionData, setSessionData] = useState({});
-const [fieldTransition, setFieldTransition] = useState(false);
-const [reportSessionIndex, setReportSessionIndex] = useState(null);
+  // Returning users (anyone with at least one saved session) land on the
+  // SESSION COMPLETE / "Your Journeys" screen (phase 7 = "complete") instead
+  // of the landing page. At mount, real auth (Supabase) may not have resolved
+  // yet, so this only catches the local/cached-uid case synchronously —
+  // the effect below catches up once "saycrd-auth-change" fires for a
+  // real account whose sessions weren't visible under the local uid yet.
+  const [phase, setPhase] = useState(function(){ return _hasReturningSessions() ? 7 : 0; });
+  const [rawText, setRawText] = useState("");
+  const [synthesisData, setSynthesisData] = useState(null);
+  const [mapResponses, setMapResponses] = useState({});
+  const [sessionData, setSessionData] = useState({});
+  const [fieldTransition, setFieldTransition] = useState(false);
+  const [reportSessionIndex, setReportSessionIndex] = useState(null);
+  const phaseRef = useRef(phase);
+  useEffect(function(){ phaseRef.current = phase; }, [phase]);
+  useEffect(function(){
+    var routedOnAuth = false;
+    function handleAuthChange() {
+      if (routedOnAuth) return;
+      routedOnAuth = true;
+      // Only auto-route if the user is still sitting on the untouched landing
+      // page — never yank them away from a phase they've already navigated to.
+      if (phaseRef.current === 0 && _hasReturningSessions()) setPhase(7);
+    }
+    window.addEventListener("saycrd-auth-change", handleAuthChange);
+    return function(){ window.removeEventListener("saycrd-auth-change", handleAuthChange); };
+  }, []);
 
 function onPatchSynthesis(patch) {
 setSynthesisData(function(prev) {
@@ -11309,6 +11236,7 @@ setPhase(3);
 @keyframes drawerIn{from{opacity:0;transform:translate(-50%,24px) scale(0.95)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @keyframes drawerInSheet{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
 @keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+@keyframes tapeEq{0%,100%{transform:scaleY(0.35)}50%{transform:scaleY(1)}}
 @keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
 @keyframes themeReveal{0%{opacity:0;transform:translateY(6px) scale(0.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
