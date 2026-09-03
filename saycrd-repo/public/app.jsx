@@ -8364,11 +8364,21 @@ _setReport({ generationFailed: true, sections: [], dateRange: firstDate && lastD
 } catch(e) {
 _setReport({ generationFailed: true, sections: [], oneLineVerdict: "", dateRange: "" });
 } finally {
-if (!cancelled) _setReady(true);
+if (!cancelled) { _setReady(true); _setRetrying(false); }
 }
 })();
 return function(){ cancelled = true; };
-}, []);
+}, [_retryToken]);
+
+function _retryReportGeneration() {
+// The failure state is intentionally never written to localStorage (see
+// generationFailed branch above), so the cache check at the top of the
+// effect above will find nothing and always attempt a fresh generation.
+_setRetrying(true);
+_setReady(false);
+_setReport(null);
+_setRetryToken(function(t){ return t + 1; });
+}
 
 var _accent = (themes[0] && themes[0].color) || "#111";
 
@@ -9076,21 +9086,12 @@ setPortrait(dd);
 } catch(e) {
 console.warn("[SAYCRD] Portrait generation failed:", e);
 } finally {
-if (!cancelled) { _setReady(true); _setRetrying(false); }
+if (!cancelled) _setReady(true);
 }
 })();
 return function(){ cancelled = true; };
-}, [_retryToken]);
+}, []);
 
-function _retryReportGeneration() {
-// The failure state is intentionally never written to localStorage (see
-// generationFailed branch above), so the cache check at the top of the
-// effect above will find nothing and always attempt a fresh generation.
-_setRetrying(true);
-_setReady(false);
-_setReport(null);
-_setRetryToken(function(t){ return t + 1; });
-}
 // "What's growing" line: previously this card fired its OWN Claude call only
 // once the user actually navigated onto it, so it was a fresh, un-started
 // network wait every time — the one visibly slow card in the deck even
