@@ -5913,7 +5913,7 @@ background:t.color, opacity:0.25 }}/>;
 );
 }
 
-function WhatsGrowingCard({ themes, sessionCount, goNext }) {
+function WhatsGrowingCard({ themes, sessionCount, goNext, wgLine: wgLineProp, wgLineReady: wgLineReadyProp }) {
 themes = themes || [];
 
 var _allSessions = (function() {
@@ -5948,10 +5948,18 @@ return { label: label, score: _wgFreq[label], color: _allColors[label] || NC2[id
 var _maxScore = _branches.length > 0 ? _branches[0].score : 1;
 var _topColor = _branches[0] ? _branches[0].color : "#7BD9A5";
 
-var [_wgLine, _wgSetLine] = useState(null);
-var [_wgReady, _wgSetReady] = useState(false);
+// The deck fires this same request in parallel with "portrait" the moment the
+// session opens (see the wgLine prefetch effect in SAYCRDFlow), so by the time
+// someone actually taps onto this card it has usually already resolved. Only
+// fall back to fetching locally if the caller never wired prefetching at all
+// (wgLineReadyProp === undefined); if a prefetch is genuinely still in flight
+// (=== false) just wait for it rather than firing a redundant second request.
+var [_wgLine, _wgSetLine] = useState(wgLineReadyProp ? wgLineProp : null);
+var [_wgReady, _wgSetReady] = useState(!!wgLineReadyProp);
 
 useEffect(function() {
+if (wgLineReadyProp) { _wgSetLine(wgLineProp); _wgSetReady(true); return; }
+if (wgLineReadyProp !== undefined) return; // prefetch in flight — wait for it
 var cancelled = false;
 (async function() {
 try {
@@ -5969,7 +5977,7 @@ _wgSetLine(dd && dd.line ? dd.line : null);
 finally { if (!cancelled) _wgSetReady(true); }
 })();
 return function(){ cancelled = true; };
-}, []);
+}, [wgLineReadyProp, wgLineProp]);
 
 var _wgMotes = useMemo(function() {
 var pts = [];
@@ -6118,13 +6126,30 @@ opacity:0.9 }}/>
 <div style={{ padding: isMobile ? "18px 22px 0" : "22px 30px 0", boxSizing:"border-box" }}>
 <div style={{ height:1, marginBottom:16,
 background:"linear-gradient(90deg, transparent, "+_topColor+"33 30%, "+_topColor+"33 70%, transparent)" }}/>
-<div style={{ minHeight:60 }}>
+<div style={{ minHeight: !_wgReady ? 116 : 60 }}>
 {!_wgReady ? (
-<div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-<div style={{ width:"82%", height:15, borderRadius:3, background:"rgba(255,255,255,0.06)",
-animation:"breathe 1.8s ease-in-out infinite alternate" }}/>
-<div style={{ width:"56%", height:15, borderRadius:3, background:"rgba(255,255,255,0.04)",
-animation:"breathe 1.8s ease-in-out 0.3s infinite alternate" }}/>
+<div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+{[
+{ text: "Analyzing what\u2019s growing", color: _topColor, dur: 2.6, delay: 0 },
+{ text: "Uncovering what\u2019s under the surface", color: NC2[1], dur: 2.9, delay: -0.6 },
+{ text: "Looking to see what wants to arrive", color: NC2[2], dur: 3.2, delay: -1.2 }
+].map(function(row, ri) {
+return (
+<div key={ri} style={{ display:"flex", flexDirection:"column", gap:6 }}>
+<div style={{ fontSize: isMobile ? 12 : 13, color:"rgba(255,255,255,0.42)", fontFamily:FD,
+fontStyle:"italic", letterSpacing:"0.01em" }}>
+{row.text}
+</div>
+<div style={{ height:3, borderRadius:2, background:"rgba(255,255,255,0.06)", overflow:"hidden" }}>
+<div style={{ height:"100%", width:"100%", borderRadius:2,
+background:"linear-gradient(90deg, "+row.color+"55, "+row.color+")",
+transformOrigin:"left center", WebkitTransformOrigin:"left center",
+animation:"reportStreamBar "+row.dur+"s ease-in-out "+row.delay+"s infinite",
+WebkitAnimation:"reportStreamBar "+row.dur+"s ease-in-out "+row.delay+"s infinite" }}/>
+</div>
+</div>
+);
+})}
 </div>
 ) : (
 <div style={{ fontSize: isMobile ? 17 : 19, color:"rgba(255,255,255,0.86)", fontFamily:FD,
@@ -6966,8 +6991,6 @@ if(a) _archFreq[a]=(_archFreq[a]||0)+1;
 var _topArch=Object.keys(_archFreq).sort(function(a,b){return _archFreq[b]-_archFreq[a];})[0]||"";
 var _topArchCount=_topArch?_archFreq[_topArch]:0;
 
-var [_expanded, _setExpanded] = useState(null);
-
 return (
 <div style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"linear-gradient(160deg, #0A0614 0%, #120820 40%, #0E0A1E 100%)",
@@ -7009,19 +7032,19 @@ color:"rgba(255,255,255,0.25)", fontFamily:FB }}>ARCHETYPE</div>
 WebkitOverflowScrolling:"touch" }}>
 
 {_rows.map(function(row, ri) {
-var isExp = _expanded === ri;
 var isCurr = row.isCurrent;
-var hasDetail = !!(row.archLine || row.alchemyStage || row.mapTitle);
+// Main takeaway: the archetype's own poetic one-liner is the most compact
+// distillation of what that session was about. Fall back to the map's
+// title when a session has no archLine (e.g. older data). This now always
+// renders — there is no click/expand affordance left on this page; the
+// row itself is not interactive, only the page-level Back/Next are.
+var takeaway = row.archLine || row.mapTitle || "";
 
 return (
-<div key={ri} style={{ borderBottom:"0.5px solid rgba(255,255,255,"+(isCurr?"0.12":"0.05")+")" }}>
+<div key={ri} style={{ borderBottom:"0.5px solid rgba(255,255,255,"+(isCurr?"0.12":"0.05")+")",
+padding:"13px 0", animation:"riseUp 0.5s ease "+(ri*0.035)+"s both" }}>
 
-<div
-onClick={function(){ if(hasDetail||isCurr) _setExpanded(isExp?null:ri); }}
-style={{ display:"flex", alignItems:"center",
-padding:"13px 0",
-cursor: hasDetail?"pointer":"default",
-animation:"riseUp 0.5s ease "+(ri*0.035)+"s both" }}>
+<div style={{ display:"flex", alignItems:"center" }}>
 
 <div style={{ width:12, flexShrink:0 }}>
 <div style={{
@@ -7068,57 +7091,16 @@ fontStyle:"italic" }}>this session</div>
 fontFamily:FB }}>—</div>
 )}
 </div>
+</div>
 
-{hasDetail && (
-<div style={{ width:24, flexShrink:0, textAlign:"right" }}>
-<div style={{ fontSize:12, color:isExp?row.color:"rgba(255,255,255,0.2)",
-transition:"transform 0.35s ease, color 0.2s ease",
-transform:isExp?"rotate(180deg)":"rotate(0deg)",
-display:"inline-block" }}>▾</div>
+{takeaway && (
+<div style={{ margin:"6px 0 2px 72px", paddingRight:12 }}>
+<div style={{ fontSize:13, color:"rgba(255,255,255,0.45)",
+fontFamily:FD, fontStyle:"italic", lineHeight:1.5 }}>
+{takeaway}
+</div>
 </div>
 )}
-</div>
-
-<div style={{
-maxHeight: isExp ? "300px" : "0px",
-overflow:"hidden",
-transition:"max-height 0.45s cubic-bezier(0.32,0.72,0,1)"
-}}>
-<div style={{ padding:"4px 0 20px 12px",
-borderLeft:"2px solid "+row.color+"44",
-marginLeft:5, marginBottom:4 }}>
-
-{row.mapTitle && (
-<div style={{ fontSize:11, letterSpacing:"0.1em",
-color:"rgba(255,255,255,0.35)", fontFamily:FB,
-marginBottom:10, lineHeight:1.5 }}>
-{row.mapTitle}
-</div>
-)}
-
-{row.archLine && (
-<div style={{ fontSize:17, color:row.color,
-fontFamily:FD, fontStyle:"italic",
-lineHeight:1.7, marginBottom:12,
-textShadow:"0 0 20px "+row.color+"33" }}>
-"{row.archLine}"
-</div>
-)}
-
-{row.alchemyStage && (
-<div style={{ display:"inline-flex", alignItems:"center",
-gap:6, padding:"4px 12px", borderRadius:20,
-border:"0.75px solid "+row.color+"44",
-background:row.color+"11" }}>
-<div style={{ width:5, height:5, borderRadius:"50%",
-background:row.color, opacity:0.8 }}/>
-<div style={{ fontSize:9, letterSpacing:"0.3em",
-color:row.color+"CC", fontFamily:FB,
-textTransform:"uppercase" }}>{row.alchemyStage}</div>
-</div>
-)}
-</div>
-</div>
 
 </div>
 );
@@ -8948,6 +8930,8 @@ useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480);
 var [portrait, setPortrait] = useState(null);
 var [portraitReady, setPortraitReady] = useState(false);
 var [mirrorReady, setMirrorReady] = useState(false);
+var [wgLine, setWgLine] = useState(null);
+var [wgLineReady, setWgLineReady] = useState(false);
 
 useEffect(function() {
 var cancelled = false;
@@ -9017,6 +9001,39 @@ console.warn("[SAYCRD] Portrait generation failed:", e);
 } finally {
 if (!cancelled) setPortraitReady(true);
 }
+})();
+return function(){ cancelled = true; };
+}, []);
+// "What's growing" line: previously this card fired its OWN Claude call only
+// once the user actually navigated onto it, so it was a fresh, un-started
+// network wait every time — the one visibly slow card in the deck even
+// though "portrait" above had already finished. Firing it here, in parallel
+// with the portrait fetch, means by the time someone taps through
+// field_condition -> arch_billboard -> depths_field, this has almost always
+// already resolved in the background.
+useEffect(function() {
+var cancelled = false;
+(async function() {
+try {
+if (allSessions.length + 1 < 2) { setWgLineReady(true); return; } // whats_growing isn't shown before session 2
+var wgFreq = {};
+allSessions.slice(-5).forEach(function(s, si) {
+var w = si + 1;
+(s.themes || []).forEach(function(t) { if (!t.label) return; wgFreq[t.label] = (wgFreq[t.label] || 0) + w; });
+});
+themes.forEach(function(t) { if (!t.label) return; wgFreq[t.label] = (wgFreq[t.label] || 0) + 6; });
+var wgTop3 = Object.keys(wgFreq).sort(function(a,b){ return wgFreq[b]-wgFreq[a]; }).slice(0,3).join(", ");
+if (!wgTop3) { setWgLineReady(true); return; }
+var wp = "Someone's inner life. The themes growing most in recent sessions: " + wgTop3 + ".\n"
++ "Write ONE sentence (8-12 words). Not advice. Not analysis.\n"
++ "What is this person's life reaching toward? Poetic, warm, surprising. No clichés.\n"
++ 'JSON only: {"line":"sentence here"}';
+var wr = await callClaudeClient(wp, "whats growing", 80);
+if (cancelled) return;
+var wd = parseJSON(wr);
+setWgLine(wd && wd.line ? wd.line : null);
+} catch(e) {}
+finally { if (!cancelled) setWgLineReady(true); }
 })();
 return function(){ cancelled = true; };
 }, []);
@@ -9143,7 +9160,7 @@ case "depths_field": {
 return <DepthsFieldCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
 }
 case "whats_growing": {
-return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} goNext={advance}/>;
+return <WhatsGrowingCard themes={themes} sd={sd} sessionCount={sessionCount} portrait={portrait} portraitReady={portraitReady} wgLine={wgLine} wgLineReady={wgLineReady} goNext={advance}/>;
 }
 
 case "the_mirror": {
@@ -11198,6 +11215,7 @@ setPhase(3);
 @keyframes drawerIn{from{opacity:0;transform:translate(-50%,24px) scale(0.95)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @keyframes drawerInSheet{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
 @keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+@keyframes tapeEq{0%,100%{transform:scaleY(0.35)}50%{transform:scaleY(1)}}
 @keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
 @keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
 @keyframes themeReveal{0%{opacity:0;transform:translateY(6px) scale(0.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
