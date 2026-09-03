@@ -5445,11 +5445,14 @@ stroke={t.color} strokeWidth="0.5" opacity="0.3"/>;
 
 <div style={{ paddingTop:isMobile?48:80 }}>
 {_fcLoading ? (
-<div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-{[90,64,48].map(function(sz,i){
-return <div key={i} style={{ height:sz*0.85, width:[220,160,120][i], borderRadius:8,
-background:"rgba(255,255,255,0.04)", animation:"breathe 1.5s ease-in-out "+(i*0.2)+"s infinite alternate" }}/>;
-})}
+// This screen's own content (the big word-cloud "field condition" phrase)
+// is written by a live AI call and can take a few seconds, but the rest
+// of the page (network graph, THEMES/CONNECTIONS footer) is already on
+// screen, so a bare pulse here easily reads as "broken" rather than
+// "loading." Swap to the same LoadingWaveBox used on the map/report
+// generation screens so people get an unambiguous loading signal here too.
+<div style={{ maxWidth:280 }}>
+<LoadingWaveBox title="READING THE FIELD" labels={["signal","tone","pull","undercurrent","naming"]} />
 </div>
 ) : (
 <>
@@ -6313,7 +6316,8 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, rgba(140,170,230,0.14), rgba(140,170,230,0.06))",
 border:"1px solid rgba(140,170,230,0.3)",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
 <div style={{ fontSize: isMobile ? 19 : 21, color:"rgba(220,235,255,0.92)", fontFamily:FD,
 lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacing:"0.01em" }}>
@@ -6334,7 +6338,8 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, "+_currColor+"22, "+_currColor+"08)",
 border:"1px solid "+_currColor+"44",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
 <div style={{ fontSize: isMobile ? 19 : 21, color:"rgba(255,255,255,0.95)", fontFamily:FD,
 lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacing:"0.01em" }}>
@@ -6365,13 +6370,14 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, rgba(140,170,230,0.14), rgba(140,170,230,0.06))",
 border:"1px solid rgba(140,170,230,0.3)",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
-<div style={{ width:"88%", height:16, borderRadius:3,
+<div style={{ width:"88%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.08)",
 animation:"breathe 1.5s ease-in-out infinite alternate",
 marginBottom:10 }}/>
-<div style={{ width:"60%", height:16, borderRadius:3,
+<div style={{ width:"60%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.06)",
 animation:"breathe 1.5s ease-in-out 0.2s infinite alternate" }}/>
 </div>
@@ -6389,13 +6395,14 @@ padding: isMobile ? "24px 22px" : "28px 24px",
 borderRadius:20,
 background:"linear-gradient(180deg, "+_currColor+"22, "+_currColor+"08)",
 border:"1px solid "+_currColor+"44",
-boxShadow:"0 4px 20px rgba(0,0,0,0.12)"
+boxShadow:"0 4px 20px rgba(0,0,0,0.12)",
+overflow:"hidden"
 }}>
-<div style={{ width:"82%", height:16, borderRadius:3,
+<div style={{ width:"82%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.08)",
 animation:"breathe 1.5s ease-in-out 0.3s infinite alternate",
 marginBottom:10 }}/>
-<div style={{ width:"55%", height:16, borderRadius:3,
+<div style={{ width:"55%", maxWidth:"100%", height:16, borderRadius:3,
 background:"rgba(255,255,255,0.06)",
 animation:"breathe 1.5s ease-in-out 0.5s infinite alternate" }}/>
 </div>
@@ -6992,7 +6999,14 @@ var _topArch=Object.keys(_archFreq).sort(function(a,b){return _archFreq[b]-_arch
 var _topArchCount=_topArch?_archFreq[_topArch]:0;
 
 return (
-<div style={{ position:"absolute", inset:0, overflow:"hidden",
+// data-noadvance opts this whole page out of the story-reel's global
+// tap-to-navigate handler (any tap not on a real <button> is otherwise
+// read as "left 25% = back, rest = forward" — see handleClick above).
+// Without it, tapping an archetype row here silently advances/rewinds
+// the reel instead of doing nothing, which read as a broken hidden link.
+// The page's real Back/Next buttons are unaffected — they're separate
+// <button> elements already excluded from that handler.
+<div data-noadvance style={{ position:"absolute", inset:0, overflow:"hidden",
 background:"linear-gradient(160deg, #0A0614 0%, #120820 40%, #0E0A1E 100%)",
 display:"flex", flexDirection:"column" }}>
 
