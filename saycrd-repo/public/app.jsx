@@ -11052,23 +11052,37 @@ color:"rgba(255,255,255,0.32)" }}>{l.label}</button>;
 
 function LegalPage({ page, onBack }) {
 var SG = "Space Grotesk, " + FB;
+var LEGAL_ENTITY = "Sedona Heartfelt Journeys, LLC";
+var LEGAL_CONTACT = "you@sedonaheartfeltjourneys.com";
+var LEGAL_STATE = "Arizona";
 var CONTENT = {
 privacy: {
 title:"Privacy",
 body:[
-"Mind Map is built to hold what you share with care.",
-"What you write during a session is used to generate your reflections and, if you create an account, to remember your patterns across sessions. If you continue without an account, your sessions stay on this device only.",
-"We do not sell your data. We do not use what you share to train third-party advertising profiles. Session content is processed by our AI provider solely to generate your reflections and is not used to improve models beyond that purpose.",
-"You can download everything you've shared at any time from the landing page (\"Download my data\"), and you can request deletion of your account and its data by contacting us.",
+"Mind Map is a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). This policy explains what we collect, how we use it, and the choices you have.",
+"What we collect: the reflections, themes, and other content you write during a session; your email address if you create an account; and basic technical data (like device and browser type) needed to run the app.",
+"What we don't collect: if you choose \"Continue without account,\" your sessions stay on your device only — we don't receive or store that content on our servers.",
+"How we use it: session content is used to generate your personal reflections and, for account holders, to recognize patterns across your sessions over time. Your email is used only for account access, service updates, and — if you subscribe — billing.",
+"We do not sell your personal data, and we do not use your reflections to build advertising profiles. Session content is sent to our AI provider solely to generate your reflections and is not used to train their models beyond that purpose.",
+"You can request an export or deletion of your account and its data at any time by emailing " + LEGAL_CONTACT + ". We'll respond within a reasonable time and confirm once it's done.",
+"Mind Map is intended for users 18 years of age or older. We do not knowingly collect information from anyone under 18.",
+"This policy may be updated as the product evolves; the version in effect is always the one posted here.",
+"Questions about this policy? Reach us at " + LEGAL_CONTACT + ".",
 ]
 },
 terms: {
 title:"Terms",
 body:[
-"By using Mind Map, you agree to use it as a space for personal reflection — not as a substitute for professional, medical, or mental health advice.",
-"You're responsible for what you choose to share and for how you act on your own reflections. Mind Map's AI-generated content is offered as a mirror, not a directive — you remain the authority on your own experience.",
-"We may update these terms as the product evolves. Continued use after an update means you accept the current terms.",
-"Mind Map is provided \"as is,\" without warranties of any kind. We are not liable for decisions made based on reflections generated within the product.",
+"These Terms of Service govern your use of Mind Map, a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). By using Mind Map, you agree to these terms.",
+"Eligibility. You must be 18 years of age or older to use Mind Map.",
+"What Mind Map is. Mind Map is a space for personal reflection, using AI to help you explore patterns, connections, and possibilities in what you share. It is not a substitute for professional, medical, or mental health advice, diagnosis, or treatment. If you are in crisis, please contact a crisis line or emergency services directly.",
+"Your responsibility. You are responsible for what you choose to share and for how you act on your own reflections. Mind Map's AI-generated content is offered as a mirror, not a directive — you remain the authority on your own experience.",
+"Accounts and subscriptions. If you create an account, you're responsible for keeping your login secure. If you subscribe to a paid plan, charges are billed as described at checkout, and you may cancel at any time; see our Privacy Policy for how we handle your data if you cancel or delete your account.",
+"No warranties. Mind Map is provided \"as is\" and \"as available,\" without warranties of any kind, express or implied.",
+"Limitation of liability. To the fullest extent permitted by law, " + LEGAL_ENTITY + " is not liable for any indirect, incidental, or consequential damages, or for decisions made based on reflections generated within the product.",
+"Changes to these terms. We may update these terms as the product evolves. Continued use after an update means you accept the current terms.",
+"Governing law. These terms are governed by the laws of the State of " + LEGAL_STATE + ", without regard to its conflict-of-laws principles.",
+"Contact. Questions about these terms? Reach us at " + LEGAL_CONTACT + ".",
 ]
 },
 "disclaimer-info": {
