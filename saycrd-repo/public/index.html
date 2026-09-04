@@ -610,8 +610,19 @@ window.storage = {
 window._showAuthOverlay = function(onSuccess) {
   var overlay = document.getElementById("auth-overlay");
   if (overlay) {
+    /* Opening must be instant, not faded in: the base .auth-overlay rule
+       animates opacity 0->1 over .35s, and during that fade the overlay
+       (background + blur) is only partially opaque, letting whatever is
+       behind it (e.g. the Dashboard's session cards) show through
+       unblurred for a moment. Force full opacity with no transition on
+       open, then restore the transition so the existing close animation
+       (which explicitly re-enables it) still fades out smoothly. */
+    overlay.style.transition = "none";
     overlay.style.display = "flex";
+    overlay.style.opacity = "1";
     overlay.classList.add("is-visible");
+    void overlay.offsetHeight; /* force layout flush before re-enabling transitions */
+    overlay.style.transition = "";
     if (onSuccess) window._authSuccessCallback = onSuccess;
     setTimeout(function() {
       var first = document.getElementById("auth-email") || document.getElementById("auth-signup-email") || document.getElementById("auth-reset-email");
@@ -682,7 +693,7 @@ window._localBypass = function() {
           if (session) window._saycrdToken = session.access_token;
           if (_authResolve) _authResolve();
           var ro = document.getElementById("auth-overlay");
-          if (ro) { ro.style.display = "flex"; ro.classList.add("is-visible"); }
+          if (ro) { ro.style.transition = "none"; ro.style.display = "flex"; ro.style.opacity = "1"; ro.classList.add("is-visible"); void ro.offsetHeight; ro.style.transition = ""; }
           ["auth-login","auth-signup","auth-reset"].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display="none"; });
           var bypassRow = document.getElementById("auth-bypass-row"); if (bypassRow) bypassRow.style.display = "none";
           var npForm = document.getElementById("auth-new-password"); if (npForm) npForm.style.display = "block";
