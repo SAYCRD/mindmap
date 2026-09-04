@@ -10549,6 +10549,11 @@ return (
 function LandingPhase({ onStart, onNavigateLegal }) {
 var [show, setShow] = useState(false);
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
+// Same "local-user" bypass fake-account issue as UserMenu: `authUser` alone is
+// truthy for a guest who only clicked "Continue without account", so the nav
+// must not show the filled avatar / "start a session" copy for them — only for
+// an actual Supabase account.
+var isLandingRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var returning = sessions.length > 0;
@@ -10592,7 +10597,7 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
 WebkitTextFillColor:"transparent", flexShrink:0 }}>SAYCRD</div>
-{authUser ? (
+{isLandingRealAccount ? (
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
 </button>
@@ -10606,7 +10611,7 @@ Log in / Sign up
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
 fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"pointer" }}>
-{authUser ? (returning ? "new session" : "start a session") : "begin"}
+{isLandingRealAccount ? (returning ? "new session" : "start a session") : "begin"}
 </button>
 </div>
 </nav>
@@ -11359,15 +11364,22 @@ useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null)
 useEffect(function(){ if (!open) return; function close(){ setOpen(false); } document.addEventListener("click", close); return function(){ document.removeEventListener("click", close); }; }, [open]);
 var showDashboard = phase !== 7 && phase !== 8;
 var showBackToReport = (phase === 7 || phase === 8) && phase >= 6;
+// "Continue without account" (the failsafe bypass) sets window.currentUser to a
+// fake { id: "local-user", email: "local@saycrd" } object so storage/AI calls keep
+// working — but that object is truthy, so treating plain `authUser` as "is the
+// person logged in?" made a guest who never created a real account see a filled
+// avatar + "Log out" here, i.e. the menu claimed they were logged in when they
+// weren't. Only a real Supabase account should render the "logged in" UI.
+var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
 return (
 <div style={{ position: "fixed", top: "calc(12px + env(safe-area-inset-top, 0px))", right: 16, zIndex: 9998 }}>
-<button onClick={function(e){ e.stopPropagation(); setOpen(!open); }} style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: authUser ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.08)", color: authUser ? "rgba(247,241,231,0.9)" : "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, fontFamily: FB, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.2)" }} aria-label="Account">
-{authUser ? ((authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S") : "⋯"}
+<button onClick={function(e){ e.stopPropagation(); setOpen(!open); }} style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: isRealAccount ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.08)", color: isRealAccount ? "rgba(247,241,231,0.9)" : "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, fontFamily: FB, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.2)" }} aria-label="Account">
+{isRealAccount ? ((authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S") : "⋯"}
 </button>
 {open && (
 <div onClick={function(e){ e.stopPropagation(); }} style={{ position: "absolute", top: 48, right: 0, minWidth: 200, padding: "12px 0", background: "rgba(12,10,24,0.98)", backdropFilter: "blur(20px)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 12px 40px rgba(0,0,0,0.5)", animation: "fallIn 0.2s ease both" }}>
 {showBackToReport && <button onClick={function(){ setPhase(6); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(107,184,255,0.95)", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 500 }}>← Back to report</button>}
-{authUser ? (
+{isRealAccount ? (
 <>
 <div style={{ padding: "8px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 8 }}>
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontFamily: FB, fontWeight: 600 }}>{(authUser.email || "").split("@")[0]}</div>
@@ -11377,7 +11389,10 @@ return (
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
 ) : (
-<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in</button>
+<>
+{authUser && showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
+<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
+</>
 )}
 </div>
 )}
