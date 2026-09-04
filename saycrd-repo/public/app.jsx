@@ -4175,8 +4175,17 @@ function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
 // Returning-user check: do they already have at least one saved session under
 // the currently-known uid? Used to route straight to the SESSION COMPLETE /
 // "Your Journeys" screen instead of the landing page on app load.
+//
+// Real accounts only. Guests (no account, or the "Continue without account"
+// local-user sentinel) must never be auto-routed to the Dashboard/Journeys
+// screen: that screen displays saved session history, and a guest browsing
+// with no active session (e.g. right after logging out, or on a fresh
+// logged-out visit) should never land on a screen showing session data.
 function _hasReturningSessions() {
-  try { return JSON.parse(localStorage.getItem(_sessionKey()) || "[]").length > 0; } catch(e) { return false; }
+  try {
+    if (!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user")) return false;
+    return JSON.parse(localStorage.getItem(_sessionKey()) || "[]").length > 0;
+  } catch(e) { return false; }
 }
 function updateLastSession(partial) {
 try {
@@ -11385,10 +11394,12 @@ return (
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
 ) : (
-<>
-{showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
+/* Guests (including the "Continue without account" local-user sentinel)
+   never get a Dashboard entry point here - the Dashboard/Journeys screen
+   shows saved session history, and guests should never retain or be able
+   to reach a view of local session history. Only "Log in / Sign up" is
+   offered. */
 <button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
-</>
 )}
 </div>
 )}
@@ -11417,6 +11428,18 @@ function SAYCRDFlow() {
   useEffect(function(){
     var routedOnAuth = false;
     function handleAuthChange() {
+      // Signing out (or dropping to guest) while sitting on an account-gated
+      // screen that shows saved session history (Dashboard=7, Journeys=8,
+      // Report=9) must never leave that screen visible — previously
+      // _signOut only cleared window.currentUser and showed the login
+      // overlay on top, but never navigated the app itself away from
+      // whatever phase it was already on, so the Dashboard/Journeys screen
+      // (and the session data it lists) stayed fully mounted underneath.
+      var isReal = !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user");
+      if (!isReal && (phaseRef.current === 7 || phaseRef.current === 8 || phaseRef.current === 9)) {
+        setPhase(0);
+        return;
+      }
       if (routedOnAuth) return;
       routedOnAuth = true;
       // Only auto-route if the user is still sitting on the untouched landing
