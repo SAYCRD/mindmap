@@ -201,8 +201,44 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
           <div class="auth-toggle"><a id="auth-show-login-2" onclick="document.getElementById('auth-reset').style.display='none';document.getElementById('auth-login').style.display='block';setTimeout(function(){document.getElementById('auth-email').focus();},80);" style="cursor:pointer">Back to sign in</a></div>
         </div>
 
+        <!-- Set new password (shown after clicking a reset-password email link) -->
+        <div id="auth-new-password" style="display:none">
+          <div class="auth-sub" style="margin-bottom:1.5rem">Choose a new password</div>
+          <input class="auth-input" type="password" id="auth-new-password-input" placeholder="New password (min 6 chars)" autocomplete="new-password" />
+          <input class="auth-input" type="password" id="auth-new-password-confirm" placeholder="Confirm new password" autocomplete="new-password" />
+          <button class="auth-btn" id="auth-new-password-btn" onclick="
+            (async function(){
+              var btn=document.getElementById('auth-new-password-btn');btn.disabled=true;
+              var err=document.getElementById('auth-new-password-error');err.textContent='';err.style.color='';
+              var pw=document.getElementById('auth-new-password-input').value;
+              var pw2=document.getElementById('auth-new-password-confirm').value;
+              if(!pw||pw.length<6){err.textContent='Password must be at least 6 characters';btn.disabled=false;return;}
+              if(pw!==pw2){err.textContent='Passwords do not match';btn.disabled=false;return;}
+              try{
+                var sb=window.sbClient;if(!sb||!sb.auth){err.textContent='Database offline — try again shortly';btn.disabled=false;return;}
+                var r=await sb.auth.updateUser({password:pw});
+                if(r.error){err.textContent=r.error.message||'Could not update password';btn.disabled=false;return;}
+                window._passwordRecoveryPending=false;
+                if(r.data&&r.data.user){currentUser=r.data.user;window.currentUser=currentUser;}
+                window.dispatchEvent(new CustomEvent('saycrd-auth-change'));
+                try{
+                  if(currentUser&&currentUser.id)_migrateLegacyLocalKeys(currentUser.id);
+                  _hydrateFromServer().then(function(){return _syncLocalToSupabase();}).catch(function(e){console.warn('[SAYCRD] Post-reset sync failed:',e);});
+                }catch(e){console.warn('[SAYCRD] Post-reset migration failed:',e);}
+                err.style.color='rgba(107,184,255,.7)';err.textContent='Password updated — welcome back.';
+                setTimeout(function(){
+                  var o=document.getElementById('auth-overlay');
+                  if(o){o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';},400);}
+                  if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}
+                },900);
+              }catch(e){err.textContent=e.message||'Could not update password';btn.disabled=false;}
+            })();
+          ">Update password</button>
+          <div class="auth-error" id="auth-new-password-error"></div>
+        </div>
+
         <!-- BYPASS — always visible, inline handler, cannot fail -->
-        <div style="margin-top:1.8rem;padding-top:1.2rem;border-top:1px solid rgba(244,241,234,.06)">
+        <div id="auth-bypass-row" style="margin-top:1.8rem;padding-top:1.2rem;border-top:1px solid rgba(244,241,234,.06)">
           <button id="auth-local-bypass" style="width:100%;padding:.7rem;border-radius:12px;border:1px solid rgba(244,241,234,.06);background:transparent;color:rgba(247,241,231,.3);font-family:'Space Grotesk',sans-serif;font-size:.82rem;cursor:pointer;transition:all .2s" onclick="window._localBypass();">Continue without account</button>
         </div>
       </div>
@@ -634,6 +670,26 @@ window._localBypass = function() {
       });
 
       sbClient.auth.onAuthStateChange(function(event, session) {
+        /* Password-recovery links log the user in via a special "recovery"
+           session so they can call updateUser() — but they still need to
+           actually pick a new password before we let them into the app.
+           Show the "set a new password" form instead of the normal
+           sign-in flow, and hold the overlay open until they've done so. */
+        if (event === "PASSWORD_RECOVERY") {
+          window._passwordRecoveryPending = true;
+          currentUser = session && session.user;
+          window.currentUser = currentUser;
+          if (session) window._saycrdToken = session.access_token;
+          if (_authResolve) _authResolve();
+          var ro = document.getElementById("auth-overlay");
+          if (ro) { ro.style.display = "flex"; ro.classList.add("is-visible"); }
+          ["auth-login","auth-signup","auth-reset"].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display="none"; });
+          var bypassRow = document.getElementById("auth-bypass-row"); if (bypassRow) bypassRow.style.display = "none";
+          var npForm = document.getElementById("auth-new-password"); if (npForm) npForm.style.display = "block";
+          setTimeout(function(){ var f=document.getElementById("auth-new-password-input"); if (f) f.focus(); }, 80);
+          return;
+        }
+        if (window._passwordRecoveryPending) return; /* don't let a stray event close the form early */
         if (session && session.user) {
           currentUser = session.user;
           window.currentUser = currentUser;
