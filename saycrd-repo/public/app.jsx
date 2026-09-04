@@ -174,6 +174,26 @@ try { var c = raw.replace(/```json|```/g, "").trim(); var m = c.match(/\{[\s\S]*
 }
 function getCurrentUid() { return (typeof window !== "undefined" && window.currentUser && window.currentUser.id) ? window.currentUser.id : "local"; }
 
+function _isRealAccount() { return typeof window !== "undefined" && !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user"); }
+
+// Guests get a fixed number of free sessions on this device, then must
+// create a real account to continue. Counted across BOTH guest buckets
+// ("saycrd-local-sessions" for a never-bypassed anonymous visitor, and
+// "saycrd-local-user-sessions" for the "Continue without account" bypass —
+// virtually all real guest sessions land in the latter, since guardedStart
+// always routes through the bypass before a session can be saved) rather
+// than whatever bucket getCurrentUid() currently resolves to, since that
+// can be "local" again post-reload even after 2+ sessions were already
+// saved under "local-user".
+var FREE_GUEST_SESSION_LIMIT = 2;
+function _guestSessionCount() {
+  var count = 0;
+  try { count += JSON.parse(localStorage.getItem("saycrd-local-sessions") || "[]").length; } catch(e) {}
+  try { count += JSON.parse(localStorage.getItem("saycrd-local-user-sessions") || "[]").length; } catch(e) {}
+  return count;
+}
+function _canStartNewSession() { return _isRealAccount() || _guestSessionCount() < FREE_GUEST_SESSION_LIMIT; }
+
 // First-time disclaimer ("Before we begin") acknowledgment. Stored per-uid in
 // localStorage (works for guests and logged-in users alike, synchronously,
 // so it can gate the very first "begin" click with no async wait). For real
@@ -10266,9 +10286,16 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
-if (window.currentUser) { onStart(); return; }
-if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-else { onStart(); }
+  if (_isRealAccount()) { onStart(); return; }
+  if (!_canStartNewSession()) {
+    // Free guest sessions used up: hard wall requiring a real account, with
+    // no "Continue without account" escape hatch offered.
+    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
+    return;
+  }
+  if (window.currentUser) { onStart(); return; }
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
 }
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
@@ -10389,9 +10416,16 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
 function guardedStart() {
-if (window.currentUser) { onStart(); return; }
-if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-else { onStart(); }
+  if (_isRealAccount()) { onStart(); return; }
+  if (!_canStartNewSession()) {
+    // Free guest sessions used up: hard wall requiring a real account, with
+    // no "Continue without account" escape hatch offered.
+    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
+    return;
+  }
+  if (window.currentUser) { onStart(); return; }
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
 }
 
 return (
@@ -10568,9 +10602,16 @@ useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null)
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
 function guardedStart() {
-if (window.currentUser) { onStart(); return; }
-if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-else { onStart(); }
+  if (_isRealAccount()) { onStart(); return; }
+  if (!_canStartNewSession()) {
+    // Free guest sessions used up: hard wall requiring a real account, with
+    // no "Continue without account" escape hatch offered.
+    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
+    return;
+  }
+  if (window.currentUser) { onStart(); return; }
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
 }
 
 return (
