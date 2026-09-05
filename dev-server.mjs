@@ -35,20 +35,24 @@ const MIME = {
   ".map": "application/json",
 };
 
-function readJsonBody(req) {
+function readRawBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
     req.on("data", (chunk) => (data += chunk));
-    req.on("end", () => {
-      if (!data) return resolve({});
-      try {
-        resolve(JSON.parse(data));
-      } catch (e) {
-        reject(e);
-      }
-    });
+    req.on("end", () => resolve(data));
     req.on("error", reject);
   });
+}
+
+// Buffers the raw body once, stashes it on req.rawBody for handlers that
+// need the untouched bytes (e.g. webhook signature verification), and also
+// returns it parsed as JSON for handlers that just want req.body — mirroring
+// how Vercel's Node runtime exposes both without double-reading the stream.
+async function readJsonBody(req) {
+  const raw = await readRawBody(req);
+  req.rawBody = raw;
+  if (!raw) return {};
+  return JSON.parse(raw);
 }
 
 function withVercelResShim(res) {

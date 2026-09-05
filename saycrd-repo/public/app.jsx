@@ -10286,6 +10286,24 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
+<<<<<<< HEAD
+  if (!window.currentUser) {
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
+  return;
+  }
+  /* Guests ("Continue without account") have their own on-device 2-session
+     cap handled elsewhere — only real accounts go through the paid paywall. */
+  if (window.currentUser.id === "local-user" || !window._consumeSessionCredit) { onStart(); return; }
+  window._consumeSessionCredit().then(function(result) {
+  if (result && result.ok === false) {
+  if (window._showPaywall) window._showPaywall(); else onStart();
+  } else {
+  onStart();
+  }
+  }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+  }
+=======
   if (_isRealAccount()) { onStart(); return; }
   if (!_canStartNewSession()) {
     // Free guest sessions used up: hard wall requiring a real account, with
@@ -10297,6 +10315,7 @@ function guardedStart() {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
 }
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
 <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
@@ -10416,6 +10435,24 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
 function guardedStart() {
+<<<<<<< HEAD
+  if (!window.currentUser) {
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
+  return;
+  }
+  /* Guests ("Continue without account") have their own on-device 2-session
+     cap handled elsewhere — only real accounts go through the paid paywall. */
+  if (window.currentUser.id === "local-user" || !window._consumeSessionCredit) { onStart(); return; }
+  window._consumeSessionCredit().then(function(result) {
+  if (result && result.ok === false) {
+  if (window._showPaywall) window._showPaywall(); else onStart();
+  } else {
+  onStart();
+  }
+  }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+  }
+=======
   if (_isRealAccount()) { onStart(); return; }
   if (!_canStartNewSession()) {
     // Free guest sessions used up: hard wall requiring a real account, with
@@ -10427,6 +10464,7 @@ function guardedStart() {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
 }
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
@@ -10592,6 +10630,11 @@ return (
 function LandingPhase({ onStart, onNavigateLegal }) {
 var [show, setShow] = useState(false);
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
+// Same "local-user" bypass fake-account issue as UserMenu: `authUser` alone is
+// truthy for a guest who only clicked "Continue without account", so the nav
+// must not show the filled avatar / "start a session" copy for them — only for
+// an actual Supabase account.
+var isLandingRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var returning = sessions.length > 0;
@@ -10602,6 +10645,24 @@ useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null)
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
 function guardedStart() {
+<<<<<<< HEAD
+  if (!window.currentUser) {
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
+  return;
+  }
+  /* Guests ("Continue without account") have their own on-device 2-session
+     cap handled elsewhere — only real accounts go through the paid paywall. */
+  if (window.currentUser.id === "local-user" || !window._consumeSessionCredit) { onStart(); return; }
+  window._consumeSessionCredit().then(function(result) {
+  if (result && result.ok === false) {
+  if (window._showPaywall) window._showPaywall(); else onStart();
+  } else {
+  onStart();
+  }
+  }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+  }
+=======
   if (_isRealAccount()) { onStart(); return; }
   if (!_canStartNewSession()) {
     // Free guest sessions used up: hard wall requiring a real account, with
@@ -10613,6 +10674,7 @@ function guardedStart() {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
 }
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 
 return (
 <div style={{ width:"100%", height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch",
@@ -10641,8 +10703,13 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
+<<<<<<< HEAD
+WebkitTextFillColor:"transparent", flexShrink:0 }}>SAYCRD</div>
+{isLandingRealAccount ? (
+=======
 WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
 {authUser ? (
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
 </button>
@@ -10656,7 +10723,7 @@ Log in / Sign up
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
 fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"pointer" }}>
-{authUser ? (returning ? "new session" : "start a session") : "begin"}
+{isLandingRealAccount ? (returning ? "new session" : "start a session") : "begin"}
 </button>
 </div>
 </nav>
@@ -11405,7 +11472,23 @@ return (
 function UserMenu({ phase, setPhase }) {
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 var [open, setOpen] = useState(false);
+var [isAdmin, setIsAdmin] = useState(false);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
+// Purely a UX convenience to decide whether to show the admin link at all —
+// admin-tiers.js re-checks the ADMIN_EMAILS allowlist server-side on every
+// request regardless, which is the real security boundary.
+useEffect(function(){
+var real = !!(authUser && authUser.id && authUser.id !== "local-user");
+if (!real) { setIsAdmin(false); return; }
+var tok = window._saycrdToken;
+if (!tok) { setIsAdmin(false); return; }
+var cancelled = false;
+fetch("/api/admin-check", { headers: { Authorization: "Bearer " + tok } })
+.then(function(r){ return r.ok ? r.json() : { isAdmin: false }; })
+.then(function(d){ if (!cancelled) setIsAdmin(!!(d && d.isAdmin)); })
+.catch(function(){ if (!cancelled) setIsAdmin(false); });
+return function(){ cancelled = true; };
+}, [authUser && authUser.id]);
 useEffect(function(){ if (!open) return; function close(){ setOpen(false); } document.addEventListener("click", close); return function(){ document.removeEventListener("click", close); }; }, [open]);
 /* The "Continue without account" bypass sets window.currentUser to a fake
    { id: "local-user", email: "local@saycrd" } sentinel so storage/AI calls
@@ -11417,6 +11500,13 @@ useEffect(function(){ if (!open) return; function close(){ setOpen(false); } doc
 var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
 var showDashboard = phase !== 7 && phase !== 8;
 var showBackToReport = (phase === 7 || phase === 8) && phase >= 6;
+// "Continue without account" (the failsafe bypass) sets window.currentUser to a
+// fake { id: "local-user", email: "local@saycrd" } object so storage/AI calls keep
+// working — but that object is truthy, so treating plain `authUser` as "is the
+// person logged in?" made a guest who never created a real account see a filled
+// avatar + "Log out" here, i.e. the menu claimed they were logged in when they
+// weren't. Only a real Supabase account should render the "logged in" UI.
+var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
 return (
 <div style={{ position: "fixed", top: "calc(12px + env(safe-area-inset-top, 0px))", right: 16, zIndex: 9998 }}>
 <button onClick={function(e){ e.stopPropagation(); setOpen(!open); }} style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: isRealAccount ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.08)", color: isRealAccount ? "rgba(247,241,231,0.9)" : "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, fontFamily: FB, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.2)" }} aria-label="Account">
@@ -11432,18 +11522,303 @@ return (
 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FB }}>{(authUser.email || "").slice(0, 28)}{(authUser.email || "").length > 28 ? "…" : ""}</div>
 </div>
 {showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
+{isAdmin && <button onClick={function(){ if (window._showAdminTiers) window._showAdminTiers(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(184,107,255,0.95)", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 500 }}>Admin: Session Packs</button>}
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
 ) : (
+<<<<<<< HEAD
+<>
+{authUser && showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
+<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
+</>
+=======
 /* Guests (including the "Continue without account" local-user sentinel)
    never get a Dashboard entry point here - the Dashboard/Journeys screen
    shows saved session history, and guests should never retain or be able
    to reach a view of local session history. Only "Log in / Sign up" is
    offered. */
 <button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 )}
 </div>
 )}
+</div>
+);
+}
+
+/* ====================================================================
+   PaywallModal — shown once a real account's 2 free sessions are used up.
+   Fetches the live session_tiers catalog and buys the chosen pack through
+   a Square-hosted Payment Link. Mounted unconditionally in SAYCRDFlow;
+   opens on the "saycrd-show-paywall" event (dispatched by guardedStart via
+   window._showPaywall) or automatically on return from Square Checkout.
+   ==================================================================== */
+function PaywallModal() {
+var [visible, setVisible] = useState(false);
+var [tiers, setTiers] = useState([]);
+var [loadingTiers, setLoadingTiers] = useState(false);
+var [purchasingId, setPurchasingId] = useState(null);
+var [error, setError] = useState(null);
+var [confirming, setConfirming] = useState(false);
+var [succeeded, setSucceeded] = useState(false);
+
+function loadTiers() {
+setLoadingTiers(true);
+fetch("/api/session-tiers")
+.then(function(r){ return r.json(); })
+.then(function(d){ setTiers((d && d.tiers) || []); setLoadingTiers(false); })
+.catch(function(){ setLoadingTiers(false); });
+}
+
+// No `visible` guard here on purpose — Square's hosted checkout redirect is
+// a full page reload, so React state (including `visible`) is always back
+// at its initial `false` by the time we land here, whether the user just
+// paid or just closed the tab. Gating this on `visible` used to mean the
+// "confirming your payment" UI never appeared after a real purchase, even
+// though the webhook still credited the account correctly in the background.
+function pollForCredits() {
+setConfirming(true);
+var tries = 0;
+function attempt() {
+tries++;
+var tok = window._saycrdToken;
+fetch("/api/credits", { headers: tok ? { Authorization: "Bearer " + tok } : {} })
+.then(function(r){ return r.ok ? r.json() : null; })
+.then(function(d){
+if (d && d.balance > 0) { setConfirming(false); setSucceeded(true); return; }
+if (tries < 10) setTimeout(attempt, 1500); else setConfirming(false);
+})
+.catch(function(){ if (tries < 10) setTimeout(attempt, 1500); else setConfirming(false); });
+}
+attempt();
+}
+
+useEffect(function() {
+function onShow() { setVisible(true); setError(null); setSucceeded(false); loadTiers(); }
+window.addEventListener("saycrd-show-paywall", onShow);
+if (window._checkoutJustReturned) {
+window._checkoutJustReturned = false;
+setVisible(true);
+pollForCredits();
+}
+return function(){ window.removeEventListener("saycrd-show-paywall", onShow); };
+}, []);
+
+function buy(tierId) {
+setPurchasingId(tierId);
+setError(null);
+var tok = window._saycrdToken;
+var headers = { "Content-Type": "application/json" };
+if (tok) headers["Authorization"] = "Bearer " + tok;
+fetch("/api/square-checkout", { method: "POST", headers: headers, body: JSON.stringify({ tierId: tierId }) })
+.then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+.then(function(res){
+if (!res.ok || !res.data || !res.data.url) {
+setError((res.data && res.data.error) || "Could not start checkout");
+setPurchasingId(null);
+return;
+}
+window.location.href = res.data.url;
+})
+.catch(function(){ setError("Could not start checkout"); setPurchasingId(null); });
+}
+
+if (!visible) return null;
+
+return (
+<div style={{ position: "fixed", inset: 0, zIndex: 10010, background: "rgb(6,9,16)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
+<div style={{ width: "100%", maxWidth: 420, background: "rgba(18,14,30,0.98)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "32px 28px", position: "relative" }}>
+{!confirming && (
+<button onClick={function(){ setVisible(false); }} aria-label="Close" style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16 }}>✕</button>
+)}
+
+{confirming ? (
+<div style={{ textAlign: "center", padding: "20px 0" }}>
+<div style={{ fontFamily: FB, fontSize: 12, letterSpacing: "0.3em", color: "rgba(184,107,255,0.8)", textTransform: "uppercase", marginBottom: 16, animation: "pulse 1.5s ease infinite" }}>Confirming your payment…</div>
+<div style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>This usually takes a few seconds.</div>
+</div>
+) : succeeded ? (
+<div style={{ textAlign: "center", padding: "20px 0" }}>
+<div style={{ fontFamily: FB, fontSize: 12, letterSpacing: "0.3em", color: "rgba(107,255,184,0.85)", textTransform: "uppercase", marginBottom: 16 }}>You&apos;re all set</div>
+<div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.75)", marginBottom: 24 }}>Your sessions have been added to your account.</div>
+<button onClick={function(){ setVisible(false); }} style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: "linear-gradient(135deg, #B86BFF, #E84393)", color: "#0A0814", fontFamily: FB, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Continue</button>
+</div>
+) : (
+<>
+<div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.35em", color: "rgba(184,107,255,0.75)", textTransform: "uppercase", marginBottom: 10, textAlign: "center" }}>Your free sessions are used up</div>
+<div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 24, textAlign: "center" }}>Choose a session pack to keep going.</div>
+{loadingTiers ? (
+<div style={{ textAlign: "center", padding: "20px 0", fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Loading packs…</div>
+) : (
+<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+{tiers.map(function(tier){
+return (
+<button key={tier.id} disabled={!!purchasingId} onClick={function(){ buy(tier.id); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "16px 18px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.92)", cursor: purchasingId ? "default" : "pointer", opacity: purchasingId && purchasingId !== tier.id ? 0.5 : 1, textAlign: "left" }}>
+<span style={{ fontFamily: FB, fontSize: 15, fontWeight: 600 }}>{tier.name}</span>
+<span style={{ fontFamily: FB, fontSize: 15, fontWeight: 700, color: "rgba(184,107,255,0.95)" }}>{purchasingId === tier.id ? "…" : "$" + (tier.price_cents / 100).toFixed(2)}</span>
+</button>
+);
+})}
+</div>
+)}
+{error && <div style={{ marginTop: 16, fontFamily: FB, fontSize: 13, color: "#E84393", textAlign: "center" }}>{error}</div>}
+</>
+)}
+</div>
+</div>
+);
+}
+
+/* ====================================================================
+   AdminTiersPanel — CRUD for session_tiers. Opens on the
+   "saycrd-show-admin-tiers" event (dispatched via window._showAdminTiers,
+   from UserMenu's admin link). The ADMIN_EMAILS allowlist check happens
+   server-side on every request to /api/admin-tiers — that is the real
+   security boundary, not whether this link is visible in the UI.
+   ==================================================================== */
+function AdminTiersPanel() {
+var [visible, setVisible] = useState(false);
+var [tiers, setTiers] = useState([]);
+var [loading, setLoading] = useState(false);
+var [forbidden, setForbidden] = useState(false);
+var [error, setError] = useState(null);
+var [drafts, setDrafts] = useState({});
+var [newTier, setNewTier] = useState({ name: "", session_count: "1", price: "", sort_order: "0" });
+var [savingId, setSavingId] = useState(null);
+var [creating, setCreating] = useState(false);
+
+function authHeaders(extra) {
+var tok = window._saycrdToken;
+var headers = Object.assign({}, extra || {});
+if (tok) headers["Authorization"] = "Bearer " + tok;
+return headers;
+}
+
+function load() {
+setLoading(true);
+setForbidden(false);
+setError(null);
+fetch("/api/admin-tiers", { headers: authHeaders() })
+.then(function(r){
+if (r.status === 403) { setForbidden(true); setLoading(false); return null; }
+return r.json();
+})
+.then(function(d){
+if (!d) return;
+setTiers(d.tiers || []);
+var nextDrafts = {};
+(d.tiers || []).forEach(function(t){ nextDrafts[t.id] = { name: t.name, session_count: String(t.session_count), price: (t.price_cents / 100).toFixed(2), sort_order: String(t.sort_order), active: t.active }; });
+setDrafts(nextDrafts);
+setLoading(false);
+})
+.catch(function(){ setError("Failed to load session packs"); setLoading(false); });
+}
+
+useEffect(function() {
+function onShow() { setVisible(true); load(); }
+window.addEventListener("saycrd-show-admin-tiers", onShow);
+return function(){ window.removeEventListener("saycrd-show-admin-tiers", onShow); };
+}, []);
+
+function saveTier(id) {
+var d = drafts[id];
+if (!d) return;
+setSavingId(id);
+setError(null);
+fetch("/api/admin-tiers", {
+method: "PATCH",
+headers: authHeaders({ "Content-Type": "application/json" }),
+body: JSON.stringify({ id: id, name: d.name, session_count: parseInt(d.session_count, 10), price_cents: Math.round(parseFloat(d.price) * 100), sort_order: parseInt(d.sort_order, 10) || 0, active: d.active }),
+})
+.then(function(r){ return r.json().then(function(body){ return { ok: r.ok, body: body }; }); })
+.then(function(res){ setSavingId(null); if (!res.ok) { setError((res.body && res.body.error) || "Save failed"); return; } load(); })
+.catch(function(){ setSavingId(null); setError("Save failed"); });
+}
+
+function deactivateTier(id) {
+setSavingId(id);
+fetch("/api/admin-tiers?id=" + encodeURIComponent(id), { method: "DELETE", headers: authHeaders() })
+.then(function(r){ return r.json().then(function(body){ return { ok: r.ok, body: body }; }); })
+.then(function(res){ setSavingId(null); if (!res.ok) { setError((res.body && res.body.error) || "Deactivate failed"); return; } load(); })
+.catch(function(){ setSavingId(null); setError("Deactivate failed"); });
+}
+
+function createTier() {
+var priceNum = parseFloat(newTier.price);
+var countNum = parseInt(newTier.session_count, 10);
+if (!newTier.name.trim() || !countNum || countNum <= 0 || !priceNum || priceNum <= 0) {
+setError("Enter a name, a positive session count, and a positive price");
+return;
+}
+setCreating(true);
+setError(null);
+fetch("/api/admin-tiers", {
+method: "POST",
+headers: authHeaders({ "Content-Type": "application/json" }),
+body: JSON.stringify({ name: newTier.name.trim(), session_count: countNum, price_cents: Math.round(priceNum * 100), sort_order: parseInt(newTier.sort_order, 10) || 0 }),
+})
+.then(function(r){ return r.json().then(function(body){ return { ok: r.ok, body: body }; }); })
+.then(function(res){
+setCreating(false);
+if (!res.ok) { setError((res.body && res.body.error) || "Create failed"); return; }
+setNewTier({ name: "", session_count: "1", price: "", sort_order: "0" });
+load();
+})
+.catch(function(){ setCreating(false); setError("Create failed"); });
+}
+
+function updateDraft(id, field, value) {
+setDrafts(function(prev){ var next = Object.assign({}, prev); next[id] = Object.assign({}, next[id], { [field]: value }); return next; });
+}
+
+if (!visible) return null;
+
+var inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.92)", fontFamily: FB, fontSize: 13 };
+
+return (
+<div style={{ position: "fixed", inset: 0, zIndex: 10011, background: "rgba(6,9,16,0.96)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }}>
+<div style={{ width: "100%", maxWidth: 640, background: "rgba(18,14,30,0.98)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px", position: "relative" }}>
+<button onClick={function(){ setVisible(false); }} aria-label="Close" style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16 }}>✕</button>
+<div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.35em", color: "rgba(184,107,255,0.8)", textTransform: "uppercase", marginBottom: 20 }}>Admin — Session Packs</div>
+
+{forbidden ? (
+<div style={{ fontFamily: FB, fontSize: 14, color: "#E84393", padding: "16px 0" }}>Admin access required.</div>
+) : loading ? (
+<div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.5)", padding: "16px 0" }}>Loading…</div>
+) : (
+<>
+{error && <div style={{ marginBottom: 16, fontFamily: FB, fontSize: 13, color: "#E84393" }}>{error}</div>}
+<div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+{tiers.map(function(t){
+var d = drafts[t.id] || {};
+return (
+<div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto auto", gap: 8, alignItems: "center", padding: "10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: t.active ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.015)", opacity: t.active ? 1 : 0.5 }}>
+<input style={inputStyle} value={d.name || ""} onChange={function(e){ updateDraft(t.id, "name", e.target.value); }} />
+<input style={inputStyle} type="number" min="1" value={d.session_count || ""} onChange={function(e){ updateDraft(t.id, "session_count", e.target.value); }} />
+<input style={inputStyle} type="number" min="0" step="0.01" value={d.price || ""} onChange={function(e){ updateDraft(t.id, "price", e.target.value); }} />
+<input style={inputStyle} type="number" value={d.sort_order || ""} onChange={function(e){ updateDraft(t.id, "sort_order", e.target.value); }} />
+<button disabled={savingId === t.id} onClick={function(){ saveTier(t.id); }} style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(184,107,255,0.85)", color: "#0A0814", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Save</button>
+{t.active ? (
+<button disabled={savingId === t.id} onClick={function(){ deactivateTier(t.id); }} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", fontFamily: FB, fontSize: 12, cursor: "pointer" }}>Deactivate</button>
+) : (
+<span style={{ fontFamily: FB, fontSize: 11, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>inactive</span>
+)}
+</div>
+);
+})}
+</div>
+
+<div style={{ fontFamily: FB, fontSize: 12, letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>Add a pack</div>
+<div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 8 }}>
+<input style={inputStyle} placeholder="Name" value={newTier.name} onChange={function(e){ setNewTier(Object.assign({}, newTier, { name: e.target.value })); }} />
+<input style={inputStyle} placeholder="Sessions" type="number" min="1" value={newTier.session_count} onChange={function(e){ setNewTier(Object.assign({}, newTier, { session_count: e.target.value })); }} />
+<input style={inputStyle} placeholder="Price $" type="number" min="0" step="0.01" value={newTier.price} onChange={function(e){ setNewTier(Object.assign({}, newTier, { price: e.target.value })); }} />
+<input style={inputStyle} placeholder="Sort" type="number" value={newTier.sort_order} onChange={function(e){ setNewTier(Object.assign({}, newTier, { sort_order: e.target.value })); }} />
+<button disabled={creating} onClick={createTier} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #B86BFF, #E84393)", color: "#0A0814", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Add</button>
+</div>
+</>
+)}
+</div>
 </div>
 );
 }
@@ -11582,6 +11957,8 @@ var next = pendingAfterDisclaimer.current;
 pendingAfterDisclaimer.current = null;
 if (next) next();
 }}/>}
+<PaywallModal />
+<AdminTiersPanel />
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes phaseIn{from{opacity:0.6}to{opacity:1}}
