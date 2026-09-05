@@ -11068,10 +11068,6 @@ Ready to listen to yourself?
 color:"rgba(200,185,230,0.5)", marginBottom:36, lineHeight:1.7 }}>
 No account needed. Your session stays private. Just start.
 </p>
-<button onClick={exportUserData} style={{ marginBottom:20, padding:"8px 16px", borderRadius:999,
-background:"transparent", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.4)",
-fontFamily:FB, fontSize:11, letterSpacing:"0.12em", cursor:"pointer",
-transition:"all 0.2s" }} title="Download your sessions and patterns as JSON">Download my data</button>
 <button onClick={guardedStart} style={{ padding:"18px 48px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:17, fontWeight:700,
