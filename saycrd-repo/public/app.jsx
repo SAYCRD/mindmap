@@ -10652,12 +10652,6 @@ Log in / Sign up
 </button>
 )}
 </div>
-<button onClick={guardedStart} style={{ padding:"10px 26px", borderRadius:999,
-background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
-border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
-fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"pointer" }}>
-{authUser ? (returning ? "new session" : "start a session") : "begin"}
-</button>
 </div>
 </nav>
 
