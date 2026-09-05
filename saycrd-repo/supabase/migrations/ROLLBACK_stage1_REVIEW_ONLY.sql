@@ -40,14 +40,11 @@ drop trigger if exists sessions_set_updated_at on public.sessions;
 drop policy if exists "sessions_select_own" on public.sessions;
 drop table if exists public.sessions;
 
--- public.tg_set_updated_at() is shared infrastructure introduced by the
--- sessions migration and reused by reports. Only drop it once BOTH tables
--- that depend on it are gone (both are dropped above, so this is safe in
--- this full-rollback ordering). Do NOT drop this function if any other
--- future migration has also started depending on it -- check for other
--- `execute function public.tg_set_updated_at()` triggers before running
--- this line in isolation.
-drop function if exists public.tg_set_updated_at();
+-- No function drop needed here: sessions/reports triggers both call the
+-- pre-existing public.update_updated_at() (already used by
+-- free_sessions_used, session_tiers, square_payments), not a new function
+-- introduced by this batch -- so there is nothing Stage-1-specific to
+-- clean up on that front.
 
 -- Note: no ALTER on auth.users, credit_ledger, subscriptions, or
 -- session_tiers is ever required to roll this batch back -- every FK in

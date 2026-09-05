@@ -67,11 +67,13 @@ create index if not exists idx_reports_user_created
 create index if not exists idx_reports_session
   on public.reports (session_id);
 
+-- Reuses the existing majority convention (see sessions migration note)
+-- rather than a new function.
 drop trigger if exists reports_set_updated_at on public.reports;
 create trigger reports_set_updated_at
   before update on public.reports
   for each row
-  execute function public.tg_set_updated_at();
+  execute function public.update_updated_at();
 
 alter table public.reports enable row level security;
 

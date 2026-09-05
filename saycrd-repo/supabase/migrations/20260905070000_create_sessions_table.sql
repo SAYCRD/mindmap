@@ -92,26 +92,17 @@ create unique index if not exists idx_sessions_user_legacy_fingerprint
   on public.sessions (user_id, legacy_fingerprint)
   where legacy_fingerprint is not null;
 
--- Shared updated_at trigger function, reused by every table in this Stage
--- that has an updated_at column. `create or replace` makes this migration
--- safe to re-run without colliding with any existing function of the same
--- name/signature.
-create or replace function public.tg_set_updated_at()
-returns trigger
-language plpgsql
-set search_path = ''
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
+-- Production already has two competing updated_at trigger functions:
+-- public.update_updated_at() (used by free_sessions_used, session_tiers,
+-- square_payments -- the majority convention, no elevated privilege) and
+-- public.set_updated_at() (used only by subscriptions, SECURITY DEFINER).
+-- Reusing the majority, non-privileged convention here rather than
+-- introducing a third redundant function.
 drop trigger if exists sessions_set_updated_at on public.sessions;
 create trigger sessions_set_updated_at
   before update on public.sessions
   for each row
-  execute function public.tg_set_updated_at();
+  execute function public.update_updated_at();
 
 alter table public.sessions enable row level security;
 
