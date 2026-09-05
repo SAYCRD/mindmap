@@ -10286,25 +10286,19 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
-<<<<<<< HEAD
-  if (!window.currentUser) {
-  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-  else { onStart(); }
-  return;
+  if (_isRealAccount()) {
+    /* Real accounts skip the guest free-session cap entirely and instead go
+       through the paid session-credit/paywall flow. */
+    if (!window._consumeSessionCredit) { onStart(); return; }
+    window._consumeSessionCredit().then(function(result) {
+      if (result && result.ok === false) {
+        if (window._showPaywall) window._showPaywall(); else onStart();
+      } else {
+        onStart();
+      }
+    }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+    return;
   }
-  /* Guests ("Continue without account") have their own on-device 2-session
-     cap handled elsewhere — only real accounts go through the paid paywall. */
-  if (window.currentUser.id === "local-user" || !window._consumeSessionCredit) { onStart(); return; }
-  window._consumeSessionCredit().then(function(result) {
-  if (result && result.ok === false) {
-  if (window._showPaywall) window._showPaywall(); else onStart();
-  } else {
-  onStart();
-  }
-  }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
-  }
-=======
-  if (_isRealAccount()) { onStart(); return; }
   if (!_canStartNewSession()) {
     // Free guest sessions used up: hard wall requiring a real account, with
     // no "Continue without account" escape hatch offered.
@@ -10315,7 +10309,6 @@ function guardedStart() {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
 }
->>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
 <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
@@ -10435,25 +10428,17 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
 function guardedStart() {
-<<<<<<< HEAD
-  if (!window.currentUser) {
-  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-  else { onStart(); }
-  return;
+  if (_isRealAccount()) {
+    if (!window._consumeSessionCredit) { onStart(); return; }
+    window._consumeSessionCredit().then(function(result) {
+      if (result && result.ok === false) {
+        if (window._showPaywall) window._showPaywall(); else onStart();
+      } else {
+        onStart();
+      }
+    }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+    return;
   }
-  /* Guests ("Continue without account") have their own on-device 2-session
-     cap handled elsewhere — only real accounts go through the paid paywall. */
-  if (window.currentUser.id === "local-user" || !window._consumeSessionCredit) { onStart(); return; }
-  window._consumeSessionCredit().then(function(result) {
-  if (result && result.ok === false) {
-  if (window._showPaywall) window._showPaywall(); else onStart();
-  } else {
-  onStart();
-  }
-  }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
-  }
-=======
-  if (_isRealAccount()) { onStart(); return; }
   if (!_canStartNewSession()) {
     // Free guest sessions used up: hard wall requiring a real account, with
     // no "Continue without account" escape hatch offered.
@@ -10464,7 +10449,6 @@ function guardedStart() {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
 }
->>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
@@ -10645,25 +10629,17 @@ useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null)
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
 function guardedStart() {
-<<<<<<< HEAD
-  if (!window.currentUser) {
-  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-  else { onStart(); }
-  return;
+  if (_isRealAccount()) {
+    if (!window._consumeSessionCredit) { onStart(); return; }
+    window._consumeSessionCredit().then(function(result) {
+      if (result && result.ok === false) {
+        if (window._showPaywall) window._showPaywall(); else onStart();
+      } else {
+        onStart();
+      }
+    }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+    return;
   }
-  /* Guests ("Continue without account") have their own on-device 2-session
-     cap handled elsewhere — only real accounts go through the paid paywall. */
-  if (window.currentUser.id === "local-user" || !window._consumeSessionCredit) { onStart(); return; }
-  window._consumeSessionCredit().then(function(result) {
-  if (result && result.ok === false) {
-  if (window._showPaywall) window._showPaywall(); else onStart();
-  } else {
-  onStart();
-  }
-  }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
-  }
-=======
-  if (_isRealAccount()) { onStart(); return; }
   if (!_canStartNewSession()) {
     // Free guest sessions used up: hard wall requiring a real account, with
     // no "Continue without account" escape hatch offered.
@@ -10674,7 +10650,6 @@ function guardedStart() {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
 }
->>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 
 return (
 <div style={{ width:"100%", height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch",
@@ -10703,13 +10678,8 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
-<<<<<<< HEAD
 WebkitTextFillColor:"transparent", flexShrink:0 }}>SAYCRD</div>
 {isLandingRealAccount ? (
-=======
-WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
-{authUser ? (
->>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
 </button>
@@ -11526,19 +11496,12 @@ return (
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
 ) : (
-<<<<<<< HEAD
-<>
-{authUser && showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
-<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
-</>
-=======
 /* Guests (including the "Continue without account" local-user sentinel)
    never get a Dashboard entry point here - the Dashboard/Journeys screen
    shows saved session history, and guests should never retain or be able
    to reach a view of local session history. Only "Log in / Sign up" is
    offered. */
 <button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
->>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 )}
 </div>
 )}
