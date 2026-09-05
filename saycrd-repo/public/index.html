@@ -148,7 +148,22 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
                 currentUser=r.data.user;window.currentUser=currentUser;
                 sb.auth.getSession().then(function(s){if(s.data.session)window._saycrdToken=s.data.session.access_token;});
                 if(window._authResolve)window._authResolve();
-                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}},400);
+                /* A real login into an existing account always lands on the
+                   Dashboard, even if the overlay was opened by a "start a
+                   session" click (guardedStart -> _showAuthOverlay(onStart)).
+                   Supabase's own onAuthStateChange listener (SIGNED_IN, fires
+                   asynchronously right after signInWithPassword resolves)
+                   dispatches "saycrd-auth-change", which SAYCRDFlow's
+                   handleAuthChange already uses to force real accounts to
+                   phase 8 (Dashboard). Previously this handler unconditionally
+                   invoked the stashed pre-login intent callback (onStart) in
+                   its own setTimeout below, which fired AFTER that dashboard
+                   routing and overwrote it back to the pre-login screen (e.g.
+                   straight into Pour) — the exact bug reported. Discard the
+                   stashed callback here instead of calling it, so dashboard
+                   routing is the single source of truth for where a real
+                   login lands. */
+                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';window._authSuccessCallback=null;},400);
               }catch(e){err.textContent=e.message||'Login failed';btn.disabled=false;}
             })();
           ">Enter</button>
@@ -197,7 +212,13 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
                 currentUser=r.data.user;window.currentUser=currentUser;
                 sb.auth.getSession().then(function(s){if(s.data.session)window._saycrdToken=s.data.session.access_token;});
                 if(window._authResolve)window._authResolve();
-                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}},400);
+                /* Same fix as the login handler above: discard the stashed
+                   pre-signup intent callback instead of calling it, so
+                   SAYCRDFlow's own dashboard-routing (triggered by the
+                   "saycrd-auth-change" event) is the single source of truth
+                   for where a fresh real account lands, instead of racing
+                   with it. */
+                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';window._authSuccessCallback=null;},400);
               }catch(e){err.textContent=e.message||'Signup failed';btn.disabled=false;}
             })();
           ">Begin</button>

@@ -6431,7 +6431,7 @@ lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacin
 </div>
 </div>
 
-<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize: isMobile ? 22 : 24, flexShrink:0 }}>↓</div>
+<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize: isMobile ? 22 : 24, flexShrink:0 }}>���</div>
 
 <div style={{ flex:1, minWidth:0 }}>
 <div style={{ fontSize: isMobile ? 12 : 13, fontWeight:600, letterSpacing:"0.2em",
@@ -11536,7 +11536,7 @@ return (
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontFamily: FB, fontWeight: 600 }}>{(authUser.email || "").split("@")[0]}</div>
 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FB }}>{(authUser.email || "").slice(0, 28)}{(authUser.email || "").length > 28 ? "…" : ""}</div>
 </div>
-{showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
+{showDashboard && <button onClick={function(){ setPhase(8); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
 {isAdmin && <button onClick={function(){ if (window._showAdminTiers) window._showAdminTiers(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(184,107,255,0.95)", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 500 }}>Admin: Session Packs</button>}
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
