@@ -136,3 +136,39 @@ application API can modify or delete entitlement history -- only the
 internal FK `SET NULL` action triggered by step 4/5 can ever touch those
 rows, and even that only clears `session_id`/`user_id`, never
 `entitlement_type` or the financial linkage columns.
+
+## Deliberate deviation: `user_id ... on delete restrict`, not `cascade`
+
+A live, read-only query against production (`pg_constraint`/`pg_attribute`)
+confirms every existing foreign key referencing `auth.users(id)` in this
+database -- both Supabase's own auth-internal tables (`auth.identities`,
+`auth.sessions`, `auth.mfa_factors`, etc.) and every one of this app's own
+existing tables (`subscriptions`, `credit_ledger`, `free_sessions_used`,
+`square_payments`) -- uses `on delete cascade`, with no exceptions.
+
+Stage 1's `user_id` FKs on `sessions`, `reports`, `captures`, `bookmarks`,
+and `migration_runs` deliberately do **not** follow that convention; they
+use `on delete restrict` instead (`session_entitlement_usage.user_id` is
+the one exception, using `on delete set null` for the retained-audit-row
+reason documented above). **This is intentional, not an oversight or an
+inconsistency to "fix" back to `cascade`:**
+
+- Every existing `cascade` FK governs either Supabase auth-internal state
+  or purely financial/entitlement bookkeeping rows -- content where
+  silently vanishing on account deletion is the same in either direction
+  (present) or arguably already a separate, pre-existing, out-of-Stage-1
+  -scope question (should `credit_ledger`/`square_payments` really
+  auto-cascade-delete their own audit trail?).
+- Stage 1's tables hold actual private user content (session
+  transcripts, generated reports, saved captures/bookmarks). This design
+  has already committed to deleting that content only through the
+  explicit, ordered account-deletion sequence documented above -- never
+  implicitly. `restrict` is what makes an accidental or out-of-order
+  deletion (e.g. some future code path calling
+  `supabase.auth.admin.deleteUser` directly, skipping steps 1-4) fail
+  loudly at the database level, instead of silently cascading away a
+  user's session content with no record that it happened.
+- If a future stage decides `cascade` is actually preferable here, that
+  is a legitimate, separate decision to make explicitly and knowingly --
+  not something to "correct" on the assumption that Stage 1 simply
+  forgot to match the rest of the schema.
