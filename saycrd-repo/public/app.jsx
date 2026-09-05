@@ -174,6 +174,26 @@ try { var c = raw.replace(/```json|```/g, "").trim(); var m = c.match(/\{[\s\S]*
 }
 function getCurrentUid() { return (typeof window !== "undefined" && window.currentUser && window.currentUser.id) ? window.currentUser.id : "local"; }
 
+function _isRealAccount() { return typeof window !== "undefined" && !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user"); }
+
+// Guests get a fixed number of free sessions on this device, then must
+// create a real account to continue. Counted across BOTH guest buckets
+// ("saycrd-local-sessions" for a never-bypassed anonymous visitor, and
+// "saycrd-local-user-sessions" for the "Continue without account" bypass —
+// virtually all real guest sessions land in the latter, since guardedStart
+// always routes through the bypass before a session can be saved) rather
+// than whatever bucket getCurrentUid() currently resolves to, since that
+// can be "local" again post-reload even after 2+ sessions were already
+// saved under "local-user".
+var FREE_GUEST_SESSION_LIMIT = 2;
+function _guestSessionCount() {
+  var count = 0;
+  try { count += JSON.parse(localStorage.getItem("saycrd-local-sessions") || "[]").length; } catch(e) {}
+  try { count += JSON.parse(localStorage.getItem("saycrd-local-user-sessions") || "[]").length; } catch(e) {}
+  return count;
+}
+function _canStartNewSession() { return _isRealAccount() || _guestSessionCount() < FREE_GUEST_SESSION_LIMIT; }
+
 // First-time disclaimer ("Before we begin") acknowledgment. Stored per-uid in
 // localStorage (works for guests and logged-in users alike, synchronously,
 // so it can gate the very first "begin" click with no async wait). For real
@@ -437,7 +457,7 @@ return (
 </>
 )}
 <div style={{ position: "absolute", top: "32%", left: 0, right: 0, textAlign: "center", padding: "0 28px", zIndex: 2 }}>
-<div style={{ fontSize: 9, letterSpacing: "0.5em", color: "rgba(107,200,255,0.35)", fontFamily: FB, textTransform: "uppercase", marginBottom: 16 }}>SAYCRD</div>
+<div style={{ fontSize: 9, letterSpacing: "0.5em", color: "rgba(107,200,255,0.35)", fontFamily: FB, textTransform: "uppercase", marginBottom: 16 }}>BLINDSPOT</div>
 <div style={{ fontSize: 26, fontWeight: 700, color: "rgba(200,235,255,0.92)", fontFamily: FB, letterSpacing: "0.04em", lineHeight: 1.2, textShadow: "0 0 50px rgba(107,184,255,0.2)", animation: "riseUp 0.6s ease both" }}>{label}</div>
 {sublabel && <div style={{ marginTop: 12, fontSize: 14, color: "rgba(150,200,255,0.55)", fontFamily: FD, fontStyle: "italic", lineHeight: 1.6, animation: "riseUp 0.7s ease 0.15s both" }}>{sublabel}</div>}
 </div>
@@ -941,7 +961,7 @@ return (
           {isMobile ? (
 <div style={{ display: "flex", flexDirection: "column", minHeight: "100%", paddingTop: "env(safe-area-inset-top, 0px)" }}>
 <div style={{ flexShrink: 0, marginBottom: 24 }}>
-<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 16, fontWeight: 600 }}>SAYCRD</div>
+<div style={{ fontSize: 10, letterSpacing: "0.5em", color: "rgba(107,184,255,0.6)", fontFamily: FB, marginBottom: 16, fontWeight: 600 }}>BLINDSPOT</div>
 <h1 style={{ fontSize: "clamp(22px, 6vw, 28px)", fontFamily: FD, fontStyle: "italic", color: "white", margin: "0 0 8px", zIndex: 1, fontWeight: 400, lineHeight: 1.2 }}>What's alive<br/>in you right now?</h1>
 <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic", margin: 0, zIndex: 1, letterSpacing: "0.02em" }}>Don't think. Just pour.</p>
 </div>
@@ -973,7 +993,7 @@ return (
 var REVEAL_DURATION_MS = 20000;
 var MIN_FINDING_MS = 6000;
 
-var SYNTHESIS_PROMPT = "You are the reflective engine behind SAYCRD — a co-creation tool, not a diagnosis tool.\n" +
+var SYNTHESIS_PROMPT = "You are the reflective engine behind BLINDSPOT — a co-creation tool, not a diagnosis tool.\n" +
 "Your role is WITNESS, not analyst. COMPANION, not judge. MIRROR, not authority.\n\n" +
 "UNDERLYING ORIENTATION (subtle, never stated):\n" +
 "- Everyone has a beautiful, innocent soul. What they're stuck with is blocking their light — not who they are.\n" +
@@ -2349,7 +2369,7 @@ const GUIDE_ITEMS = [
 { type: "act", text: "Write down the one thing you'd build if money were irrelevant. Put it somewhere you'll see it tomorrow." },
 { type: "sit", text: "Sit with the question: when you say 'proof,' who are you proving it to? Don't answer. Just hold it." },
 { type: "deepen", text: "The word 'control' appeared 12 times. Ask yourself — what am I actually afraid of losing?" },
-{ type: "release", text: "Name one expectation about SAYCRD you're ready to set down. You don't have to drop it — just set it down." },
+{ type: "release", text: "Name one expectation about BLINDSPOT you're ready to set down. You don't have to drop it — just set it down." },
 { type: "notice", text: "This week, notice when you use the word 'should.' Write down what you actually feel instead." },
 ];
 
@@ -4175,8 +4195,17 @@ function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
 // Returning-user check: do they already have at least one saved session under
 // the currently-known uid? Used to route straight to the SESSION COMPLETE /
 // "Your Journeys" screen instead of the landing page on app load.
+//
+// Real accounts only. Guests (no account, or the "Continue without account"
+// local-user sentinel) must never be auto-routed to the Dashboard/Journeys
+// screen: that screen displays saved session history, and a guest browsing
+// with no active session (e.g. right after logging out, or on a fresh
+// logged-out visit) should never land on a screen showing session data.
 function _hasReturningSessions() {
-  try { return JSON.parse(localStorage.getItem(_sessionKey()) || "[]").length > 0; } catch(e) { return false; }
+  try {
+    if (!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user")) return false;
+    return JSON.parse(localStorage.getItem(_sessionKey()) || "[]").length > 0;
+  } catch(e) { return false; }
 }
 function updateLastSession(partial) {
 try {
@@ -5484,7 +5513,7 @@ stroke={t.color} strokeWidth="0.5" opacity="0.3"/>;
 </svg>
 
 <div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", padding:_fcPad, boxSizing:"border-box", position:"relative", zIndex:1 }}>
-<div style={{ position:"absolute", top:isMobile?12:46, left:isMobile?16:24, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.1)", fontFamily:FB }}>SAYCRD</div>
+<div style={{ position:"absolute", top:isMobile?12:46, left:isMobile?16:24, fontSize:9, letterSpacing:"0.5em", color:"rgba(255,255,255,0.1)", fontFamily:FB }}>BLINDSPOT</div>
 
 <div style={{ position:"absolute", top:isMobile?10:44, right:isMobile?16:24, textAlign:"right" }}>
 <div style={{ fontSize:8, letterSpacing:"0.25em", color:"rgba(255,255,255,0.18)", fontFamily:FB, textTransform:"uppercase" }}>
@@ -5651,7 +5680,7 @@ background:"linear-gradient(90deg, "+_abColor+"88, "+_abColor+"22, transparent)"
 animation:"riseUp 0.6s ease 0.2s both" }}/>
 
 <div style={{ position:"absolute", top:46, left:24, fontSize:9, letterSpacing:"0.5em",
-color:_abColor+"44", fontFamily:FB }}>SAYCRD</div>
+color:_abColor+"44", fontFamily:FB }}>BLINDSPOT</div>
 
 <div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", display:"flex", flexDirection:"column", justifyContent:"center", padding:_abPad, boxSizing:"border-box" }}>
 
@@ -5904,7 +5933,7 @@ pointerEvents:"none"
 <div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", position:"relative", zIndex:1 }}>
 <div style={{ position:"absolute", top:46, left:0, right:0, textAlign:"center" }}>
 <div style={{ fontSize:8, letterSpacing:"0.5em", color:"rgba(107,200,255,0.3)",
-fontFamily:FB, textTransform:"uppercase" }}>SAYCRD</div>
+fontFamily:FB, textTransform:"uppercase" }}>BLINDSPOT</div>
 </div>
 
 <div style={{ position:"absolute", top:"28%", left:0, right:0, textAlign:"center",
@@ -6102,7 +6131,7 @@ repeatCount="indefinite"/>
 marginBottom:16 }}>
 <div style={{ fontSize:8, letterSpacing:"0.5em", color:_topColor+"55", fontFamily:FB,
 textTransform:"uppercase" }}>
-SAYCRD
+BLINDSPOT
 </div>
 <div style={{ fontSize:8, letterSpacing:"0.3em", color:"rgba(255,255,255,0.28)", fontFamily:FB,
 textTransform:"uppercase" }}>
@@ -6317,7 +6346,7 @@ display:"flex", flexDirection:"column" }}>
 <div style={{ padding: isMobile ? "44px 20px 0" : "52px 28px 0", flexShrink:0 }}>
 <div style={{ fontSize: isMobile ? 9 : 10, letterSpacing:"0.55em",
 color:"rgba(200,220,255,0.4)", fontFamily:FB, marginBottom:6 }}>
-SAYCRD
+BLINDSPOT
 </div>
 <div style={{ fontSize: isMobile ? 13 : 14, letterSpacing:"0.4em",
 color:"rgba(220,235,255,0.7)", fontFamily:FB, fontWeight:600 }}>
@@ -6645,7 +6674,7 @@ animation:"breathe 1.5s ease-in-out infinite alternate" }}/>
 </div>
 
 <div style={{ position:"absolute", top:46, left:24, fontSize:9,
-letterSpacing:"0.5em", color:"rgba(200,180,255,0.18)", fontFamily:FB }}>SAYCRD</div>
+letterSpacing:"0.5em", color:"rgba(200,180,255,0.18)", fontFamily:FB }}>BLINDSPOT</div>
 <div style={{ position:"absolute", top:46, right:24, fontSize:8,
 letterSpacing:"0.2em", color:"rgba(255,255,255,0.12)", fontFamily:FB }}>
 {sessionCount > 1 ? "SESSION "+sessionCount : "FIRST SESSION"}
@@ -7077,7 +7106,7 @@ pointerEvents:"none" }}/>
 
 <div style={{ padding:"52px 28px 0", flexShrink:0 }}>
 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:14 }}>
-<div style={{ fontSize:9, letterSpacing:"0.55em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>SAYCRD</div>
+<div style={{ fontSize:9, letterSpacing:"0.55em", color:"rgba(255,255,255,0.2)", fontFamily:FB }}>BLINDSPOT</div>
 <div style={{ fontSize:9, letterSpacing:"0.25em", color:"rgba(255,255,255,0.18)", fontFamily:FB }}>
 {sessionCount} {"SESSION"+(sessionCount===1?"":"S")}
 </div>
@@ -7505,7 +7534,7 @@ background:"linear-gradient(180deg,rgba(0,0,0,0.85) 0%,transparent 100%)",pointe
 background:"linear-gradient(0deg,rgba(0,0,0,0.97) 0%,rgba(0,0,0,0.75) 45%,transparent 100%)",pointerEvents:"none"}}/>
 
 <div style={{position:"absolute",top:44,left:28,fontSize:8,letterSpacing:"0.5em",
-color:"rgba(255,255,255,0.18)",fontFamily:FB}}>SAYCRD</div>
+color:"rgba(255,255,255,0.18)",fontFamily:FB}}>BLINDSPOT</div>
 <div style={{position:"absolute",top:44,right:28,fontSize:8,letterSpacing:"0.2em",
 color:"rgba(255,255,255,0.12)",fontFamily:FB,textAlign:"right"}}>
 {sessionCount} {"SESSION"+(sessionCount===1?"":"S")}
@@ -7718,7 +7747,7 @@ pointerEvents:"none" }}/>
 <div style={{ padding:"52px 32px 0", flexShrink:0 }}>
 <div style={{ display:"flex", justifyContent:"space-between", marginBottom:20 }}>
 <div style={{ fontSize:8, letterSpacing:"0.55em",
-color:"rgba(80,55,20,0.35)", fontFamily:FB }}>SAYCRD</div>
+color:"rgba(80,55,20,0.35)", fontFamily:FB }}>BLINDSPOT</div>
 <div style={{ fontSize:8, letterSpacing:"0.2em",
 color:"rgba(80,55,20,0.28)", fontFamily:FB }}>{sessionCount} SESSIONS</div>
 </div>
@@ -8542,7 +8571,7 @@ alignItems:"flex-start", marginBottom:14, flexWrap:"wrap", gap:12 }}>
 <div style={{ flex:"1 1 140px", minWidth:0 }}>
 <div style={{ fontSize: isMobile ? 11 : 13, letterSpacing:"0.6em",
 color:"rgba(0,0,0,0.28)", marginBottom:6, fontWeight:600 }}>
-SAYCRD · FIELD REPORT
+BLINDSPOT · FIELD REPORT
 </div>
 <div style={{ fontSize: isMobile ? 26 : 34, fontWeight:800, color:"rgba(0,0,0,0.88)",
 letterSpacing:"-0.025em", lineHeight:1 }}>
@@ -10257,6 +10286,7 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
+<<<<<<< HEAD
   if (!window.currentUser) {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
@@ -10273,6 +10303,19 @@ function guardedStart() {
   }
   }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
   }
+=======
+  if (_isRealAccount()) { onStart(); return; }
+  if (!_canStartNewSession()) {
+    // Free guest sessions used up: hard wall requiring a real account, with
+    // no "Continue without account" escape hatch offered.
+    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
+    return;
+  }
+  if (window.currentUser) { onStart(); return; }
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
+}
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
 <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
@@ -10281,7 +10324,7 @@ return (
 </div>
 <div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ textAlign: "center", marginBottom: 32 }}>
-<div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+<div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>BLINDSPOT</div>
 <div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>YOUR JOURNEYS</div>
 <h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, letterSpacing: "-0.02em" }}>Your sessions over time</h1>
 </div>
@@ -10392,6 +10435,7 @@ var [captures, setCaptures] = useState(function(){ try { return JSON.parse(local
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
 function guardedStart() {
+<<<<<<< HEAD
   if (!window.currentUser) {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
@@ -10408,6 +10452,19 @@ function guardedStart() {
   }
   }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
   }
+=======
+  if (_isRealAccount()) { onStart(); return; }
+  if (!_canStartNewSession()) {
+    // Free guest sessions used up: hard wall requiring a real account, with
+    // no "Continue without account" escape hatch offered.
+    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
+    return;
+  }
+  if (window.currentUser) { onStart(); return; }
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
+}
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
@@ -10417,7 +10474,7 @@ return (
 </div>
     <div style={{ position: "relative", zIndex: 1, maxWidth: isWide ? 720 : 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
       <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>SAYCRD</div>
+        <div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>BLINDSPOT</div>
         <div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>SESSION COMPLETE</div>
         <h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, marginBottom: 0, letterSpacing: "-0.02em" }}>You've woven another thread.</h1>
       </div>
@@ -10588,6 +10645,7 @@ useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null)
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
 function guardedStart() {
+<<<<<<< HEAD
   if (!window.currentUser) {
   if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
   else { onStart(); }
@@ -10604,6 +10662,19 @@ function guardedStart() {
   }
   }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
   }
+=======
+  if (_isRealAccount()) { onStart(); return; }
+  if (!_canStartNewSession()) {
+    // Free guest sessions used up: hard wall requiring a real account, with
+    // no "Continue without account" escape hatch offered.
+    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
+    return;
+  }
+  if (window.currentUser) { onStart(); return; }
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
+}
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 
 return (
 <div style={{ width:"100%", height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch",
@@ -10632,8 +10703,13 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
+<<<<<<< HEAD
 WebkitTextFillColor:"transparent", flexShrink:0 }}>SAYCRD</div>
 {isLandingRealAccount ? (
+=======
+WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
+{authUser ? (
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
 </button>
@@ -10675,7 +10751,7 @@ The space between your inner world and the next true move.
 color:"rgba(200,185,230,0.7)", lineHeight:1.7, marginBottom:40, maxWidth:540,
 opacity:show?1:0, transform:show?"translateY(0)":"translateY(16px)",
 transition:"all 1s cubic-bezier(.25,.46,.45,.94) 0.25s" }}>
-SAYCRD listens like a human, shapes what you say into a living visual, and remembers your patterns without turning you into a project.
+BLINDSPOT listens like a human, shapes what you say into a living visual, and remembers your patterns without turning you into a project.
 </p>
 
 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center",
@@ -10859,7 +10935,7 @@ stroke:"#E84393",strokeWidth:"0.8",opacity:"0.2",strokeDasharray:"2 4"});
 color:"#E84393", marginBottom:10, lineHeight:1.15 }}>The gap in the world</h2>
 <p style={{ fontFamily:FD, fontSize:16, fontWeight:300, fontStyle:"italic",
 color:"rgba(220,180,200,0.65)", lineHeight:1.72, margin:0 }}>
-There is a moment when you are scattered and nothing feels clear. Journals are blank pages. To-do apps are laughable. Friends are tired. SAYCRD is the place you go in that moment.
+There is a moment when you are scattered and nothing feels clear. Journals are blank pages. To-do apps are laughable. Friends are tired. BLINDSPOT is the place you go in that moment.
 </p>
 </div>
 </div>
@@ -11100,13 +11176,13 @@ var CONTENT = {
 privacy: {
 title:"Privacy",
 body:[
-"Mind Map is a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). This policy explains what we collect, how we use it, and the choices you have.",
+"Blindspot is a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). This policy explains what we collect, how we use it, and the choices you have.",
 "What we collect: the reflections, themes, and other content you write during a session; your email address if you create an account; and basic technical data (like device and browser type) needed to run the app.",
 "What we don't collect: if you choose \"Continue without account,\" your sessions stay on your device only — we don't receive or store that content on our servers.",
 "How we use it: session content is used to generate your personal reflections and, for account holders, to recognize patterns across your sessions over time. Your email is used only for account access, service updates, and — if you subscribe — billing.",
 "We do not sell your personal data, and we do not use your reflections to build advertising profiles. Session content is sent to our AI provider solely to generate your reflections and is not used to train their models beyond that purpose.",
 "You can request an export or deletion of your account and its data at any time by emailing " + LEGAL_CONTACT + ". We'll respond within a reasonable time and confirm once it's done.",
-"Mind Map is intended for users 18 years of age or older. We do not knowingly collect information from anyone under 18.",
+"Blindspot is intended for users 18 years of age or older. We do not knowingly collect information from anyone under 18.",
 "This policy may be updated as the product evolves; the version in effect is always the one posted here.",
 "Questions about this policy? Reach us at " + LEGAL_CONTACT + ".",
 ]
@@ -11114,12 +11190,12 @@ body:[
 terms: {
 title:"Terms",
 body:[
-"These Terms of Service govern your use of Mind Map, a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). By using Mind Map, you agree to these terms.",
-"Eligibility. You must be 18 years of age or older to use Mind Map.",
-"What Mind Map is. Mind Map is a space for personal reflection, using AI to help you explore patterns, connections, and possibilities in what you share. It is not a substitute for professional, medical, or mental health advice, diagnosis, or treatment. If you are in crisis, please contact a crisis line or emergency services directly.",
-"Your responsibility. You are responsible for what you choose to share and for how you act on your own reflections. Mind Map's AI-generated content is offered as a mirror, not a directive — you remain the authority on your own experience.",
+"These Terms of Service govern your use of Blindspot, a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). By using Blindspot, you agree to these terms.",
+"Eligibility. You must be 18 years of age or older to use Blindspot.",
+"What Blindspot is. Blindspot is a space for personal reflection, using AI to help you explore patterns, connections, and possibilities in what you share. It is not a substitute for professional, medical, or mental health advice, diagnosis, or treatment. If you are in crisis, please contact a crisis line or emergency services directly.",
+"Your responsibility. You are responsible for what you choose to share and for how you act on your own reflections. Blindspot's AI-generated content is offered as a mirror, not a directive — you remain the authority on your own experience.",
 "Accounts and subscriptions. If you create an account, you're responsible for keeping your login secure. If you subscribe to a paid plan, charges are billed as described at checkout, and you may cancel at any time; see our Privacy Policy for how we handle your data if you cancel or delete your account.",
-"No warranties. Mind Map is provided \"as is\" and \"as available,\" without warranties of any kind, express or implied.",
+"No warranties. Blindspot is provided \"as is\" and \"as available,\" without warranties of any kind, express or implied.",
 "Limitation of liability. To the fullest extent permitted by law, " + LEGAL_ENTITY + " is not liable for any indirect, incidental, or consequential damages, or for decisions made based on reflections generated within the product.",
 "Changes to these terms. We may update these terms as the product evolves. Continued use after an update means you accept the current terms.",
 "Governing law. These terms are governed by the laws of the State of " + LEGAL_STATE + ", without regard to its conflict-of-laws principles.",
@@ -11130,7 +11206,7 @@ body:[
 title:"Disclaimer",
 body:[
 "This is a space for reflection, not diagnosis.",
-"Mind Map uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.",
+"Blindspot uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.",
 "You are always the authority on your own experience. Keep what feels useful. Question what doesn't.",
 "If you are in crisis or thinking about harming yourself, please reach out to a crisis line — in the US, call or text 988 (Suicide & Crisis Lifeline), or text HOME to 741741 (Crisis Text Line).",
 ]
@@ -11187,7 +11263,7 @@ This is a space for reflection, not diagnosis.
 </p>
 <p style={{ fontFamily:FD, fontSize:17, fontWeight:300,
 color:"rgba(210,200,225,0.68)", lineHeight:1.8, marginBottom:24 }}>
-Mind Map uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.
+Blindspot uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.
 </p>
 <p style={{ fontFamily:FD, fontSize:17, fontWeight:300,
 color:"rgba(210,200,225,0.68)", lineHeight:1.8, marginBottom:44 }}>
@@ -11310,7 +11386,7 @@ pastContext = "\n\n\u2550\u2550 PAST SESSIONS (for pattern tracking, not repetit
 } catch(e) {}
 
 var prompt =
-"You are the reflective engine behind SAYCRD \u2014 a co-creation tool, not a diagnosis machine.\n"
+"You are the reflective engine behind BLINDSPOT \u2014 a co-creation tool, not a diagnosis machine.\n"
 + "Your role: WITNESS, not analyst. COMPANION, not judge. MIRROR, not authority.\n"
 + "UNDERLYING ORIENTATION (subtle): Everyone has a beautiful, innocent soul. What they're stuck with blocks their light. Orient toward light, emergence, metamorphosis. Never go dark.\n\n"
 
@@ -11414,6 +11490,14 @@ fetch("/api/admin-check", { headers: { Authorization: "Bearer " + tok } })
 return function(){ cancelled = true; };
 }, [authUser && authUser.id]);
 useEffect(function(){ if (!open) return; function close(){ setOpen(false); } document.addEventListener("click", close); return function(){ document.removeEventListener("click", close); }; }, [open]);
+/* The "Continue without account" bypass sets window.currentUser to a fake
+   { id: "local-user", email: "local@saycrd" } sentinel so storage/AI calls
+   keep working without a real Supabase session — but it is NOT a real
+   account. Treating any truthy authUser as "logged in" here rendered a
+   filled avatar initial, the fake email, and a Dashboard/Log out menu for
+   guests. Only a real Supabase user (id present and not "local-user")
+   counts as logged in for display purposes. */
+var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
 var showDashboard = phase !== 7 && phase !== 8;
 var showBackToReport = (phase === 7 || phase === 8) && phase >= 6;
 // "Continue without account" (the failsafe bypass) sets window.currentUser to a
@@ -11442,10 +11526,19 @@ return (
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
 ) : (
+<<<<<<< HEAD
 <>
 {authUser && showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
 <button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
 </>
+=======
+/* Guests (including the "Continue without account" local-user sentinel)
+   never get a Dashboard entry point here - the Dashboard/Journeys screen
+   shows saved session history, and guests should never retain or be able
+   to reach a view of local session history. Only "Log in / Sign up" is
+   offered. */
+<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "#E84393", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 600 }}>Log in / Sign up</button>
+>>>>>>> 3eddb49972f703ca363e1c57dd8d2fdf6fa684fe
 )}
 </div>
 )}
@@ -11751,6 +11844,18 @@ function SAYCRDFlow() {
   useEffect(function(){
     var routedOnAuth = false;
     function handleAuthChange() {
+      // Signing out (or dropping to guest) while sitting on an account-gated
+      // screen that shows saved session history (Dashboard=7, Journeys=8,
+      // Report=9) must never leave that screen visible — previously
+      // _signOut only cleared window.currentUser and showed the login
+      // overlay on top, but never navigated the app itself away from
+      // whatever phase it was already on, so the Dashboard/Journeys screen
+      // (and the session data it lists) stayed fully mounted underneath.
+      var isReal = !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user");
+      if (!isReal && (phaseRef.current === 7 || phaseRef.current === 8 || phaseRef.current === 9)) {
+        setPhase(0);
+        return;
+      }
       if (routedOnAuth) return;
       routedOnAuth = true;
       // Only auto-route if the user is still sitting on the untouched landing
