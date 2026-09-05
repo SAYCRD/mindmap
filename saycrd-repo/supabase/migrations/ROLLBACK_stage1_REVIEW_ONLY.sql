@@ -52,3 +52,8 @@ drop function if exists public.blindspot_content_set_updated_at();
 -- Stage 1 points FROM the new tables TO those existing tables, never the
 -- reverse, so dropping the six new tables above is sufficient and leaves
 -- all pre-existing tables completely untouched.
+--
+-- Grants are not separately revoked here: DROP TABLE implicitly removes
+-- every grant that referenced it (both the service_role grants and the
+-- fully-revoked anon/authenticated/PUBLIC state), so no standalone
+-- REVOKE step is needed as part of this rollback.

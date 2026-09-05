@@ -131,12 +131,20 @@ create trigger sessions_set_updated_at
 
 alter table public.sessions enable row level security;
 
--- Read-only-own-row policy. There is deliberately no insert/update/delete
--- policy for anon or authenticated: every write to this table goes through
--- a service-role API route that independently verifies the caller's JWT
--- before ever touching user_id (Stage 2+). service_role bypasses RLS
--- entirely (Postgres role property), so this table's write surface can
--- grow later (new API routes) without ever needing to loosen this policy.
+-- Access model: server-API-only. Every read and write to sessions goes
+-- through a JWT-verified, service-role API route (Stage 2+) that derives
+-- user_id from the verified JWT and never accepts it from the request
+-- body. Browser roles (anon, authenticated) receive NO table grant at
+-- all -- not even SELECT -- so the Supabase Data API cannot reach this
+-- table directly regardless of RLS policy state.
+--
+-- The own-row SELECT policy below is kept only as defense-in-depth and as
+-- a documented option for a possible FUTURE direct-authenticated-read
+-- feature. It is currently inert: without a table-level GRANT,
+-- `authenticated` cannot execute a SELECT against this table at all, so
+-- this policy has no practical effect unless a later, separately-reviewed
+-- migration deliberately adds `grant select on public.sessions to
+-- authenticated`.
 drop policy if exists "sessions_select_own" on public.sessions;
 create policy "sessions_select_own"
   on public.sessions
@@ -144,10 +152,15 @@ create policy "sessions_select_own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
--- Defense in depth beyond RLS: explicitly strip table-level write grants
--- from the browser-facing roles so a future missing/misconfigured RLS
--- policy could not be silently compensated for by a leftover default
--- grant. Only SELECT is granted to authenticated (required so the Data
--- API can expose read access at all -- RLS still governs which rows).
-revoke all on public.sessions from anon, authenticated;
-grant select on public.sessions to authenticated;
+-- Explicit privilege model -- no role is left to "implicit" behavior:
+--   - PUBLIC / anon / authenticated: all privileges revoked. Neither can
+--     read nor write this table under any circumstance.
+--   - service_role: explicitly granted exactly the privileges its API
+--     routes need (select/insert/update/delete -- delete supports the
+--     future staged account-deletion flow), rather than relied upon to
+--     have "full access" implicitly via RLS bypass alone. RLS bypass is a
+--     separate Postgres role property from table grants; both are made
+--     explicit here so this table's effective privileges are fully
+--     visible from this file alone.
+revoke all on public.sessions from public, anon, authenticated;
+grant select, insert, update, delete on public.sessions to service_role;

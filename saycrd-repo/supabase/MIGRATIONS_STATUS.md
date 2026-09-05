@@ -41,3 +41,28 @@ Explicitly out of scope for this batch (per the approved Stage 1 plan):
 completion RPCs, changes to `consume_session_credit`, API routes, client
 code, Dashboard changes, admin tables/UI, analytics, Square changes,
 privacy-copy changes, and any execution against staging or production.
+
+## Access model: server-API-only
+
+All six Stage 1 tables use one consistent privilege model, applied
+explicitly in each table's own migration file (not left to "implicit"
+`service_role` access):
+
+- `PUBLIC`, `anon`, and `authenticated` have **all privileges revoked** on
+  every table. Browser clients cannot read or write any of these tables
+  directly through the Supabase Data API, regardless of RLS policy state.
+- `service_role` is granted only the specific privileges its future API
+  routes need per table (see each migration file's grant comment for the
+  exact rationale -- e.g. `session_entitlement_usage` gets `select, insert`
+  only, since it is a write-once audit trail with no update/delete path).
+- RLS remains enabled on every table as defense in depth, and each table
+  keeps its own-row `select` policy for `authenticated` -- but that policy
+  is currently inert, since `authenticated` has no table-level grant to
+  execute a `select` against these tables at all. The policy is retained
+  only as a documented option for a possible future direct-authenticated
+  -read feature; enabling it for real requires a separate, later migration
+  that deliberately adds the grant.
+- All authenticated access to this data happens through server API routes
+  (Stage 2+) that verify the caller's JWT, derive `user_id` from that
+  verified JWT only (never from the request body), and filter every
+  service-role query by that verified `user_id`.

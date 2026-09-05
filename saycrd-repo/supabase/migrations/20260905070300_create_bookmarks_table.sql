@@ -40,6 +40,9 @@ create index if not exists idx_bookmarks_user_created
 
 alter table public.bookmarks enable row level security;
 
+-- Access model: server-API-only, matching sessions above. Browser roles
+-- get no table grant at all; this policy is inert unless a later,
+-- separately-reviewed migration deliberately grants authenticated SELECT.
 drop policy if exists "bookmarks_select_own" on public.bookmarks;
 create policy "bookmarks_select_own"
   on public.bookmarks
@@ -47,5 +50,7 @@ create policy "bookmarks_select_own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
-revoke all on public.bookmarks from anon, authenticated;
-grant select on public.bookmarks to authenticated;
+-- service_role gets select/insert/delete (a user can remove a bookmark
+-- they saved) -- no update, since bookmarks are immutable once saved.
+revoke all on public.bookmarks from public, anon, authenticated;
+grant select, insert, delete on public.bookmarks to service_role;

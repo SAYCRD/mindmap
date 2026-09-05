@@ -41,6 +41,9 @@ create index if not exists idx_captures_user_created
 
 alter table public.captures enable row level security;
 
+-- Access model: server-API-only, matching sessions above. Browser roles
+-- get no table grant at all; this policy is inert unless a later,
+-- separately-reviewed migration deliberately grants authenticated SELECT.
 drop policy if exists "captures_select_own" on public.captures;
 create policy "captures_select_own"
   on public.captures
@@ -48,5 +51,7 @@ create policy "captures_select_own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
-revoke all on public.captures from anon, authenticated;
-grant select on public.captures to authenticated;
+-- service_role gets select/insert/delete (a user can remove a capture
+-- they saved) -- no update, since captures are immutable once saved.
+revoke all on public.captures from public, anon, authenticated;
+grant select, insert, delete on public.captures to service_role;

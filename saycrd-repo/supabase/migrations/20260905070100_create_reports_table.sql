@@ -79,6 +79,9 @@ create trigger reports_set_updated_at
 
 alter table public.reports enable row level security;
 
+-- Access model: server-API-only, matching sessions above. Browser roles
+-- get no table grant at all; this policy is inert unless a later,
+-- separately-reviewed migration deliberately grants authenticated SELECT.
 drop policy if exists "reports_select_own" on public.reports;
 create policy "reports_select_own"
   on public.reports
@@ -86,5 +89,9 @@ create policy "reports_select_own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
-revoke all on public.reports from anon, authenticated;
-grant select on public.reports to authenticated;
+-- service_role needs select/insert/update (a retry re-uses the same row
+-- via `on conflict (session_id) do update`, per the Stage 5 completion
+-- RPC design) but never delete -- reports are removed only by cascading
+-- from their parent session, never directly.
+revoke all on public.reports from public, anon, authenticated;
+grant select, insert, update on public.reports to service_role;

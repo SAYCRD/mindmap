@@ -63,6 +63,9 @@ create unique index if not exists idx_migration_runs_device_scope
 
 alter table public.migration_runs enable row level security;
 
+-- Access model: server-API-only, matching sessions above. Browser roles
+-- get no table grant at all; this policy is inert unless a later,
+-- separately-reviewed migration deliberately grants authenticated SELECT.
 drop policy if exists "migration_runs_select_own" on public.migration_runs;
 create policy "migration_runs_select_own"
   on public.migration_runs
@@ -70,5 +73,9 @@ create policy "migration_runs_select_own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
-revoke all on public.migration_runs from anon, authenticated;
-grant select on public.migration_runs to authenticated;
+-- service_role gets select/insert/update -- a run starts 'in_progress' and
+-- is later updated in place to 'completed'/'partial_failure'/'failed'
+-- (never a new row per status change). No delete: a run's outcome is
+-- permanent audit history.
+revoke all on public.migration_runs from public, anon, authenticated;
+grant select, insert, update on public.migration_runs to service_role;

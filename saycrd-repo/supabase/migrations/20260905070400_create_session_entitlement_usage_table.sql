@@ -65,6 +65,9 @@ create index if not exists idx_entitlement_usage_user
 
 alter table public.session_entitlement_usage enable row level security;
 
+-- Access model: server-API-only, matching sessions above. Browser roles
+-- get no table grant at all; this policy is inert unless a later,
+-- separately-reviewed migration deliberately grants authenticated SELECT.
 drop policy if exists "entitlement_usage_select_own" on public.session_entitlement_usage;
 create policy "entitlement_usage_select_own"
   on public.session_entitlement_usage
@@ -72,5 +75,8 @@ create policy "entitlement_usage_select_own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
-revoke all on public.session_entitlement_usage from anon, authenticated;
-grant select on public.session_entitlement_usage to authenticated;
+-- service_role gets select/insert only -- this table is a write-once
+-- audit trail by design ("exactly one row per session, ever"), so no
+-- update or delete privilege is granted at all, even to service_role.
+revoke all on public.session_entitlement_usage from public, anon, authenticated;
+grant select, insert on public.session_entitlement_usage to service_role;
