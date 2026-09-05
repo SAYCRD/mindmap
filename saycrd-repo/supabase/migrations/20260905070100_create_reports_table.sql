@@ -79,6 +79,7 @@ create trigger reports_set_updated_at
 
 alter table public.reports enable row level security;
 
+drop policy if exists "reports_select_own" on public.reports;
 create policy "reports_select_own"
   on public.reports
   for select

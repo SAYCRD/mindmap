@@ -65,6 +65,7 @@ create index if not exists idx_entitlement_usage_user
 
 alter table public.session_entitlement_usage enable row level security;
 
+drop policy if exists "entitlement_usage_select_own" on public.session_entitlement_usage;
 create policy "entitlement_usage_select_own"
   on public.session_entitlement_usage
   for select

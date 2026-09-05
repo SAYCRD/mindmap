@@ -40,6 +40,7 @@ create index if not exists idx_bookmarks_user_created
 
 alter table public.bookmarks enable row level security;
 
+drop policy if exists "bookmarks_select_own" on public.bookmarks;
 create policy "bookmarks_select_own"
   on public.bookmarks
   for select

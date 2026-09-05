@@ -41,6 +41,7 @@ create index if not exists idx_captures_user_created
 
 alter table public.captures enable row level security;
 
+drop policy if exists "captures_select_own" on public.captures;
 create policy "captures_select_own"
   on public.captures
   for select

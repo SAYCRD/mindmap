@@ -102,7 +102,7 @@ create unique index if not exists idx_sessions_user_legacy_fingerprint
 -- replacing/modifying them. This function is created here, before any
 -- trigger references it, and is used only by the new Blindspot content
 -- tables (sessions, reports) added in this Stage.
-create function public.blindspot_content_set_updated_at()
+create or replace function public.blindspot_content_set_updated_at()
 returns trigger
 language plpgsql
 security invoker
@@ -137,6 +137,7 @@ alter table public.sessions enable row level security;
 -- before ever touching user_id (Stage 2+). service_role bypasses RLS
 -- entirely (Postgres role property), so this table's write surface can
 -- grow later (new API routes) without ever needing to loosen this policy.
+drop policy if exists "sessions_select_own" on public.sessions;
 create policy "sessions_select_own"
   on public.sessions
   for select

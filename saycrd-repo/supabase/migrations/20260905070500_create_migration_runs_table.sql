@@ -63,6 +63,7 @@ create unique index if not exists idx_migration_runs_device_scope
 
 alter table public.migration_runs enable row level security;
 
+drop policy if exists "migration_runs_select_own" on public.migration_runs;
 create policy "migration_runs_select_own"
   on public.migration_runs
   for select
