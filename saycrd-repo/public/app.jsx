@@ -11469,14 +11469,11 @@ useEffect(function(){ if (!open) return; function close(){ setOpen(false); } doc
    counts as logged in for display purposes. */
 var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
 var showDashboard = phase !== 7 && phase !== 8;
-var showBackToReport = (phase === 7 || phase === 8) && phase >= 6;
-// "Continue without account" (the failsafe bypass) sets window.currentUser to a
-// fake { id: "local-user", email: "local@saycrd" } object so storage/AI calls keep
-// working — but that object is truthy, so treating plain `authUser` as "is the
-// person logged in?" made a guest who never created a real account see a filled
-// avatar + "Log out" here, i.e. the menu claimed they were logged in when they
-// weren't. Only a real Supabase account should render the "logged in" UI.
-var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
+// Real accounts have a persistent "Dashboard" menu entry and a "Read Your
+// Report" card right on the Dashboard itself, so a transient "Back to
+// report" item here is redundant and confusing once logged in. Guests have
+// no Dashboard link, so it's their only way back to a report they left.
+var showBackToReport = !isRealAccount && (phase === 7 || phase === 8) && phase >= 6;
 return (
 <div style={{ position: "fixed", top: "calc(12px + env(safe-area-inset-top, 0px))", right: 16, zIndex: 9998 }}>
 <button onClick={function(e){ e.stopPropagation(); setOpen(!open); }} style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)", background: isRealAccount ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.08)", color: isRealAccount ? "rgba(247,241,231,0.9)" : "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, fontFamily: FB, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.2)" }} aria-label="Account">
@@ -11823,7 +11820,12 @@ function SAYCRDFlow() {
       routedOnAuth = true;
       // Only auto-route if the user is still sitting on the untouched landing
       // page — never yank them away from a phase they've already navigated to.
-      if (phaseRef.current === 0 && _hasReturningSessions()) setPhase(7);
+      // Route on isReal (not _hasReturningSessions, which requires session
+      // history already cached in THIS browser's localStorage) so a first
+      // login on a new device — or any login with no locally-cached
+      // sessions yet — still lands on the Dashboard instead of the landing
+      // page's prompt screen.
+      if (phaseRef.current === 0 && isReal) setPhase(7);
     }
     window.addEventListener("saycrd-auth-change", handleAuthChange);
     return function(){ window.removeEventListener("saycrd-auth-change", handleAuthChange); };

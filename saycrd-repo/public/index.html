@@ -20,7 +20,7 @@
 <link rel="preload" href="vendor/supabase-js.2.114.0.min.js" as="script">
 <link rel="preload" href="vendor/react.production.min.js" as="script">
 <link rel="preload" href="vendor/react-dom.production.min.js" as="script">
-<link rel="preload" href="app.compiled.js?v=20260905-1" as="script">
+<link rel="preload" href="app.compiled.js?v=20260905-2" as="script">
 <style>
 :root{
   /* ═══ Fluid layout tokens ═══
@@ -79,6 +79,10 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     .auth-social:hover{border-color:rgba(232,67,147,.4);color:rgba(247,241,231,.9);background:rgba(232,67,147,.06)}
     .auth-forgot{display:block;text-align:right;font-size:.82rem;color:rgba(232,67,147,.5);cursor:pointer;margin-top:-.3rem;margin-bottom:.5rem;transition:color .2s}
     .auth-forgot:hover{color:rgba(232,67,147,.85)}
+    .auth-pw-wrap{position:relative}
+    .auth-pw-wrap .auth-input{padding-right:3.4rem}
+    .auth-pw-toggle{position:absolute;right:.7rem;top:0;height:100%;display:flex;align-items:center;background:none;border:none;color:rgba(247,241,231,.4);font-family:'DM Sans',sans-serif;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;padding:0 .3rem;transition:color .2s}
+    .auth-pw-toggle:hover{color:rgba(232,67,147,.85)}
     .auth-hidden{display:none!important}
     @media (prefers-reduced-motion: reduce){
       .auth-overlay,.auth-card,.auth-btn,.auth-input,.auth-social{transition:none}
@@ -90,6 +94,20 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
          networks each extra external origin costs a fresh DNS lookup + TLS handshake before
          its bytes even start downloading, which is real, compounding latency on cellular. -->
     <script src="vendor/supabase-js.2.114.0.min.js"></script>
+    <script>
+    /* Toggles a password <input> between masked and plain text so a user
+       can verify what they actually typed — defined globally, before the
+       auth overlay markup below can be clicked, since the toggle buttons
+       reference it via an inline onclick. */
+    function _toggleAuthPw(inputId, btn) {
+      var el = document.getElementById(inputId);
+      if (!el) return;
+      var showing = el.type === "text";
+      el.type = showing ? "password" : "text";
+      btn.textContent = showing ? "Show" : "Hide";
+      btn.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+    }
+    </script>
 </head>
 <body class="saycrd-landing">
 
@@ -102,7 +120,10 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
         <!-- Login form -->
         <div id="auth-login">
           <input class="auth-input" type="text" id="auth-email" placeholder="Email" autocomplete="email" />
-          <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+          <div class="auth-pw-wrap">
+            <input class="auth-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password" />
+            <button type="button" class="auth-pw-toggle" aria-label="Show password" onclick="_toggleAuthPw('auth-password', this)">Show</button>
+          </div>
           <span class="auth-forgot" id="auth-forgot" onclick="document.getElementById('auth-login').style.display='none';document.getElementById('auth-reset').style.display='block';setTimeout(function(){document.getElementById('auth-reset-email').focus();},80);">Forgot password?</span>
           <button class="auth-btn" id="auth-login-btn" onclick="
             (async function(){
@@ -145,7 +166,10 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
         <!-- Signup form -->
         <div id="auth-signup" style="display:none">
           <input class="auth-input" type="email" id="auth-signup-email" placeholder="Email" autocomplete="email" />
-          <input class="auth-input" type="password" id="auth-signup-password" placeholder="Password (min 6 chars)" autocomplete="new-password" />
+          <div class="auth-pw-wrap">
+            <input class="auth-input" type="password" id="auth-signup-password" placeholder="Password (min 6 chars)" autocomplete="new-password" />
+            <button type="button" class="auth-pw-toggle" aria-label="Show password" onclick="_toggleAuthPw('auth-signup-password', this)">Show</button>
+          </div>
           <button class="auth-btn" id="auth-signup-btn" onclick="
             (async function(){
               var btn=document.getElementById('auth-signup-btn');btn.disabled=true;
@@ -205,8 +229,14 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
         <!-- Set new password (shown after clicking a reset-password email link) -->
         <div id="auth-new-password" style="display:none">
           <div class="auth-sub" style="margin-bottom:1.5rem">Choose a new password</div>
-          <input class="auth-input" type="password" id="auth-new-password-input" placeholder="New password (min 6 chars)" autocomplete="new-password" />
-          <input class="auth-input" type="password" id="auth-new-password-confirm" placeholder="Confirm new password" autocomplete="new-password" />
+          <div class="auth-pw-wrap">
+            <input class="auth-input" type="password" id="auth-new-password-input" placeholder="New password (min 6 chars)" autocomplete="new-password" />
+            <button type="button" class="auth-pw-toggle" aria-label="Show password" onclick="_toggleAuthPw('auth-new-password-input', this)">Show</button>
+          </div>
+          <div class="auth-pw-wrap">
+            <input class="auth-input" type="password" id="auth-new-password-confirm" placeholder="Confirm new password" autocomplete="new-password" />
+            <button type="button" class="auth-pw-toggle" aria-label="Show password" onclick="_toggleAuthPw('auth-new-password-confirm', this)">Show</button>
+          </div>
           <button class="auth-btn" id="auth-new-password-btn" onclick="
             (async function(){
               var btn=document.getElementById('auth-new-password-btn');btn.disabled=true;
@@ -279,7 +309,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      of being transpiled in-browser via Babel Standalone on every visit. That in-browser
      compile of ~11k lines of JSX was taking ~30s on phones with nothing rendered but
      the background, since React can't draw anything until the transpile finishes. -->
-<script src="app.compiled.js?v=20260905-1"></script>
+<script src="app.compiled.js?v=20260905-2"></script>
 
 <script>
 /* Global error handler — shows what's breaking */
