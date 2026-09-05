@@ -11585,6 +11585,56 @@ return (
 );
 }
 
+// Admin-only read view of customers — free-session usage, paid balance,
+// lifetime spend, purchase count. Reachable from UserMenu when the
+// signed-in user's email is in ADMIN_EMAILS (UX gate — api/admin-customers.js
+// enforces the real allowlist server-side on every request this makes).
+function AdminCustomersPanel() {
+var [visible, setVisible] = useState(false);
+var [customers, setCustomers] = useState(null);
+var [error, setError] = useState("");
+
+function load() {
+setError("");
+window._fetchAdminCustomers().then(function(list) { setCustomers(list || []); }).catch(function(e) { setError(e.message || "Failed to load customers."); });
+}
+
+useEffect(function() {
+function onShow() { setVisible(true); load(); }
+window.addEventListener("blindspot-show-admin-customers", onShow);
+return function() { window.removeEventListener("blindspot-show-admin-customers", onShow); };
+}, []);
+
+if (!visible) return null;
+
+return (
+<div style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(6,9,16,0.92)", backdropFilter: "blur(12px)", padding: 20 }}>
+<div style={{ position: "relative", width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto", background: "rgba(16,14,28,0.98)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20, padding: "32px 28px", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+<button onClick={function() { setVisible(false); }} aria-label="Close" style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16 }}>×</button>
+<h2 style={{ fontSize: 20, fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", marginBottom: 20 }}>Customers</h2>
+{error && <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.3)", color: "rgba(255,150,150,0.95)", fontFamily: FB, fontSize: 13, marginBottom: 16 }}>{error}</div>}
+{customers === null && <div style={{ color: "rgba(255,255,255,0.4)", fontFamily: FB, fontSize: 13 }}>Loading…</div>}
+{customers && customers.length === 0 && <div style={{ color: "rgba(255,255,255,0.4)", fontFamily: FB, fontSize: 13 }}>No customer activity yet.</div>}
+{customers && customers.map(function(c) {
+return (
+<div key={c.user_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+<div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{c.email}</div>
+<div style={{ fontSize: 12, fontFamily: FB, color: "rgba(255,255,255,0.45)" }}>
+{c.free_sessions_used}/2 free used · {c.paid_balance} credit{c.paid_balance === 1 ? "" : "s"} left · {c.purchases} purchase{c.purchases === 1 ? "" : "s"} · ${(c.lifetime_spent_cents / 100).toFixed(2)} lifetime
+</div>
+</div>
+<div style={{ fontSize: 11, fontFamily: FB, color: "rgba(255,255,255,0.35)", textAlign: "right", flexShrink: 0 }}>
+{c.last_activity ? new Date(c.last_activity).toLocaleDateString() : ""}
+</div>
+</div>
+);
+})}
+</div>
+</div>
+);
+}
+
 function UserMenu({ phase, setPhase }) {
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 var [open, setOpen] = useState(false);
@@ -11616,6 +11666,7 @@ return (
 </div>
 {showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
 {_isAdminUser() && <button onClick={function(){ if (window._showAdminTiersPanel) window._showAdminTiersPanel(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(184,107,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Admin: Session Packs</button>}
+{_isAdminUser() && <button onClick={function(){ if (window._showAdminCustomersPanel) window._showAdminCustomersPanel(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(184,107,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Admin: Customers</button>}
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
 ) : (
@@ -11768,6 +11819,7 @@ if (next) next();
 }}/>}
 <PaywallModal/>
 <AdminTiersPanel/>
+<AdminCustomersPanel/>
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes phaseIn{from{opacity:0.6}to{opacity:1}}
