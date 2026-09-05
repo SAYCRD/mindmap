@@ -218,3 +218,106 @@ inconsistency to "fix" back to `cascade`:**
   is a legitimate, separate decision to make explicitly and knowingly --
   not something to "correct" on the assumption that Stage 1 simply
   forgot to match the rest of the schema.
+
+## Stage 1 required rehearsal before any production migration
+
+Before any of the six Stage 1 migration files are ever applied to
+production, they must be rehearsed from scratch (a clean `apply_migration`
+replay, not a hand-corrected live database) on a fresh, isolated branch.
+The current staging project (`lbydmtgeojnozzhwsava`) was hand-corrected
+directly after its branch reset replayed stale migration content instead
+of picking up the `service_role`-grant fix above -- it is suitable for
+continued Stage 2+ development against, but it is **not** the clean-replay
+proof production migration requires. That rehearsal is tracked as a
+standalone, separate step, not yet performed.
+
+## Stage 2: server API routes for session/report/capture/bookmark CRUD (authored, not deployed)
+
+Stage 2 authors the JWT-verified server API routes that read and write the
+Stage 1 tables, plus their shared validation helpers and unit tests. It
+does **not** connect to any live database, deploy anything, wire the
+browser client, or merge to `main` -- see each route file's own header
+comment for its exact scope. Explicitly excluded from Stage 2 (owned by
+later stages): guest migration, completion/credit consumption,
+reservations, Dashboard integration, export, account deletion, admin
+features, analytics, and Square/payment changes.
+
+| File | Purpose |
+|---|---|
+| `api/_validate.js` | Pure, dependency-free validation/pagination helpers shared by every Stage 2 route (UUID checks, content size/shape checks, per-field length caps, keyset-cursor encode/decode). No I/O, so it is unit-tested directly with no mocking. |
+| `api/sessions.js` | Session create, autosave/update (`PATCH`), list, and retrieve-one. |
+| `api/reports.js` | Retrieve a report by its owning `session_id`. Read-only. |
+| `api/captures.js` | Capture create, list, delete. No update route exists. |
+| `api/bookmarks.js` | Bookmark create, list, delete. No update route exists. |
+| `api/package.json` (`{"type":"module"}`) | Scopes Node's module resolution to ESM for everything under `api/`, matching the `import`/`export` syntax these files (and the pre-existing Stage-1-adjacent routes such as `_lib.js`) already use. Vercel's Node builder already auto-detects and runs this ESM syntax in production regardless of this file, so it changes no deployed behavior -- it only makes `api/__tests__`'s `node --test` runs work locally without a bundler, since plain Node needs an explicit `"type": "module"` (or a `.mjs` extension) to parse `import`/`export` itself. Scoped to `api/` only, not the repo root, so `build/compile.js`'s own `require(...)` calls are unaffected. |
+| `api/__tests__/*.test.js`, `api/__tests__/_mock-supabase.js`, `api/__tests__/_http.js` | Unit tests (Node's built-in `node:test` runner -- no new dependency) plus a small in-memory mock Supabase query builder and fake req/res, so every test exercises route logic with zero network or database access. Run with `npm test`. |
+
+Every route follows the same security shape: `getAuthedUser` (from
+`_lib.js`) verifies the caller's Supabase JWT and is the **only** source
+of `user_id` -- never the request body, query string, or URL. Every
+service-role query is filtered by that verified `user_id`, "not found"
+and "belongs to another user" always produce the identical response
+(generic 404/409, never a distinguishable 403), and every mutating route
+whitelists request-body keys explicitly rather than trusting the caller
+not to send `status`, `user_id`, `id`, or migration/reservation
+bookkeeping fields it should never be able to set.
+
+### Route contract table
+
+| Route | Method | Auth | Ownership check | Notable behavior |
+|---|---|---|---|---|
+| `/api/sessions` | `POST` | required | `user_id` from JWT only | Create. Body whitelist: `id?`, `content?`. Client-supplied `id` (UUID) is optional; retrying the same id while it is still `draft` and owned by the caller is idempotent (200, content unchanged) -- never accepted from the body: `status`, `user_id`. Existing id owned by another user -> generic `409 conflict`. Existing id no longer `draft` -> `409 session_not_draft`. |
+| `/api/sessions?id=` | `PATCH` | required | row fetched `WHERE id=? AND user_id=verified` | Autosave. Body whitelist: `content?`, `schema_version?` (forward-only). Any other key -> `400 unsupported_field`. Session not `draft`/`processing` (i.e. `completed`/`failed`/`abandoned`) -> `409 session_not_editable`, update never applied. |
+| `/api/sessions?id=` | `GET` | required | `WHERE id=? AND user_id=verified` | Retrieve one. Not found or not owned -> identical `404 not_found`. |
+| `/api/sessions?status=&limit=&cursor=` | `GET` | required | `WHERE user_id=verified` | List. Keyset-paginated on `(created_at desc, id desc)`; `limit` capped at 100 per page (default 20), `cursor` opaque/base64url. No cap on total retrievable history across pages. |
+| `/api/reports?session_id=` | `GET` | required | session ownership AND report's own `user_id`, both checked | Retrieve by session. No report yet -> `404 not_found` (Stage 2 never generates one). Immutable through this route. |
+| `/api/captures` | `POST` | required | `session_id` (if given) must resolve `WHERE id=? AND user_id=verified` | Create. Body whitelist: `text` (<=300 chars), `note?` (<=800 chars), `source?` (allowlist: `report`/`manual`/`session`), `session_id?`. |
+| `/api/captures?session_id=&limit=&cursor=` | `GET` | required | `WHERE user_id=verified` | List, same keyset pagination as sessions. |
+| `/api/captures?id=` | `DELETE` | required | `WHERE id=? AND user_id=verified` in the delete statement itself | Not found/not owned -> `404 not_found`. Never touches the source session row. |
+| `/api/bookmarks` | `POST` | required | same as captures | Create. Body whitelist: `text` (<=2000 chars, matches DB check), `label?` (<=500 chars, app-level only -- DB has no check constraint on `label`), `session_id?`. |
+| `/api/bookmarks?session_id=&limit=&cursor=` | `GET` | required | `WHERE user_id=verified` | List, same keyset pagination. |
+| `/api/bookmarks?id=` | `DELETE` | required | `WHERE id=? AND user_id=verified` | Not found/not owned -> `404 not_found`. Never touches the source session row. |
+
+All methods not listed above for a given route return `405
+method_not_allowed`; `OPTIONS` returns `200` per `setCors`'s existing CORS
+convention (unchanged from Stage-1-adjacent routes). Every response body
+is one of the listed generic string error codes or the resource's
+minimal public field set (see each route file's `*_PUBLIC_FIELDS`
+constant) -- never a raw exception message, session content, report
+content, capture/bookmark text, or any internal/migration/reservation
+column.
+
+### Test results
+
+`npm test` (Node's built-in `node --test`, no new dependency): **50
+passed, 0 failed.** Covers, per route: unauthenticated rejection,
+unsupported-method rejection, request-body whitelisting, size/shape
+validation, cross-user ownership isolation (never able to read, modify,
+or delete another user's row), idempotent session creation (no
+duplicate row), the `session_not_draft` / `session_not_editable` /
+`invalid_schema_version` conflict paths, and minimal-field response
+shaping (asserts internal fields like `user_id`, `migration_source`,
+`last_error`, `attempt_count` are never present in a response body). The
+mock Supabase client does not evaluate `.or()` filter expressions (used
+for keyset-cursor pagination), so the exact SQL semantics of cursor-based
+paging past a page boundary are exercised structurally (cursor
+encode/decode round-trip, `next_cursor` presence tied to page fullness)
+but not against a real Postgres query planner.
+
+### Remaining items requiring live staging verification
+
+- Cursor-based (`.or()`-driven) pagination's exact SQL behavior across a
+  real page boundary, including behavior when rows share an identical
+  `created_at` timestamp.
+- The `sessions_content_size_ck` DB constraint and this route's
+  independent ~200KB application-level check agreeing at the boundary
+  (the DB is authoritative; the app check exists only to fail fast with a
+  clean error before a request ever reaches Postgres).
+- End-to-end JWT verification against a real Supabase project (unit tests
+  inject a fake `getAuthedUser`, never a real token).
+- Confirming `service_role`'s actual per-table grants on whichever
+  database these routes are ultimately pointed at match the corrected
+  Stage 1 matrix above (this is exactly the class of defect the Stage 1
+  fix addressed) -- and, per the required-rehearsal note above, that this
+  has been proven via a clean migration replay, not a hand-corrected
+  database.
