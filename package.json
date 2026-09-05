@@ -1,5 +1,5 @@
 {
-  "name": "mindmap-sandbox-dev",
+  "name": "blindspot-sandbox-dev",
   "private": true,
   "version": "0.0.0",
   "description": "Dev-server shim for v0 sandbox preview only. Production deploys use the Vercel project's Root Directory setting (saycrd-repo) and ignore this file.",

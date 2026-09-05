@@ -11109,13 +11109,13 @@ var CONTENT = {
 privacy: {
 title:"Privacy",
 body:[
-"Mind Map is a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). This policy explains what we collect, how we use it, and the choices you have.",
+"Blindspot is a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). This policy explains what we collect, how we use it, and the choices you have.",
 "What we collect: the reflections, themes, and other content you write during a session; your email address if you create an account; and basic technical data (like device and browser type) needed to run the app.",
 "What we don't collect: if you choose \"Continue without account,\" your sessions stay on your device only — we don't receive or store that content on our servers.",
 "How we use it: session content is used to generate your personal reflections and, for account holders, to recognize patterns across your sessions over time. Your email is used only for account access, service updates, and — if you subscribe — billing.",
 "We do not sell your personal data, and we do not use your reflections to build advertising profiles. Session content is sent to our AI provider solely to generate your reflections and is not used to train their models beyond that purpose.",
 "You can request an export or deletion of your account and its data at any time by emailing " + LEGAL_CONTACT + ". We'll respond within a reasonable time and confirm once it's done.",
-"Mind Map is intended for users 18 years of age or older. We do not knowingly collect information from anyone under 18.",
+"Blindspot is intended for users 18 years of age or older. We do not knowingly collect information from anyone under 18.",
 "This policy may be updated as the product evolves; the version in effect is always the one posted here.",
 "Questions about this policy? Reach us at " + LEGAL_CONTACT + ".",
 ]
@@ -11123,12 +11123,12 @@ body:[
 terms: {
 title:"Terms",
 body:[
-"These Terms of Service govern your use of Mind Map, a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). By using Mind Map, you agree to these terms.",
-"Eligibility. You must be 18 years of age or older to use Mind Map.",
-"What Mind Map is. Mind Map is a space for personal reflection, using AI to help you explore patterns, connections, and possibilities in what you share. It is not a substitute for professional, medical, or mental health advice, diagnosis, or treatment. If you are in crisis, please contact a crisis line or emergency services directly.",
-"Your responsibility. You are responsible for what you choose to share and for how you act on your own reflections. Mind Map's AI-generated content is offered as a mirror, not a directive — you remain the authority on your own experience.",
+"These Terms of Service govern your use of Blindspot, a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). By using Blindspot, you agree to these terms.",
+"Eligibility. You must be 18 years of age or older to use Blindspot.",
+"What Blindspot is. Blindspot is a space for personal reflection, using AI to help you explore patterns, connections, and possibilities in what you share. It is not a substitute for professional, medical, or mental health advice, diagnosis, or treatment. If you are in crisis, please contact a crisis line or emergency services directly.",
+"Your responsibility. You are responsible for what you choose to share and for how you act on your own reflections. Blindspot's AI-generated content is offered as a mirror, not a directive — you remain the authority on your own experience.",
 "Accounts and subscriptions. If you create an account, you're responsible for keeping your login secure. If you subscribe to a paid plan, charges are billed as described at checkout, and you may cancel at any time; see our Privacy Policy for how we handle your data if you cancel or delete your account.",
-"No warranties. Mind Map is provided \"as is\" and \"as available,\" without warranties of any kind, express or implied.",
+"No warranties. Blindspot is provided \"as is\" and \"as available,\" without warranties of any kind, express or implied.",
 "Limitation of liability. To the fullest extent permitted by law, " + LEGAL_ENTITY + " is not liable for any indirect, incidental, or consequential damages, or for decisions made based on reflections generated within the product.",
 "Changes to these terms. We may update these terms as the product evolves. Continued use after an update means you accept the current terms.",
 "Governing law. These terms are governed by the laws of the State of " + LEGAL_STATE + ", without regard to its conflict-of-laws principles.",
@@ -11139,7 +11139,7 @@ body:[
 title:"Disclaimer",
 body:[
 "This is a space for reflection, not diagnosis.",
-"Mind Map uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.",
+"Blindspot uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.",
 "You are always the authority on your own experience. Keep what feels useful. Question what doesn't.",
 "If you are in crisis or thinking about harming yourself, please reach out to a crisis line — in the US, call or text 988 (Suicide & Crisis Lifeline), or text HOME to 741741 (Crisis Text Line).",
 ]
@@ -11196,7 +11196,7 @@ This is a space for reflection, not diagnosis.
 </p>
 <p style={{ fontFamily:FD, fontSize:17, fontWeight:300,
 color:"rgba(210,200,225,0.68)", lineHeight:1.8, marginBottom:24 }}>
-Mind Map uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.
+Blindspot uses AI to explore patterns, connections, and possibilities in what you share. Its reflections may not always be accurate, and they should not be treated as professional, medical, or mental health advice.
 </p>
 <p style={{ fontFamily:FD, fontSize:17, fontWeight:300,
 color:"rgba(210,200,225,0.68)", lineHeight:1.8, marginBottom:44 }}>
