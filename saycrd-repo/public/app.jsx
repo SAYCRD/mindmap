@@ -10283,20 +10283,31 @@ var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
+var [starting, setStarting] = useState(false);
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
+  // A credit-consuming request is in flight (or a global lock from another
+  // instance of this same button elsewhere on the page is held) — ignore
+  // further clicks. Without this guard, a real double-click or a slow
+  // network response left the button clickable while the first request was
+  // still pending, so a second click fired a second credit-consume call and
+  // silently burned an extra paid/free session before any session content
+  // even loaded.
+  if (starting || window._sessionStartInFlight) return;
   if (_isRealAccount()) {
     /* Real accounts skip the guest free-session cap entirely and instead go
        through the paid session-credit/paywall flow. */
     if (!window._consumeSessionCredit) { onStart(); return; }
+    setStarting(true); window._sessionStartInFlight = true;
     window._consumeSessionCredit().then(function(result) {
+      setStarting(false); window._sessionStartInFlight = false;
       if (result && result.ok === false) {
         if (window._showPaywall) window._showPaywall(); else onStart();
       } else {
         onStart();
       }
-    }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+    }).catch(function() { setStarting(false); window._sessionStartInFlight = false; onStart(); }); /* fail open on unexpected errors too */
     return;
   }
   if (!_canStartNewSession()) {
@@ -10389,8 +10400,8 @@ return (
 ← Back
 </button>
 )}
-<button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
-Start a new session
+<button onClick={guardedStart} disabled={starting} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: starting ? "default" : "pointer", opacity: starting ? 0.6 : 1, boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
+{starting ? "Starting…" : "Start a new session"}
 </button>
 <div style={{ marginTop: 24, fontSize: 14, color: "rgba(255,255,255,0.45)", fontFamily: FD, fontStyle: "italic", textAlign: "center", lineHeight: 1.5 }}>
 Your field grows with each session.
@@ -10425,18 +10436,26 @@ var introStr = introRaw ? (introRaw.length > 160 ? introRaw.slice(0, 160).replac
 var SG = "Space Grotesk, " + FB;
 var isRealAccount = typeof window !== "undefined" && !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user");
 var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
+var [starting, setStarting] = useState(false);
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
 function guardedStart() {
+  // See JourneysPhase's guardedStart for why this guard exists: without it,
+  // a double-click (or a slow response leaving the button clickable) could
+  // fire _consumeSessionCredit() twice and silently burn two sessions for
+  // one click.
+  if (starting || window._sessionStartInFlight) return;
   if (_isRealAccount()) {
     if (!window._consumeSessionCredit) { onStart(); return; }
+    setStarting(true); window._sessionStartInFlight = true;
     window._consumeSessionCredit().then(function(result) {
+      setStarting(false); window._sessionStartInFlight = false;
       if (result && result.ok === false) {
         if (window._showPaywall) window._showPaywall(); else onStart();
       } else {
         onStart();
       }
-    }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+    }).catch(function() { setStarting(false); window._sessionStartInFlight = false; onStart(); }); /* fail open on unexpected errors too */
     return;
   }
   if (!_canStartNewSession()) {
@@ -10542,8 +10561,8 @@ return (
 </div>
 )}
 
-<button onClick={guardedStart} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: "pointer", boxShadow: "0 8px 32px rgba(184,107,255,0.3)", minHeight: 52, touchAction: "manipulation" }}>
-Start a new session
+<button onClick={guardedStart} disabled={starting} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: starting ? "default" : "pointer", opacity: starting ? 0.6 : 1, boxShadow: "0 8px 32px rgba(184,107,255,0.3)", minHeight: 52, touchAction: "manipulation" }}>
+{starting ? "Starting…" : "Start a new session"}
 </button>
 
 {isRealAccount ? (
@@ -10628,16 +10647,24 @@ useEffect(function() { setTimeout(function() { setShow(true); }, 100); }, []);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
+var [starting, setStarting] = useState(false);
 function guardedStart() {
+  // See JourneysPhase's guardedStart for why this guard exists: without it,
+  // a double-click (or a slow response leaving the button clickable) could
+  // fire _consumeSessionCredit() twice and silently burn two sessions for
+  // one click.
+  if (starting || window._sessionStartInFlight) return;
   if (_isRealAccount()) {
     if (!window._consumeSessionCredit) { onStart(); return; }
+    setStarting(true); window._sessionStartInFlight = true;
     window._consumeSessionCredit().then(function(result) {
+      setStarting(false); window._sessionStartInFlight = false;
       if (result && result.ok === false) {
         if (window._showPaywall) window._showPaywall(); else onStart();
       } else {
         onStart();
       }
-    }).catch(function() { onStart(); }); /* fail open on unexpected errors too */
+    }).catch(function() { setStarting(false); window._sessionStartInFlight = false; onStart(); }); /* fail open on unexpected errors too */
     return;
   }
   if (!_canStartNewSession()) {
