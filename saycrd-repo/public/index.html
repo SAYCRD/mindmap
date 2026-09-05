@@ -20,7 +20,7 @@
 <link rel="preload" href="vendor/supabase-js.2.114.0.min.js" as="script">
 <link rel="preload" href="vendor/react.production.min.js" as="script">
 <link rel="preload" href="vendor/react-dom.production.min.js" as="script">
-<link rel="preload" href="app.compiled.js?v=20260904-4" as="script">
+<link rel="preload" href="app.compiled.js?v=20260904-5" as="script">
 <style>
 :root{
   /* ═══ Fluid layout tokens ═══
@@ -258,7 +258,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      of being transpiled in-browser via Babel Standalone on every visit. That in-browser
      compile of ~11k lines of JSX was taking ~30s on phones with nothing rendered but
      the background, since React can't draw anything until the transpile finishes. -->
-<script src="app.compiled.js?v=20260904-4"></script>
+<script src="app.compiled.js?v=20260904-5"></script>
 
 <script>
 /* Global error handler — shows what's breaking */
@@ -821,6 +821,115 @@ window._localBypass = function() {
   };
 
 // Legacy Babel error handler removed (jsxCode now in app.jsx)
+
+  /* ====================================================================
+     Session-pack payments (Square) — credits, tiers, checkout, admin.
+     Thin fetch wrappers only; all real enforcement (auth, admin allowlist,
+     balance checks, tamper-proofing) happens server-side in api/*.js. */
+  async function _ensurePayToken() {
+    if (window._saycrdToken) return window._saycrdToken;
+    if (window.sbClient && window.sbClient.auth) {
+      try {
+        var ss = await window.sbClient.auth.getSession();
+        if (ss && ss.data && ss.data.session && ss.data.session.access_token) {
+          window._saycrdToken = ss.data.session.access_token;
+          return window._saycrdToken;
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  async function _payFetch(path, opts) {
+    opts = opts || {};
+    var headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    if (!opts.noAuth) {
+      var tok = await _ensurePayToken();
+      if (tok) headers["Authorization"] = "Bearer " + tok;
+    }
+    var r = await fetch(path, {
+      method: opts.method || "GET",
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    var data = null;
+    try { data = await r.json(); } catch (e) {}
+    return { ok: r.ok, status: r.status, data: data };
+  }
+
+  window._fetchCredits = async function(guestUsed) {
+    var qs = (typeof guestUsed === "number") ? ("?guestUsed=" + guestUsed) : "";
+    var r = await _payFetch("/api/credits" + qs);
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to load credits");
+    return r.data;
+  };
+
+  window._consumeSessionCredit = async function(guestUsed) {
+    var r = await _payFetch("/api/session-start", { method: "POST", body: { guestUsed: guestUsed } });
+    if (r.status === 402) return { ok: false, insufficientCredits: true };
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to start session");
+    return r.data;
+  };
+
+  window._fetchSessionTiers = async function() {
+    var r = await _payFetch("/api/session-tiers", { noAuth: true });
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to load session packs");
+    return (r.data && r.data.tiers) || [];
+  };
+
+  window._createSquareCheckout = async function(tierId) {
+    var r = await _payFetch("/api/square-checkout", { method: "POST", body: { tierId: tierId } });
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to start checkout");
+    return r.data && r.data.checkoutUrl;
+  };
+
+  window._showPaywallModal = function() {
+    window.dispatchEvent(new CustomEvent("blindspot-show-paywall"));
+  };
+
+  window._fetchAdminTiers = async function() {
+    var r = await _payFetch("/api/admin-tiers");
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to load session packs");
+    return (r.data && r.data.tiers) || [];
+  };
+
+  window._createAdminTier = async function(tier) {
+    var r = await _payFetch("/api/admin-tiers", { method: "POST", body: tier });
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to create pack");
+    return r.data && r.data.tier;
+  };
+
+  window._updateAdminTier = async function(tier) {
+    var r = await _payFetch("/api/admin-tiers", { method: "PUT", body: tier });
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to update pack");
+    return r.data && r.data.tier;
+  };
+
+  window._deactivateAdminTier = async function(id) {
+    var r = await _payFetch("/api/admin-tiers", { method: "DELETE", body: { id: id } });
+    if (!r.ok) throw new Error((r.data && r.data.error) || "Failed to remove pack");
+    return true;
+  };
+
+  window._showAdminTiersPanel = function() {
+    window.dispatchEvent(new CustomEvent("blindspot-show-admin-tiers"));
+  };
+
+  // Square's hosted checkout redirects back here with ?checkout=return
+  // after payment. The webhook (not this redirect) is the source of truth
+  // for actually crediting the account, so this just clears the query
+  // param and tells any open PaywallModal to re-poll /api/credits.
+  (function() {
+    try {
+      if (location.search.indexOf("checkout=return") !== -1) {
+        window._checkoutJustReturned = true;
+        var url = new URL(location.href);
+        url.searchParams.delete("checkout");
+        history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
+        window.dispatchEvent(new CustomEvent("blindspot-checkout-return"));
+      }
+    } catch (e) {}
+  })();
 </script>
 </body>
 </html>

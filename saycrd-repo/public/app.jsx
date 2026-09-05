@@ -194,6 +194,48 @@ function _guestSessionCount() {
 }
 function _canStartNewSession() { return _isRealAccount() || _guestSessionCount() < FREE_GUEST_SESSION_LIMIT; }
 
+// Client-side mirror of the server's ADMIN_EMAILS allowlist — UX only (to
+// decide whether to show the admin link at all). The real enforcement
+// lives in api/admin-tiers.js, which checks the caller's Supabase-verified
+// email server-side; this constant grants no actual access on its own.
+var ADMIN_EMAILS = ["antony@sedonya.org", "tonyberkman@gmail.com"];
+function _isAdminUser() {
+  var email = (typeof window !== "undefined" && window.currentUser && window.currentUser.email) || "";
+  return ADMIN_EMAILS.indexOf(String(email).toLowerCase()) !== -1;
+}
+
+// Real accounts get 2 free sessions (ever), then must buy a session pack —
+// this is the single gate all 3 "start a session" entry points (landing,
+// completion screen, journeys screen) route through. Guests keep the
+// existing local-count-based free-session flow below unchanged; this only
+// applies once someone has signed up for a real account.
+function _runGuardedStart(onStart) {
+  if (_isRealAccount()) {
+    if (!window._consumeSessionCredit) { onStart(); return; }
+    window._consumeSessionCredit(_guestSessionCount()).then(function(result) {
+      if (result && result.ok) { onStart(); return; }
+      if (window._showPaywallModal) window._showPaywallModal();
+      else onStart();
+    }).catch(function(err) {
+      // Fail open on a network/server error (not on an explicit "no
+      // credits" response, which resolves normally above) so an outage
+      // doesn't strand a paying user who already has credits.
+      console.error("[BLINDSPOT] session-start check failed, allowing session:", err);
+      onStart();
+    });
+    return;
+  }
+  if (!_canStartNewSession()) {
+    // Free guest sessions used up: hard wall requiring a real account, with
+    // no "Continue without account" escape hatch offered.
+    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
+    return;
+  }
+  if (window.currentUser) { onStart(); return; }
+  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
+  else { onStart(); }
+}
+
 // First-time disclaimer ("Before we begin") acknowledgment. Stored per-uid in
 // localStorage (works for guests and logged-in users alike, synchronously,
 // so it can gate the very first "begin" click with no async wait). For real
@@ -10285,18 +10327,7 @@ var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
-function guardedStart() {
-  if (_isRealAccount()) { onStart(); return; }
-  if (!_canStartNewSession()) {
-    // Free guest sessions used up: hard wall requiring a real account, with
-    // no "Continue without account" escape hatch offered.
-    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
-    return;
-  }
-  if (window.currentUser) { onStart(); return; }
-  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-  else { onStart(); }
-}
+function guardedStart() { _runGuardedStart(onStart); }
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
 <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
@@ -10415,18 +10446,7 @@ var isRealAccount = typeof window !== "undefined" && !!(window.currentUser && wi
 var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
-function guardedStart() {
-  if (_isRealAccount()) { onStart(); return; }
-  if (!_canStartNewSession()) {
-    // Free guest sessions used up: hard wall requiring a real account, with
-    // no "Continue without account" escape hatch offered.
-    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
-    return;
-  }
-  if (window.currentUser) { onStart(); return; }
-  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-  else { onStart(); }
-}
+function guardedStart() { _runGuardedStart(onStart); }
 
 return (
 <div style={{ width: "100%", height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
@@ -10601,18 +10621,7 @@ useEffect(function() { setTimeout(function() { setShow(true); }, 100); }, []);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
-function guardedStart() {
-  if (_isRealAccount()) { onStart(); return; }
-  if (!_canStartNewSession()) {
-    // Free guest sessions used up: hard wall requiring a real account, with
-    // no "Continue without account" escape hatch offered.
-    if (window._showAuthOverlay) window._showAuthOverlay(onStart, { requireAccount: true });
-    return;
-  }
-  if (window.currentUser) { onStart(); return; }
-  if (window._showAuthOverlay) { window._showAuthOverlay(onStart); }
-  else { onStart(); }
-}
+function guardedStart() { _runGuardedStart(onStart); }
 
 return (
 <div style={{ width:"100%", height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch",
@@ -11392,6 +11401,182 @@ return (
 );
 }
 
+// Shown once a real account has used its 2 free sessions and has no paid
+// credits left. Fetches the admin-configured tiers, and on "Buy" opens a
+// Square-hosted checkout in the same tab. Square's webhook (not this
+// component) is what actually grants credit; on return we just re-poll
+// /api/credits for a few seconds so the balance updates without a manual
+// refresh, then let the user close the modal and try "start" again.
+function PaywallModal() {
+var [visible, setVisible] = useState(false);
+var [tiers, setTiers] = useState(null);
+var [error, setError] = useState("");
+var [buyingId, setBuyingId] = useState(null);
+var [polling, setPolling] = useState(false);
+var [justPaid, setJustPaid] = useState(false);
+
+function loadTiers() {
+setError("");
+if (!window._fetchSessionTiers) { setError("Payments are unavailable right now."); return; }
+window._fetchSessionTiers().then(function(list) { setTiers(list || []); }).catch(function(e) { setError(e.message || "Failed to load session packs."); });
+}
+
+useEffect(function() {
+function onShow() { setVisible(true); setJustPaid(false); loadTiers(); }
+window.addEventListener("blindspot-show-paywall", onShow);
+return function() { window.removeEventListener("blindspot-show-paywall", onShow); };
+}, []);
+
+useEffect(function() {
+function onReturn() {
+if (!visible) return;
+setPolling(true);
+var attempts = 0;
+var iv = setInterval(function() {
+attempts++;
+if (!window._fetchCredits) { clearInterval(iv); setPolling(false); return; }
+window._fetchCredits(_guestSessionCount()).then(function(c) {
+if (c && c.totalAvailable > 0) { clearInterval(iv); setPolling(false); setJustPaid(true); }
+else if (attempts >= 8) { clearInterval(iv); setPolling(false); }
+}).catch(function() { clearInterval(iv); setPolling(false); });
+}, 1500);
+}
+window.addEventListener("blindspot-checkout-return", onReturn);
+if (window._checkoutJustReturned) { window._checkoutJustReturned = false; onReturn(); }
+return function() { window.removeEventListener("blindspot-checkout-return", onReturn); };
+}, [visible]);
+
+function buy(tierId) {
+if (buyingId) return;
+setError("");
+setBuyingId(tierId);
+window._createSquareCheckout(tierId).then(function(url) {
+if (url) { window.location.href = url; }
+else { setError("Could not start checkout."); setBuyingId(null); }
+}).catch(function(e) { setError(e.message || "Could not start checkout."); setBuyingId(null); });
+}
+
+if (!visible) return null;
+
+return (
+<div style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(6,9,16,0.92)", backdropFilter: "blur(12px)", padding: 20 }}>
+<div style={{ position: "relative", width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", background: "rgba(16,14,28,0.98)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20, padding: "32px 28px", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+<button onClick={function() { setVisible(false); }} aria-label="Close" style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16 }}>×</button>
+<div style={{ fontSize: 9, letterSpacing: "0.5em", color: "rgba(184,107,255,0.65)", fontFamily: FB, textTransform: "uppercase", marginBottom: 12, fontWeight: 600 }}>BLINDSPOT</div>
+<h2 style={{ fontSize: 24, fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", marginBottom: 10, lineHeight: 1.25 }}>{justPaid ? "You're all set" : "Your free sessions are used up"}</h2>
+<p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", fontFamily: FB, lineHeight: 1.6, marginBottom: 24 }}>
+{justPaid ? "Your session pack is ready. Close this and start your next session." : "Choose a session pack to keep going. Sessions never expire."}
+</p>
+{justPaid ? (
+<button onClick={function() { setVisible(false); }} style={{ width: "100%", padding: "16px", borderRadius: 999, background: "linear-gradient(90deg, #E84393, #B86BFF)", color: "rgba(255,255,255,0.98)", border: "none", fontFamily: FB, fontSize: 14, fontWeight: 600, letterSpacing: "0.04em", cursor: "pointer" }}>Continue</button>
+) : polling ? (
+<div style={{ textAlign: "center", padding: "24px 0", color: "rgba(255,255,255,0.5)", fontFamily: FB, fontSize: 13 }}>Confirming your payment…</div>
+) : (
+<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+{error && <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.3)", color: "rgba(255,150,150,0.95)", fontFamily: FB, fontSize: 13 }}>{error}</div>}
+{tiers === null && !error && <div style={{ textAlign: "center", padding: "24px 0", color: "rgba(255,255,255,0.4)", fontFamily: FB, fontSize: 13 }}>Loading session packs…</div>}
+{tiers && tiers.length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: "rgba(255,255,255,0.4)", fontFamily: FB, fontSize: 13 }}>No session packs are available right now.</div>}
+{tiers && tiers.map(function(tier) {
+var price = (tier.price_cents / 100).toFixed(2).replace(/\.00$/, "");
+return (
+<button key={tier.id} onClick={function() { buy(tier.id); }} disabled={!!buyingId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "16px 20px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.95)", fontFamily: FB, cursor: buyingId ? "default" : "pointer", opacity: buyingId && buyingId !== tier.id ? 0.5 : 1, textAlign: "left" }}>
+<span style={{ fontSize: 15, fontWeight: 600 }}>{tier.name}</span>
+<span style={{ fontSize: 16, fontWeight: 700, color: "rgba(184,107,255,0.9)" }}>{buyingId === tier.id ? "…" : "$" + price}</span>
+</button>
+);
+})}
+</div>
+)}
+</div>
+</div>
+);
+}
+
+// Admin-only tier management, reachable from UserMenu when the signed-in
+// user's email is in ADMIN_EMAILS (UX gate — api/admin-tiers.js enforces
+// the real allowlist server-side on every request this makes).
+function AdminTiersPanel() {
+var [visible, setVisible] = useState(false);
+var [tiers, setTiers] = useState(null);
+var [error, setError] = useState("");
+var [savingId, setSavingId] = useState(null);
+var [form, setForm] = useState({ name: "", session_count: "", price_cents: "" });
+var [creating, setCreating] = useState(false);
+
+function load() {
+setError("");
+window._fetchAdminTiers().then(function(list) { setTiers(list || []); }).catch(function(e) { setError(e.message || "Failed to load session packs."); });
+}
+
+useEffect(function() {
+function onShow() { setVisible(true); load(); }
+window.addEventListener("blindspot-show-admin-tiers", onShow);
+return function() { window.removeEventListener("blindspot-show-admin-tiers", onShow); };
+}, []);
+
+function saveTier(tier, patch) {
+setSavingId(tier.id);
+setError("");
+window._updateAdminTier(Object.assign({ id: tier.id }, patch)).then(function() { load(); }).catch(function(e) { setError(e.message || "Failed to save."); }).finally(function() { setSavingId(null); });
+}
+
+function deactivate(tier) {
+setSavingId(tier.id);
+setError("");
+window._deactivateAdminTier(tier.id).then(function() { load(); }).catch(function(e) { setError(e.message || "Failed to remove."); }).finally(function() { setSavingId(null); });
+}
+
+function createTier() {
+var sessionCount = parseInt(form.session_count, 10);
+var dollars = parseFloat(form.price_cents);
+if (!form.name.trim() || !Number.isInteger(sessionCount) || sessionCount <= 0 || !(dollars > 0)) {
+setError("Enter a name, a whole number of sessions, and a price greater than $0.");
+return;
+}
+setCreating(true);
+setError("");
+window._createAdminTier({ name: form.name.trim(), session_count: sessionCount, price_cents: Math.round(dollars * 100) }).then(function() {
+setForm({ name: "", session_count: "", price_cents: "" });
+load();
+}).catch(function(e) { setError(e.message || "Failed to create pack."); }).finally(function() { setCreating(false); });
+}
+
+if (!visible) return null;
+
+return (
+<div style={{ position: "fixed", inset: 0, zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(6,9,16,0.92)", backdropFilter: "blur(12px)", padding: 20 }}>
+<div style={{ position: "relative", width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", background: "rgba(16,14,28,0.98)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 20, padding: "32px 28px", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+<button onClick={function() { setVisible(false); }} aria-label="Close" style={{ position: "absolute", top: 14, right: 14, width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16 }}>×</button>
+<h2 style={{ fontSize: 20, fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", marginBottom: 20 }}>Session packs</h2>
+{error && <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,107,107,0.12)", border: "1px solid rgba(255,107,107,0.3)", color: "rgba(255,150,150,0.95)", fontFamily: FB, fontSize: 13, marginBottom: 16 }}>{error}</div>}
+{tiers === null && <div style={{ color: "rgba(255,255,255,0.4)", fontFamily: FB, fontSize: 13 }}>Loading…</div>}
+{tiers && tiers.map(function(tier) {
+return (
+<div key={tier.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.08)", opacity: tier.active ? 1 : 0.4 }}>
+<div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", fontWeight: 600 }}>{tier.name}</div>
+<div style={{ fontSize: 12, fontFamily: FB, color: "rgba(255,255,255,0.45)" }}>{tier.session_count} session{tier.session_count === 1 ? "" : "s"} · ${(tier.price_cents / 100).toFixed(2)}{tier.active ? "" : " · inactive"}</div>
+</div>
+<button disabled={savingId === tier.id} onClick={function() { tier.active ? deactivate(tier) : saveTier(tier, { active: true }); }} style={{ padding: "6px 12px", borderRadius: 999, background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.3)", color: "rgba(255,150,150,0.9)", fontFamily: FB, fontSize: 12, cursor: "pointer" }}>{tier.active ? "Deactivate" : "Reactivate"}</button>
+</div>
+);
+})}
+<div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+<div style={{ fontSize: 13, fontFamily: FB, color: "rgba(255,255,255,0.6)", marginBottom: 12, fontWeight: 600 }}>Add a new pack</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+<input value={form.name} onChange={function(e) { setForm(Object.assign({}, form, { name: e.target.value })); }} placeholder="Name (e.g. 5 Sessions)" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", fontFamily: FB, fontSize: 13 }} />
+<div style={{ display: "flex", gap: 10 }}>
+<input value={form.session_count} onChange={function(e) { setForm(Object.assign({}, form, { session_count: e.target.value })); }} placeholder="Sessions" type="number" min="1" style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", fontFamily: FB, fontSize: 13 }} />
+<input value={form.price_cents} onChange={function(e) { setForm(Object.assign({}, form, { price_cents: e.target.value })); }} placeholder="Price (USD)" type="number" min="0.01" step="0.01" style={{ flex: 1, padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", fontFamily: FB, fontSize: 13 }} />
+</div>
+<button disabled={creating} onClick={createTier} style={{ padding: "12px", borderRadius: 999, background: "linear-gradient(90deg, #E84393, #B86BFF)", color: "rgba(255,255,255,0.98)", border: "none", fontFamily: FB, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{creating ? "Adding…" : "Add pack"}</button>
+</div>
+</div>
+</div>
+</div>
+);
+}
+
 function UserMenu({ phase, setPhase }) {
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 var [open, setOpen] = useState(false);
@@ -11422,6 +11607,7 @@ return (
 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FB }}>{(authUser.email || "").slice(0, 28)}{(authUser.email || "").length > 28 ? "…" : ""}</div>
 </div>
 {showDashboard && <button onClick={function(){ setPhase(7); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
+{_isAdminUser() && <button onClick={function(){ if (window._showAdminTiersPanel) window._showAdminTiersPanel(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(184,107,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Admin: Session Packs</button>}
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
 </>
 ) : (
@@ -11572,6 +11758,8 @@ var next = pendingAfterDisclaimer.current;
 pendingAfterDisclaimer.current = null;
 if (next) next();
 }}/>}
+<PaywallModal/>
+<AdminTiersPanel/>
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes phaseIn{from{opacity:0.6}to{opacity:1}}
