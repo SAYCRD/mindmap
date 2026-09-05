@@ -10716,11 +10716,11 @@ Log in / Sign up
 </button>
 )}
 </div>
-<button onClick={guardedStart} style={{ padding:"10px 26px", borderRadius:999,
+<button onClick={guardedStart} disabled={starting} style={{ padding:"10px 26px", borderRadius:999,
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
-fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:"pointer" }}>
-{isLandingRealAccount ? (returning ? "new session" : "start a session") : "begin"}
+fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:starting?"default":"pointer", opacity:starting?0.6:1 }}>
+{starting ? "starting…" : (isLandingRealAccount ? (returning ? "new session" : "start a session") : "begin")}
 </button>
 </div>
 </nav>
@@ -10753,12 +10753,12 @@ BLINDSPOT listens like a human, shapes what you say into a living visual, and re
 
 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center",
 opacity:show?1:0, transition:"opacity 1s ease 0.4s", marginBottom:16 }}>
-<button onClick={guardedStart} style={{ padding:"16px 36px", borderRadius:999,
+<button onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
-letterSpacing:"0.05em", cursor:"pointer",
+letterSpacing:"0.05em", cursor:starting?"default":"pointer", opacity:starting?0.6:1,
 boxShadow:"0 12px 40px rgba(184,107,255,0.3)" }}>
-{authUser ? (returning ? "continue your journey" : "start a session") : (returning ? "continue" : "start a session")}
+{starting ? "starting…" : (authUser ? (returning ? "continue your journey" : "start a session") : (returning ? "continue" : "start a session"))}
 </button>
 <button onClick={function(){ var el=document.getElementById("saycrd-why");
 if(el) el.scrollIntoView({behavior:"smooth"}); }}
