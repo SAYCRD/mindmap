@@ -11846,7 +11846,11 @@ function SAYCRDFlow() {
       // login on a new device — or any login with no locally-cached
       // sessions yet — still lands on the Dashboard instead of the landing
       // page's prompt screen.
-      if (phaseRef.current === 0 && isReal) setPhase(7);
+      // PHASES[8] === "journeys" is the actual Dashboard. PHASES[7] ===
+      // "complete" is the post-session ceremony screen — routing here
+      // wrongly showed brand-new accounts a "you've completed a session"
+      // message despite never having done one.
+      if (phaseRef.current === 0 && isReal) setPhase(8);
     }
     window.addEventListener("saycrd-auth-change", handleAuthChange);
     return function(){ window.removeEventListener("saycrd-auth-change", handleAuthChange); };
