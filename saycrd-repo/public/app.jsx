@@ -4129,6 +4129,24 @@ if (sessions.length >= 2) try { computePatternEngine(); } catch(pe) {}
 if (sessions.length >= 3) try { computeNarrativeArc(); } catch(na) {}
 console.log("[SAYCRD] Session saved locally. Total sessions:", sessions.length);
 
+// Anonymous, no-PII usage beacon for guests only (real accounts are already
+// tracked server-side via free_sessions_used/credit_ledger). device_id is
+// the same random localStorage-derived id already used for _sessionKey() —
+// never a person's identity, never sent to anyone but our own admin
+// endpoint. Fire-and-forget: must never block or affect the real session
+// save above.
+(function() {
+try {
+if (!window.currentUser || window.currentUser.id === "local-user") {
+  fetch("/api/session-log-anonymous", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: getCurrentUid(), session_number: sessions.length }),
+  }).catch(function() {});
+}
+} catch(e) { }
+})();
+
 (function() {
 try {
 if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
@@ -11666,8 +11684,101 @@ return (
    server-side on every request to /api/admin-tiers — that is the real
    security boundary, not whether this link is visible in the UI.
    ==================================================================== */
+/* AdminUsersTab — real accounts: signup date, free-session usage (of 2),
+   paid credit balance, last activity. Answers "what does this person
+   actually have" without touching SQL. Read-only by design; edits to
+   credits/tiers happen through the audited server RPCs, not free-hand here. */
+function AdminUsersTab({ loading, error, users, labelStyle }) {
+if (loading) return <div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.5)", padding: "16px 0" }}>Loading…</div>;
+if (error) return <div style={{ fontFamily: FB, fontSize: 13, color: "#E84393", padding: "16px 0" }}>{error}</div>;
+if (!users || users.length === 0) return <div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.5)", padding: "16px 0" }}>No accounts yet.</div>;
+
+function fmtDate(s) { if (!s) return "—"; try { return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); } catch(e) { return "—"; } }
+
+return (
+<div style={{ overflowX: "auto" }}>
+<div style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 14 }}>{users.length} account{users.length === 1 ? "" : "s"}</div>
+<div style={{ minWidth: 720 }}>
+<div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", gap: 8, padding: "0 10px", marginBottom: 8 }}>
+<span style={labelStyle}>Email</span>
+<span style={labelStyle}>Signed Up</span>
+<span style={labelStyle}>Confirmed</span>
+<span style={labelStyle}>Free Used</span>
+<span style={labelStyle}>Credits</span>
+<span style={labelStyle}>Last Activity</span>
+</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+{users.map(function(u){
+return (
+<div key={u.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr", gap: 8, alignItems: "center", padding: "10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}>
+<span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.9)", overflow: "hidden", textOverflow: "ellipsis" }}>{u.email}</span>
+<span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{fmtDate(u.created_at)}</span>
+<span style={{ fontFamily: FB, fontSize: 12, color: u.email_confirmed_at ? "rgba(107,255,184,0.85)" : "rgba(255,255,255,0.4)" }}>{u.email_confirmed_at ? "Yes" : "No"}</span>
+<span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>{u.free_sessions_used} / 2</span>
+<span style={{ fontFamily: FB, fontSize: 13, fontWeight: 700, color: u.credit_balance > 0 ? "rgba(184,107,255,0.95)" : "rgba(255,255,255,0.4)" }}>{u.credit_balance}</span>
+<span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{fmtDate(u.last_activity_at)}</span>
+</div>
+);
+})}
+</div>
+</div>
+</div>
+);
+}
+
+/* AdminGuestsTab — anonymous, no-PII usage summary from anonymous_session_log.
+   Shows total guest sessions run and per-device activity (device_id is an
+   opaque local string, never a person) so the admin can see real usage
+   volume before anyone ever creates an account. */
+function AdminGuestsTab({ loading, error, stats, labelStyle }) {
+if (loading) return <div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.5)", padding: "16px 0" }}>Loading…</div>;
+if (error) return <div style={{ fontFamily: FB, fontSize: 13, color: "#E84393", padding: "16px 0" }}>{error}</div>;
+if (!stats || stats.total_sessions === 0) return <div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.5)", padding: "16px 0" }}>No guest activity yet.</div>;
+
+function fmtDateTime(s) { if (!s) return "—"; try { return new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch(e) { return "—"; } }
+
+return (
+<div>
+<div style={{ display: "flex", gap: 24, marginBottom: 20 }}>
+<div>
+<div style={{ fontFamily: FB, fontSize: 28, fontWeight: 700, color: "rgba(184,107,255,0.95)" }}>{stats.total_sessions}</div>
+<div style={labelStyle}>Sessions Run</div>
+</div>
+<div>
+<div style={{ fontFamily: FB, fontSize: 28, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{stats.total_devices}</div>
+<div style={labelStyle}>Distinct Devices</div>
+</div>
+</div>
+<div style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 14, fontStyle: "italic" }}>Devices are anonymous, randomly-generated ids — never a person&apos;s identity.</div>
+<div style={{ overflowX: "auto" }}>
+<div style={{ minWidth: 560 }}>
+<div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8, padding: "0 10px", marginBottom: 8 }}>
+<span style={labelStyle}>Device</span>
+<span style={labelStyle}>Sessions</span>
+<span style={labelStyle}>First Seen</span>
+<span style={labelStyle}>Last Seen</span>
+</div>
+<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+{stats.devices.map(function(d){
+return (
+<div key={d.device_id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8, alignItems: "center", padding: "10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}>
+<span style={{ fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis" }}>{d.device_id}</span>
+<span style={{ fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.85)" }}>{d.session_count}</span>
+<span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{fmtDateTime(d.first_seen)}</span>
+<span style={{ fontFamily: FB, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{fmtDateTime(d.last_seen)}</span>
+</div>
+);
+})}
+</div>
+</div>
+</div>
+</div>
+);
+}
+
 function AdminTiersPanel() {
 var [visible, setVisible] = useState(false);
+var [tab, setTab] = useState("tiers"); // "tiers" | "users" | "guests"
 var [tiers, setTiers] = useState([]);
 var [loading, setLoading] = useState(false);
 var [forbidden, setForbidden] = useState(false);
@@ -11676,6 +11787,18 @@ var [drafts, setDrafts] = useState({});
 var [newTier, setNewTier] = useState({ name: "", session_count: "1", price: "", sort_order: "0" });
 var [savingId, setSavingId] = useState(null);
 var [creating, setCreating] = useState(false);
+
+// Users tab (real accounts) + Guests tab (anonymous device activity) —
+// loaded lazily per-tab so opening the panel doesn't fire three requests
+// when the admin only wants to edit pricing.
+var [users, setUsers] = useState([]);
+var [usersLoading, setUsersLoading] = useState(false);
+var [usersLoaded, setUsersLoaded] = useState(false);
+var [usersError, setUsersError] = useState(null);
+var [guestStats, setGuestStats] = useState(null);
+var [guestsLoading, setGuestsLoading] = useState(false);
+var [guestsLoaded, setGuestsLoaded] = useState(false);
+var [guestsError, setGuestsError] = useState(null);
 
 function authHeaders(extra) {
 var tok = window._saycrdToken;
@@ -11690,7 +11813,7 @@ setForbidden(false);
 setError(null);
 fetch("/api/admin-tiers", { headers: authHeaders() })
 .then(function(r){
-if (r.status === 403) { setForbidden(true); setLoading(false); return null; }
+if (r.status === 403 || r.status === 401) { setForbidden(true); setLoading(false); return null; }
 return r.json();
 })
 .then(function(d){
@@ -11704,11 +11827,51 @@ setLoading(false);
 .catch(function(){ setError("Failed to load session packs"); setLoading(false); });
 }
 
+function loadUsers() {
+setUsersLoading(true);
+setUsersError(null);
+fetch("/api/admin-users", { headers: authHeaders() })
+.then(function(r){
+if (r.status === 403 || r.status === 401) { setForbidden(true); setUsersLoading(false); return null; }
+return r.json();
+})
+.then(function(d){
+if (!d) return;
+setUsers(d.users || []);
+setUsersLoaded(true);
+setUsersLoading(false);
+})
+.catch(function(){ setUsersError("Failed to load users"); setUsersLoading(false); });
+}
+
+function loadGuests() {
+setGuestsLoading(true);
+setGuestsError(null);
+fetch("/api/admin-anonymous-activity", { headers: authHeaders() })
+.then(function(r){
+if (r.status === 403 || r.status === 401) { setForbidden(true); setGuestsLoading(false); return null; }
+return r.json();
+})
+.then(function(d){
+if (!d) return;
+setGuestStats(d);
+setGuestsLoaded(true);
+setGuestsLoading(false);
+})
+.catch(function(){ setGuestsError("Failed to load guest activity"); setGuestsLoading(false); });
+}
+
 useEffect(function() {
-function onShow() { setVisible(true); load(); }
+function onShow() { setVisible(true); setTab("tiers"); load(); }
 window.addEventListener("saycrd-show-admin-tiers", onShow);
 return function(){ window.removeEventListener("saycrd-show-admin-tiers", onShow); };
 }, []);
+
+useEffect(function() {
+if (!visible) return;
+if (tab === "users" && !usersLoaded && !usersLoading) loadUsers();
+if (tab === "guests" && !guestsLoaded && !guestsLoading) loadGuests();
+}, [visible, tab]);
 
 function saveTier(id) {
 var d = drafts[id];
@@ -11766,14 +11929,28 @@ if (!visible) return null;
 var inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.92)", fontFamily: FB, fontSize: 13 };
 var labelStyle = { fontFamily: FB, fontSize: 10, letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" };
 
+var tabBtnStyle = function(active) {
+return { padding: "8px 16px", borderRadius: 10, border: active ? "1px solid rgba(184,107,255,0.5)" : "1px solid rgba(255,255,255,0.1)", background: active ? "rgba(184,107,255,0.15)" : "transparent", color: active ? "rgba(230,210,255,0.95)" : "rgba(255,255,255,0.55)", fontFamily: FB, fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", cursor: "pointer" };
+};
+
 return (
 <div style={{ position: "fixed", inset: 0, zIndex: 10011, background: "rgba(6,9,16,0.96)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }}>
-<div style={{ width: "100%", maxWidth: 640, background: "rgba(18,14,30,0.98)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px", position: "relative" }}>
+<div style={{ width: "100%", maxWidth: tab === "tiers" ? 640 : 880, background: "rgba(18,14,30,0.98)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "28px", position: "relative" }}>
 <button onClick={function(){ setVisible(false); }} aria-label="Close" style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 16 }}>✕</button>
-<div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.35em", color: "rgba(184,107,255,0.8)", textTransform: "uppercase", marginBottom: 20 }}>Admin — Session Packs</div>
+<div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.35em", color: "rgba(184,107,255,0.8)", textTransform: "uppercase", marginBottom: 20 }}>Admin</div>
+
+<div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+<button style={tabBtnStyle(tab === "tiers")} onClick={function(){ setTab("tiers"); }}>Session Packs</button>
+<button style={tabBtnStyle(tab === "users")} onClick={function(){ setTab("users"); }}>Users</button>
+<button style={tabBtnStyle(tab === "guests")} onClick={function(){ setTab("guests"); }}>Guest Activity</button>
+</div>
 
 {forbidden ? (
 <div style={{ fontFamily: FB, fontSize: 14, color: "#E84393", padding: "16px 0" }}>Admin access required.</div>
+) : tab === "users" ? (
+<AdminUsersTab loading={usersLoading} error={usersError} users={users} labelStyle={{ fontFamily: FB, fontSize: 10, letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }} />
+) : tab === "guests" ? (
+<AdminGuestsTab loading={guestsLoading} error={guestsError} stats={guestStats} labelStyle={{ fontFamily: FB, fontSize: 10, letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }} />
 ) : loading ? (
 <div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.5)", padding: "16px 0" }}>Loading…</div>
 ) : (
