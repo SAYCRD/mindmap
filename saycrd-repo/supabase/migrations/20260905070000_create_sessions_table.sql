@@ -155,12 +155,16 @@ create policy "sessions_select_own"
 -- Explicit privilege model -- no role is left to "implicit" behavior:
 --   - PUBLIC / anon / authenticated: all privileges revoked. Neither can
 --     read nor write this table under any circumstance.
---   - service_role: explicitly granted exactly the privileges its API
---     routes need (select/insert/update/delete -- delete supports the
---     future staged account-deletion flow), rather than relied upon to
---     have "full access" implicitly via RLS bypass alone. RLS bypass is a
---     separate Postgres role property from table grants; both are made
---     explicit here so this table's effective privileges are fully
---     visible from this file alone.
-revoke all on public.sessions from public, anon, authenticated;
+--   - service_role: this schema has an ALTER DEFAULT PRIVILEGES entry that
+--     auto-grants full CRUD to service_role on every newly created table
+--     (existing production behavior, not modified by this migration).
+--     Revoking from just public/anon/authenticated would leave that
+--     default-privilege grant untouched underneath, so service_role is
+--     included in the revoke below first, then re-granted exactly the
+--     privileges its API routes need (select/insert/update/delete --
+--     delete supports the future staged account-deletion flow). This
+--     guarantees the table's effective service_role privileges are
+--     exactly what is granted here, never a wider set inherited silently
+--     from the schema default.
+revoke all on public.sessions from public, anon, authenticated, service_role;
 grant select, insert, update, delete on public.sessions to service_role;

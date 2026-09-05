@@ -53,5 +53,12 @@ create policy "captures_select_own"
 
 -- service_role gets select/insert/delete (a user can remove a capture
 -- they saved) -- no update, since captures are immutable once saved.
-revoke all on public.captures from public, anon, authenticated;
+--
+-- service_role is included in the revoke below (not just
+-- public/anon/authenticated): this schema's ALTER DEFAULT PRIVILEGES
+-- entry auto-grants full CRUD to service_role on every new table
+-- (existing production behavior, unmodified here), so without this
+-- explicit revoke the "no update" intent above would be silently
+-- undermined by that inherited default grant.
+revoke all on public.captures from public, anon, authenticated, service_role;
 grant select, insert, delete on public.captures to service_role;

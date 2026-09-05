@@ -147,5 +147,14 @@ create policy "entitlement_usage_select_own"
 -- they require only DELETE privilege on the REFERENCED table (sessions,
 -- auth.users), never an UPDATE grant on this table itself. No role,
 -- including service_role, can otherwise modify or delete a row here.
-revoke all on public.session_entitlement_usage from public, anon, authenticated;
+--
+-- service_role is included in the revoke below (not just
+-- public/anon/authenticated): this schema's ALTER DEFAULT PRIVILEGES
+-- entry auto-grants full CRUD to service_role on every new table
+-- (existing production behavior, unmodified here). Without this explicit
+-- revoke, that inherited default grant would silently give service_role
+-- update/delete access on this table, defeating the entire "write-once,
+-- no role can ever modify or delete a row here" guarantee documented
+-- above.
+revoke all on public.session_entitlement_usage from public, anon, authenticated, service_role;
 grant select, insert on public.session_entitlement_usage to service_role;

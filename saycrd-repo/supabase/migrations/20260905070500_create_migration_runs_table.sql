@@ -77,13 +77,24 @@ create policy "migration_runs_select_own"
 -- 'in_progress' and is later updated in place to 'completed'/
 -- 'partial_failure'/'failed' (never a new row per status change).
 -- Unlike session_entitlement_usage, this table has no financial/
--- accounting retention requirement: it is purely diagnostic history for
--- the guest/local backfill process, so it is deleted as part of account
--- deletion (`DELETE FROM public.migration_runs WHERE user_id = ...`)
--- rather than retained. This is why user_id keeps on delete restrict
--- (unlike session_entitlement_usage's user_id) -- account deletion must
--- delete this table's rows for that user explicitly, before deleting
--- auth.users, rather than relying on an ON DELETE SET NULL to happen
--- automatically.
-revoke all on public.migration_runs from public, anon, authenticated;
+-- accounting retention requirement: it is account-linked operational
+-- metadata (diagnostic history for the guest/local backfill process),
+-- not permanent financial history, so it must remain deletable by the
+-- trusted deletion API and is removed as part of account deletion
+-- (`DELETE FROM public.migration_runs WHERE user_id = ...`) rather than
+-- retained. This is why user_id keeps on delete restrict (unlike
+-- session_entitlement_usage's user_id) -- account deletion must delete
+-- this table's rows for that user explicitly, before deleting auth.users,
+-- rather than relying on an ON DELETE SET NULL to happen automatically.
+--
+-- service_role is included in the revoke below (not just
+-- public/anon/authenticated): this schema's ALTER DEFAULT PRIVILEGES
+-- entry auto-grants full CRUD to service_role on every new table
+-- (existing production behavior, unmodified here). In this table's case
+-- the re-granted privileges happen to match that default exactly
+-- (select/insert/update/delete), but the explicit revoke+grant pair is
+-- still applied here for consistency with every other Stage 1 table and
+-- so this table's effective privileges are visible from this file alone,
+-- never left to an implicit schema-level default.
+revoke all on public.migration_runs from public, anon, authenticated, service_role;
 grant select, insert, update, delete on public.migration_runs to service_role;

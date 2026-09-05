@@ -100,5 +100,12 @@ create policy "reports_select_own"
 -- `DELETE FROM public.sessions WHERE user_id = ...` (service_role has
 -- DELETE on sessions) is sufficient on its own to also remove this user's
 -- reports, with no separate DELETE grant needed here.
-revoke all on public.reports from public, anon, authenticated;
+--
+-- service_role is included in the revoke below (not just
+-- public/anon/authenticated): this schema's ALTER DEFAULT PRIVILEGES
+-- entry auto-grants full CRUD to service_role on every new table
+-- (existing production behavior, unmodified here), so without this
+-- explicit revoke the "no delete" intent above would be silently
+-- undermined by that inherited default grant.
+revoke all on public.reports from public, anon, authenticated, service_role;
 grant select, insert, update on public.reports to service_role;

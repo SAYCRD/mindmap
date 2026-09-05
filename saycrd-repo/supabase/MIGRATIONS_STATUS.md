@@ -67,6 +67,52 @@ explicitly in each table's own migration file (not left to "implicit"
   verified JWT only (never from the request body), and filter every
   service-role query by that verified `user_id`.
 
+### Fixed defect: `service_role` privileges were never actually narrowed
+
+The first version of this batch applied to staging (`lbydmtgeojnozzhwsava`)
+had a real bug in every one of the six `revoke all on ... from public,
+anon, authenticated;` statements: they omitted `service_role`. This
+schema has a pre-existing `ALTER DEFAULT PRIVILEGES` entry (owned by
+`postgres`, not modified by this batch) that auto-grants full CRUD
+(`select, insert, update, delete, truncate, references, trigger`) to
+`service_role` on every newly created table. Because the revoke never
+named `service_role`, the follow-up `grant select, insert, ... to
+service_role;` line only **added** to that pre-existing full-CRUD grant
+instead of narrowing it -- so tables documented as append-only or
+no-update (`session_entitlement_usage`, and `reports`/`captures`/
+`bookmarks`'s "no update" or "no delete" comments) were never actually
+enforced at the database level; `service_role` silently retained full
+CRUD on all six tables regardless of what was granted afterward.
+
+**Fix:** every table's `revoke all on ... from public, anon, authenticated,
+service_role;` now explicitly includes `service_role`, so the immediately
+following `grant` line is the complete, authoritative statement of that
+table's effective `service_role` privileges -- nothing is inherited
+silently from the schema-level default. `ALTER DEFAULT PRIVILEGES` itself
+is intentionally left unchanged, since other, pre-existing production
+tables may depend on it; each Stage 1 table now normalizes its own
+privileges explicitly instead.
+
+**Final privilege matrix** (per-table `service_role` grant, after the fix):
+
+| Table | `service_role` privileges | Rationale |
+|---|---|---|
+| `sessions` | `select, insert, update, delete` | full CRUD; delete supports the staged account-deletion flow |
+| `reports` | `select, insert, update` | no delete -- removed only via cascade from `sessions` |
+| `captures` | `select, insert, delete` | no update -- immutable once saved, but user-deletable |
+| `bookmarks` | `select, insert, delete` | no update -- immutable once saved, but user-deletable |
+| `session_entitlement_usage` | `select, insert` | write-once audit trail; no update/delete for any role |
+| `migration_runs` | `select, insert, update, delete` | account-linked operational metadata, not permanent financial history -- must remain deletable by the trusted deletion API |
+
+No role other than `service_role` (i.e. `public`, `anon`, `authenticated`)
+has any privilege on any of the six tables. `REFERENCES`, `TRIGGER`, and
+`TRUNCATE` are not granted to `service_role` on any Stage 1 table.
+
+This fix was applied to the migration files only; the staging branch that
+had the original (buggy) version applied was reset/recreated and Stage 1
+was reapplied from these corrected files. See the audit trail entry for
+that reset for the resulting staging project reference.
+
 ## Account deletion: resolved FK/privilege design
 
 An initial version of this batch had a real contradiction: deleting a
