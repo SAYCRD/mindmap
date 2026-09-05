@@ -12010,12 +12010,20 @@ return (
 
 function SAYCRDFlow() {
   // Returning users (anyone with at least one saved session) land on the
-  // SESSION COMPLETE / "Your Journeys" screen (phase 7 = "complete") instead
-  // of the landing page. At mount, real auth (Supabase) may not have resolved
-  // yet, so this only catches the local/cached-uid case synchronously —
-  // the effect below catches up once "saycrd-auth-change" fires for a
-  // real account whose sessions weren't visible under the local uid yet.
-  const [phase, setPhase] = useState(function(){ return _hasReturningSessions() ? 7 : 0; });
+  // Dashboard ("Your Journeys", phase 8 = "journeys") instead of the landing
+  // page — NEVER the post-session ceremony (phase 7 = "complete"), which must
+  // only ever appear right after a genuine session completion. At mount, real
+  // auth (Supabase) may not have resolved yet, so this only catches the
+  // local/cached-uid case synchronously — the effect below catches up once
+  // "saycrd-auth-change" fires for a real account whose sessions weren't
+  // visible under the local uid yet.
+  const [phase, setPhase] = useState(function(){ return _hasReturningSessions() ? 8 : 0; });
+  // Transient, one-time authorization to enter the post-session ceremony
+  // (phase 7 = "complete"). Set ONLY by FieldPhase's genuine onSessionComplete
+  // transition and consumed immediately when that screen mounts. It is a ref
+  // (not state, not persisted) so it never survives a reload and can't go
+  // stale — any attempt to reach phase 7 without it bounces to the Dashboard.
+  const completionAuthorized = useRef(false);
   const [rawText, setRawText] = useState("");
   const [synthesisData, setSynthesisData] = useState(null);
   const [mapResponses, setMapResponses] = useState({});
@@ -12084,6 +12092,19 @@ return next;
 
 const cp = PHASES[phase];
 
+// Defense-in-depth: phase 7 ("complete", the post-session ceremony) is only
+// legitimate immediately after FieldPhase's onSessionComplete, which sets
+// completionAuthorized just before navigating here. If phase 7 is reached any
+// other way (a stale value, an errant navigation handler, a future bug), the
+// authorization is false and we bounce straight to the Dashboard (phase 8)
+// before paint, so the false "you've completed a session" screen can never
+// surface. On the genuine path the flag is true and we consume it once here.
+useLayoutEffect(function(){
+  if (cp !== "complete") return;
+  if (completionAuthorized.current) { completionAuthorized.current = false; return; }
+  setPhase(8);
+}, [cp]);
+
 useEffect(function(){ document.body.classList.toggle("saycrd-landing", cp === "landing"); document.body.classList.toggle("saycrd-internal", cp !== "landing"); return function(){ document.body.classList.remove("saycrd-landing","saycrd-internal"); }; }, [cp]);
 
 function enterField() {
@@ -12134,10 +12155,10 @@ setPhase(3);
 {cp==="map"&&<MapPhase onComplete={function(mapData){setMapResponses(mapData||{});setPhase(4);}} synthesisData={synthesisData} rawText={rawText} onSynthesis={setSynthesisData} onPatchSynthesis={onPatchSynthesis} onBack={function(){setPhase(1);}}/>}
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
-{cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){setPhase(7);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
+{cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){completionAuthorized.current = true;setPhase(7);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
 {cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}} onNavigateToJourneys={function(){setPhase(8);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
-{cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onBack={function(){setPhase(7);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
-{cp==="report"&&<ReportViewerPhase sessionIndex={reportSessionIndex} onBack={function(){setPhase(7);}}/>}
+{cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
+{cp==="report"&&<ReportViewerPhase sessionIndex={reportSessionIndex} onBack={function(){setPhase(8);}}/>}
 {fieldTransition && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", animation: "morphIn 0.4s ease both" }}>
 <div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase", animation: "pulse 1.5s ease infinite" }}>entering the field</div>
 </div>}
