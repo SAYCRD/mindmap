@@ -20,7 +20,7 @@
 <link rel="preload" href="vendor/supabase-js.2.114.0.min.js" as="script">
 <link rel="preload" href="vendor/react.production.min.js" as="script">
 <link rel="preload" href="vendor/react-dom.production.min.js" as="script">
-<link rel="preload" href="app.compiled.js?v=20260904-2" as="script">
+<link rel="preload" href="app.compiled.js?v=20260904-3" as="script">
 <style>
 :root{
   /* ═══ Fluid layout tokens ═══
@@ -248,6 +248,27 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
 
 <div id="root">
 </div>
+<script>
+/* Square Checkout redirects back here with ?checkout_return=1 — Square's
+   hosted checkout is a full page reload, so any React state is gone by the
+   time we land back here. Set this flag synchronously, before React/the app
+   script even load below, so PaywallModal can see it on its very first
+   render and resume showing "confirming your payment" instead of the
+   default closed state. Strip the param immediately so a later manual
+   refresh of this URL doesn't re-trigger it. */
+(function() {
+  try {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get("checkout_return") === "1") {
+      window._checkoutJustReturned = true;
+      params.delete("checkout_return");
+      var rest = params.toString();
+      var newUrl = window.location.pathname + (rest ? "?" + rest : "") + window.location.hash;
+      window.history.replaceState({}, "", newUrl);
+    }
+  } catch (e) {}
+})();
+</script>
 <!-- React/ReactDOM are also vendored locally now (see /vendor), same reasoning as Supabase
      above: cdnjs.cloudflare.com was a second extra origin these had to round-trip to before
      app.compiled.js could even start running, on top of the app's own script below. -->
@@ -257,7 +278,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      of being transpiled in-browser via Babel Standalone on every visit. That in-browser
      compile of ~11k lines of JSX was taking ~30s on phones with nothing rendered but
      the background, since React can't draw anything until the transpile finishes. -->
-<script src="app.compiled.js?v=20260904-2"></script>
+<script src="app.compiled.js?v=20260904-3"></script>
 
 <script>
 /* Global error handler — shows what's breaking */
@@ -280,8 +301,16 @@ window.onerror = function(msg, url, line, col, err) {
    Replace these with your Supabase project values
    ==================================================================== */
 const SAYCRD_CONFIG = {
-  SUPABASE_URL: "https://perataksccqmdocgshyl.supabase.co",
-  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlcmF0YWtzY2NxbWRvY2dzaHlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NjU3MTEsImV4cCI6MjA4NjM0MTcxMX0.D_y3MF3UyRsyAPRpUWYw5x7fn5i9dCN8xnD5_n_-Nnc",
+  // NOTE: this used to point at a different, unrelated Supabase project
+  // (perataksccqmdocgshyl) than the one actually wired up via this
+  // project's Supabase integration / server-side env vars
+  // (lydamoxkymwuccepeeyz) — meaning the client was reading/writing a
+  // database with none of the real schema (session_tiers, credit_ledger,
+  // etc.) in it. Fixed to match the real project. Both values below are
+  // public-by-design (anon key, not a secret) so hardcoding them here is
+  // fine, same as before — just pointed at the right project now.
+  SUPABASE_URL: "https://lydamoxkymwuccepeeyz.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5ZGFtb3hreW13dWNjZXBlZXl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMjA2MDgsImV4cCI6MjEwMzg5NjYwOH0.FcwnC4NSBv7cPhYnWDEAt0IgvO7mtIi_8rUC4hpOdJc",
   API_ENDPOINT: "/api/claude",
 };
 
@@ -641,6 +670,42 @@ window._localBypass = function() {
   }
   window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
   console.log("LOCAL BYPASS ACTIVE — using localStorage");
+};
+
+/* ====================================================================
+   Session-pack paywall
+   Real accounts get 2 free sessions (tracked server-side), then must buy
+   a pack via Square Checkout. guardedStart() (in app.jsx) calls
+   _consumeSessionCredit() before letting a real account start a session,
+   and only opens the paywall on an explicit "no credits left" response —
+   any network/server hiccup fails OPEN so an outage never strands a
+   paying user mid-session.
+   ==================================================================== */
+window._consumeSessionCredit = async function() {
+  var tok = window._saycrdToken;
+  if (!tok && window.sbClient && window.sbClient.auth) {
+    try {
+      var ss = await window.sbClient.auth.getSession();
+      if (ss && ss.data && ss.data.session) tok = ss.data.session.access_token;
+    } catch(e) {}
+  }
+  if (!tok) return { ok: true }; /* no token shouldn't happen for a real account — fail open */
+  try {
+    var r = await fetch("/api/session-start", { method: "POST", headers: { "Authorization": "Bearer " + tok } });
+    if (r.status === 402) return { ok: false };
+    if (!r.ok) return { ok: true }; /* fail open on server error */
+    return await r.json();
+  } catch(e) {
+    return { ok: true }; /* fail open on network error */
+  }
+};
+
+window._showPaywall = function() {
+  window.dispatchEvent(new CustomEvent("saycrd-show-paywall"));
+};
+
+window._showAdminTiers = function() {
+  window.dispatchEvent(new CustomEvent("saycrd-show-admin-tiers"));
 };
 
 /* ── Auth: restore session + sign out (all form handlers are inline in HTML) ── */
