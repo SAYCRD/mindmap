@@ -66,3 +66,73 @@ explicitly in each table's own migration file (not left to "implicit"
   (Stage 2+) that verify the caller's JWT, derive `user_id` from that
   verified JWT only (never from the request body), and filter every
   service-role query by that verified `user_id`.
+
+## Account deletion: resolved FK/privilege design
+
+An initial version of this batch had a real contradiction: deleting a
+private session was blocked by `session_entitlement_usage.session_id`'s
+`on delete restrict`, `reports` had no `DELETE` grant even though its
+removal path assumed one, and `migration_runs` was described as
+"permanent" even though account deletion is expected to remove it. This
+was corrected as follows (all in the same review-only migration files,
+never applied):
+
+- **`session_entitlement_usage`** is the only table whose rows are
+  genuinely **retained** (never deleted) across account deletion -- it is
+  the minimum financial/entitlement audit evidence for a completed
+  session. Its `session_id` and `user_id` columns are now nullable with
+  `on delete set null` (previously `not null` / `restrict`), so deleting
+  the session or the `auth.users` row clears those columns instead of
+  being blocked. A new, non-FK `session_ref uuid not null` column, set by
+  a `before insert` trigger (`blindspot_set_entitlement_session_ref`, never
+  from a client-supplied value) and protected by a permanent unique index,
+  preserves "which session was this for" forever, independent of whether
+  the session row itself still exists. `entitlement_type`,
+  `credit_ledger_id` / `subscription_id` / `granted_by`, and `session_ref`
+  remain the durable evidence; no update/delete grant exists on this table
+  for any role, so nothing but the FK's own internal `SET NULL` action can
+  ever change a row after insert.
+- **`reports`** keeps its existing `session_id ... on delete cascade` and
+  still has **no** `DELETE` grant for `service_role` -- deleting a user's
+  sessions (`service_role` has `DELETE` on `sessions`) is sufficient on
+  its own to also remove that user's reports, since Postgres performs the
+  cascade internally as part of enforcing the foreign key and only needs
+  `DELETE` privilege on the table actually named in the `DELETE`
+  statement (`sessions`), not on the cascaded-into table.
+- **`migration_runs`** is no longer described as permanent: it has no
+  financial retention requirement, so `service_role` now also has
+  `DELETE`, and account deletion removes this user's rows directly and
+  explicitly (its `user_id` FK stays `on delete restrict` deliberately,
+  as a safeguard that forces this explicit deletion step rather than
+  allowing it to happen silently via cascade).
+
+**Account deletion sequence** (server API route, Stage 2+; JWT-verified
+`user_id`, never accepted from the request body):
+
+1. `DELETE FROM public.migration_runs WHERE user_id = :verified_user_id;`
+2. `DELETE FROM public.bookmarks WHERE user_id = :verified_user_id;`
+3. `DELETE FROM public.captures WHERE user_id = :verified_user_id;`
+4. `DELETE FROM public.sessions WHERE user_id = :verified_user_id;` --
+   cascades to that user's `reports` automatically, and sets
+   `session_entitlement_usage.session_id` to `null` (via `on delete set
+   null`) for any retained audit rows that referenced those sessions,
+   without deleting those audit rows.
+5. Delete the `auth.users` row itself (e.g. `supabase.auth.admin.deleteUser`).
+   This now succeeds: steps 1-4 already removed every row that had a
+   `restrict`-FK reference to this user, and `session_entitlement_usage`'s
+   remaining rows (the retained audit evidence) have `on delete set null`
+   on `user_id`, so they no longer block this step -- they simply lose
+   their `user_id` attribution while keeping `session_ref`,
+   `entitlement_type`, and the financial linkage (`credit_ledger_id` /
+   `subscription_id` / `granted_by`) intact.
+
+Confirmed: a user's private session and report content is fully
+deletable (steps 4, via cascade). The minimum non-content entitlement/
+accounting evidence (`session_entitlement_usage` rows) remains retained
+and intact after full account deletion, no longer requiring the private
+session row to continue existing. Idempotency (`session_ref`'s unique
+index) holds permanently, not just while the session exists. No ordinary
+application API can modify or delete entitlement history -- only the
+internal FK `SET NULL` action triggered by step 4/5 can ever touch those
+rows, and even that only clears `session_id`/`user_id`, never
+`entitlement_type` or the financial linkage columns.

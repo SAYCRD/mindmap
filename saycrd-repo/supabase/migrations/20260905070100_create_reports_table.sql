@@ -92,6 +92,13 @@ create policy "reports_select_own"
 -- service_role needs select/insert/update (a retry re-uses the same row
 -- via `on conflict (session_id) do update`, per the Stage 5 completion
 -- RPC design) but never delete -- reports are removed only by cascading
--- from their parent session, never directly.
+-- from their parent session (session_id ... on delete cascade, above),
+-- never by a direct DELETE statement against this table. Postgres
+-- performs an ON DELETE CASCADE action internally as part of enforcing
+-- the foreign key, which requires DELETE privilege on the REFERENCED
+-- table (sessions) but not on this table itself -- so account deletion's
+-- `DELETE FROM public.sessions WHERE user_id = ...` (service_role has
+-- DELETE on sessions) is sufficient on its own to also remove this user's
+-- reports, with no separate DELETE grant needed here.
 revoke all on public.reports from public, anon, authenticated;
 grant select, insert, update on public.reports to service_role;

@@ -19,6 +19,7 @@ drop policy if exists "migration_runs_select_own" on public.migration_runs;
 drop table if exists public.migration_runs;
 
 -- Reverse of 20260905070400_create_session_entitlement_usage_table.sql
+drop trigger if exists entitlement_usage_set_session_ref on public.session_entitlement_usage;
 drop policy if exists "entitlement_usage_select_own" on public.session_entitlement_usage;
 drop table if exists public.session_entitlement_usage;
 
@@ -40,12 +41,13 @@ drop trigger if exists sessions_set_updated_at on public.sessions;
 drop policy if exists "sessions_select_own" on public.sessions;
 drop table if exists public.sessions;
 
--- Drop the Stage-1-owned trigger function only after every trigger/table
--- that depends on it (sessions, reports -- both dropped above) is gone.
--- Does not touch either pre-existing production function
--- (public.update_updated_at(), public.set_updated_at()) -- those are
--- untouched production state outside this migration history.
+-- Drop the Stage-1-owned trigger functions only after every trigger/table
+-- that depends on each is gone (both dropped above). Does not touch either
+-- pre-existing production function (public.update_updated_at(),
+-- public.set_updated_at()) -- those are untouched production state
+-- outside this migration history.
 drop function if exists public.blindspot_content_set_updated_at();
+drop function if exists public.blindspot_set_entitlement_session_ref();
 
 -- Note: no ALTER on auth.users, credit_ledger, subscriptions, or
 -- session_tiers is ever required to roll this batch back -- every FK in

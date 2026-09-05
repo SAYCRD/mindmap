@@ -19,15 +19,36 @@
 create table if not exists public.session_entitlement_usage (
   id uuid primary key default gen_random_uuid(),
 
-  -- unique: exactly one entitlement-usage row can ever exist per session,
-  -- regardless of entitlement type -- this is the auditable guarantee this
-  -- table exists to provide. on delete restrict: a session with a recorded
-  -- entitlement usage can never be deleted by a plain DELETE; any real
-  -- deletion flow must handle this explicitly (matches the financial-
-  -- record-retention design for account deletion).
-  session_id uuid not null unique references public.sessions(id) on delete restrict,
+  -- Nullable, on delete set null (not restrict, and not unique on this
+  -- column alone): once the session itself is deleted -- e.g. as part of
+  -- account deletion, which removes a user's private sessions/reports --
+  -- this row survives with session_id cleared rather than blocking the
+  -- session's deletion or being deleted itself. session_ref (below) is the
+  -- permanent, immutable stand-in identifier that keeps this row's
+  -- "which session was this for" meaning intact even after session_id is
+  -- gone.
+  session_id uuid references public.sessions(id) on delete set null,
 
-  user_id uuid not null references auth.users(id) on delete restrict,
+  -- Immutable copy of session_id, captured at insert time by the
+  -- blindspot_set_entitlement_session_ref trigger below -- never a foreign
+  -- key (so it can never be affected by, or block, the session row's
+  -- deletion) and never updated afterward (this table has no UPDATE grant
+  -- for any role, see the grants below). This is the durable per-session
+  -- audit identifier; session_id is the convenience live link that exists
+  -- only while the session row itself still does.
+  session_ref uuid not null,
+
+  -- Nullable, on delete set null -- matching granted_by's existing
+  -- rationale below, for the identical reason: this table's rows are the
+  -- retained minimum financial/entitlement audit evidence for a completed
+  -- session and are intentionally never deleted, even across full account
+  -- deletion. If this stayed on delete restrict, a deletion flow that
+  -- ultimately removes the auth.users row itself would be permanently
+  -- blocked by every retained entitlement-usage row belonging to that
+  -- user. entitlement_type, credit_ledger_id / subscription_id /
+  -- granted_by, and session_ref remain the durable evidence; user_id here
+  -- is attribution only and is allowed to be cleared.
+  user_id uuid references auth.users(id) on delete set null,
 
   entitlement_type text not null
     check (entitlement_type in ('complimentary', 'credit', 'subscription', 'admin_grant')),
@@ -58,10 +79,51 @@ create table if not exists public.session_entitlement_usage (
 );
 
 comment on table public.session_entitlement_usage is
-  'Auditable, exactly-once-per-session record of which entitlement (complimentary/credit/subscription/admin_grant) was consumed to complete a session. Written only by the Stage 5 completion RPC (not yet authored).';
+  'Auditable, exactly-once-per-session-ever record of which entitlement (complimentary/credit/subscription/admin_grant) was consumed to complete a session. Written only by the Stage 5 completion RPC (not yet authored). Rows are retained across session and account deletion: session_id/user_id are nullable and cleared via ON DELETE SET NULL, but session_ref preserves a permanent, non-FK reference to the original session.';
 
 create index if not exists idx_entitlement_usage_user
   on public.session_entitlement_usage (user_id, created_at desc);
+
+-- Enforces "exactly one entitlement-usage row per session, ever" using the
+-- immutable session_ref rather than the nullable session_id -- unlike a
+-- unique constraint on session_id, this guarantee survives the session
+-- row's own deletion (session_id would otherwise become null and no
+-- longer distinguish which session a row was originally for).
+create unique index if not exists idx_entitlement_usage_session_ref
+  on public.session_entitlement_usage (session_ref);
+
+-- Populates session_ref from session_id at insert time and rejects any
+-- insert attempt with a null session_id -- this table's whole purpose is
+-- recording entitlement usage FOR a session, so session_id must be real
+-- at creation even though it is nullable afterward (to support the later
+-- ON DELETE SET NULL when that session is deleted). session_ref is always
+-- taken from session_id here, never from a client-supplied value, since
+-- application code is not trusted to keep the two in sync.
+create or replace function public.blindspot_set_entitlement_session_ref()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if new.session_id is null then
+    raise exception 'session_entitlement_usage.session_id must be set at insert time';
+  end if;
+  new.session_ref := new.session_id;
+  return new;
+end;
+$$;
+
+comment on function public.blindspot_set_entitlement_session_ref() is
+  'Stage 1 (session-persistence-audit)-owned. Populates session_entitlement_usage.session_ref from session_id at insert time; used only by that table''s before-insert trigger.';
+
+revoke all on function public.blindspot_set_entitlement_session_ref() from public, anon, authenticated;
+
+drop trigger if exists entitlement_usage_set_session_ref on public.session_entitlement_usage;
+create trigger entitlement_usage_set_session_ref
+  before insert on public.session_entitlement_usage
+  for each row
+  execute function public.blindspot_set_entitlement_session_ref();
 
 alter table public.session_entitlement_usage enable row level security;
 
@@ -78,5 +140,12 @@ create policy "entitlement_usage_select_own"
 -- service_role gets select/insert only -- this table is a write-once
 -- audit trail by design ("exactly one row per session, ever"), so no
 -- update or delete privilege is granted at all, even to service_role.
+-- This does NOT prevent session_id/user_id from ever being cleared: the
+-- ON DELETE SET NULL actions on those columns are performed internally by
+-- Postgres's own foreign-key enforcement when the referenced sessions/
+-- auth.users row is deleted, not by an ordinary UPDATE statement -- so
+-- they require only DELETE privilege on the REFERENCED table (sessions,
+-- auth.users), never an UPDATE grant on this table itself. No role,
+-- including service_role, can otherwise modify or delete a row here.
 revoke all on public.session_entitlement_usage from public, anon, authenticated;
 grant select, insert on public.session_entitlement_usage to service_role;

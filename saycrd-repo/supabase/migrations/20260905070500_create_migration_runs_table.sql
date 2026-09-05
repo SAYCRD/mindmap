@@ -73,9 +73,17 @@ create policy "migration_runs_select_own"
   to authenticated
   using ((select auth.uid()) = user_id);
 
--- service_role gets select/insert/update -- a run starts 'in_progress' and
--- is later updated in place to 'completed'/'partial_failure'/'failed'
--- (never a new row per status change). No delete: a run's outcome is
--- permanent audit history.
+-- service_role gets select/insert/update/delete -- a run starts
+-- 'in_progress' and is later updated in place to 'completed'/
+-- 'partial_failure'/'failed' (never a new row per status change).
+-- Unlike session_entitlement_usage, this table has no financial/
+-- accounting retention requirement: it is purely diagnostic history for
+-- the guest/local backfill process, so it is deleted as part of account
+-- deletion (`DELETE FROM public.migration_runs WHERE user_id = ...`)
+-- rather than retained. This is why user_id keeps on delete restrict
+-- (unlike session_entitlement_usage's user_id) -- account deletion must
+-- delete this table's rows for that user explicitly, before deleting
+-- auth.users, rather than relying on an ON DELETE SET NULL to happen
+-- automatically.
 revoke all on public.migration_runs from public, anon, authenticated;
-grant select, insert, update on public.migration_runs to service_role;
+grant select, insert, update, delete on public.migration_runs to service_role;
