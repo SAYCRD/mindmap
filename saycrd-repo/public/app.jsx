@@ -10678,7 +10678,7 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
-WebkitTextFillColor:"transparent", flexShrink:0 }}>SAYCRD</div>
+WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
 {isLandingRealAccount ? (
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
