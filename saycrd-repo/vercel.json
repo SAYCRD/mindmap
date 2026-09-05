@@ -6,6 +6,12 @@
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "functions": {
-    "api/claude.js": { "maxDuration": 60 }
+    "api/claude.js": { "maxDuration": 60 },
+    "api/credits.js": { "maxDuration": 15 },
+    "api/session-start.js": { "maxDuration": 15 },
+    "api/session-tiers.js": { "maxDuration": 15 },
+    "api/admin-tiers.js": { "maxDuration": 15 },
+    "api/square-checkout.js": { "maxDuration": 15 },
+    "api/square-webhook.js": { "maxDuration": 15 }
   }
 }
