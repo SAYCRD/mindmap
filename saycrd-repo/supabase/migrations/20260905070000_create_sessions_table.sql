@@ -92,17 +92,42 @@ create unique index if not exists idx_sessions_user_legacy_fingerprint
   on public.sessions (user_id, legacy_fingerprint)
   where legacy_fingerprint is not null;
 
--- Production already has two competing updated_at trigger functions:
--- public.update_updated_at() (used by free_sessions_used, session_tiers,
--- square_payments -- the majority convention, no elevated privilege) and
--- public.set_updated_at() (used only by subscriptions, SECURITY DEFINER).
--- Reusing the majority, non-privileged convention here rather than
--- introducing a third redundant function.
+-- Production already has two updated_at trigger functions
+-- (public.update_updated_at(), public.set_updated_at()), but neither is
+-- established by this repository's version-controlled migration history --
+-- they exist only as undocumented production drift. A clean staging
+-- environment applying just these migrations must not depend on state that
+-- isn't captured in this repo, so Stage 1 owns a single, uniquely named
+-- trigger function instead of reusing either production function or
+-- replacing/modifying them. This function is created here, before any
+-- trigger references it, and is used only by the new Blindspot content
+-- tables (sessions, reports) added in this Stage.
+create function public.blindspot_content_set_updated_at()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+comment on function public.blindspot_content_set_updated_at() is
+  'Stage 1 (session-persistence-audit)-owned updated_at trigger function. Used only by sessions/reports. Does not replace or modify public.update_updated_at() or public.set_updated_at(), both pre-existing production functions outside this migration history.';
+
+-- No execute grant to anon/authenticated: trigger functions are invoked by
+-- the database engine itself when firing a trigger, never called directly
+-- by a client role, so browser-facing roles receive no execute permission
+-- on this function at all.
+revoke all on function public.blindspot_content_set_updated_at() from public, anon, authenticated;
+
 drop trigger if exists sessions_set_updated_at on public.sessions;
 create trigger sessions_set_updated_at
   before update on public.sessions
   for each row
-  execute function public.update_updated_at();
+  execute function public.blindspot_content_set_updated_at();
 
 alter table public.sessions enable row level security;
 

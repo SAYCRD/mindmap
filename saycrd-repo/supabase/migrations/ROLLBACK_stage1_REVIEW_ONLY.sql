@@ -40,11 +40,12 @@ drop trigger if exists sessions_set_updated_at on public.sessions;
 drop policy if exists "sessions_select_own" on public.sessions;
 drop table if exists public.sessions;
 
--- No function drop needed here: sessions/reports triggers both call the
--- pre-existing public.update_updated_at() (already used by
--- free_sessions_used, session_tiers, square_payments), not a new function
--- introduced by this batch -- so there is nothing Stage-1-specific to
--- clean up on that front.
+-- Drop the Stage-1-owned trigger function only after every trigger/table
+-- that depends on it (sessions, reports -- both dropped above) is gone.
+-- Does not touch either pre-existing production function
+-- (public.update_updated_at(), public.set_updated_at()) -- those are
+-- untouched production state outside this migration history.
+drop function if exists public.blindspot_content_set_updated_at();
 
 -- Note: no ALTER on auth.users, credit_ledger, subscriptions, or
 -- session_tiers is ever required to roll this batch back -- every FK in
