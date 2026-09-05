@@ -11428,8 +11428,7 @@ return function() { window.removeEventListener("blindspot-show-paywall", onShow)
 }, []);
 
 useEffect(function() {
-function onReturn() {
-if (!visible) return;
+function pollForCredits() {
 setPolling(true);
 var attempts = 0;
 var iv = setInterval(function() {
@@ -11441,8 +11440,17 @@ else if (attempts >= 8) { clearInterval(iv); setPolling(false); }
 }).catch(function() { clearInterval(iv); setPolling(false); });
 }, 1500);
 }
+// Only poll on the in-app event if the modal is already open (e.g. it was
+// left open in another tab). On a fresh page load returning from Square's
+// hosted checkout, `visible` always starts false — React state doesn't
+// survive the redirect round-trip — so that path alone would never show
+// the "confirming payment" state. window._checkoutJustReturned (set
+// synchronously by index.html before this component even mounts) is the
+// signal for that case: force the modal open and start polling directly,
+// bypassing the visible check entirely.
+function onReturn() { if (visible) pollForCredits(); }
 window.addEventListener("blindspot-checkout-return", onReturn);
-if (window._checkoutJustReturned) { window._checkoutJustReturned = false; onReturn(); }
+if (window._checkoutJustReturned) { window._checkoutJustReturned = false; setVisible(true); pollForCredits(); }
 return function() { window.removeEventListener("blindspot-checkout-return", onReturn); };
 }, [visible]);
 
