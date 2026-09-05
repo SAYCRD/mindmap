@@ -11468,7 +11468,10 @@ useEffect(function(){ if (!open) return; function close(){ setOpen(false); } doc
    guests. Only a real Supabase user (id present and not "local-user")
    counts as logged in for display purposes. */
 var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
-var showDashboard = phase !== 7 && phase !== 8;
+// PHASES[8] === "journeys" is the actual Dashboard; PHASES[7] === "complete"
+// is the post-session ceremony screen. Only hide the "Dashboard" link when
+// already sitting on the Dashboard itself.
+var showDashboard = phase !== 8;
 // Real accounts have a persistent "Dashboard" menu entry and a "Read Your
 // Report" card right on the Dashboard itself, so a transient "Back to
 // report" item here is redundant and confusing once logged in. Guests have
