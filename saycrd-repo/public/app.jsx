@@ -10678,7 +10678,7 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
 <div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
-WebkitTextFillColor:"transparent", flexShrink:0 }}>SAYCRD</div>
+WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
 {isLandingRealAccount ? (
 <button onClick={function(){ if (window._signOut) window._signOut(); }} style={{ flexShrink:0, width:36, height:36, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.12)", background:"rgba(0,0,0,0.35)", color:"rgba(247,241,231,0.7)", fontSize:14, fontWeight:600, fontFamily:FB, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
@@ -11468,7 +11468,10 @@ useEffect(function(){ if (!open) return; function close(){ setOpen(false); } doc
    guests. Only a real Supabase user (id present and not "local-user")
    counts as logged in for display purposes. */
 var isRealAccount = !!(authUser && authUser.id && authUser.id !== "local-user");
-var showDashboard = phase !== 7 && phase !== 8;
+// PHASES[8] === "journeys" is the actual Dashboard; PHASES[7] === "complete"
+// is the post-session ceremony screen. Only hide the "Dashboard" link when
+// already sitting on the Dashboard itself.
+var showDashboard = phase !== 8;
 // Real accounts have a persistent "Dashboard" menu entry and a "Read Your
 // Report" card right on the Dashboard itself, so a transient "Back to
 // report" item here is redundant and confusing once logged in. Guests have
@@ -11734,6 +11737,7 @@ setDrafts(function(prev){ var next = Object.assign({}, prev); next[id] = Object.
 if (!visible) return null;
 
 var inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.92)", fontFamily: FB, fontSize: 13 };
+var labelStyle = { fontFamily: FB, fontSize: 10, letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" };
 
 return (
 <div style={{ position: "fixed", inset: 0, zIndex: 10011, background: "rgba(6,9,16,0.96)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 20px", overflowY: "auto" }}>
@@ -11748,15 +11752,25 @@ return (
 ) : (
 <>
 {error && <div style={{ marginBottom: 16, fontFamily: FB, fontSize: 13, color: "#E84393" }}>{error}</div>}
+{tiers.length > 0 && (
+<div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto auto", gap: 8, padding: "0 10px", marginBottom: 8 }}>
+<span style={labelStyle}>Name</span>
+<span style={labelStyle}>Sessions</span>
+<span style={labelStyle}>Price ($)</span>
+<span style={labelStyle}>Sort</span>
+<span></span>
+<span></span>
+</div>
+)}
 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
 {tiers.map(function(t){
 var d = drafts[t.id] || {};
 return (
 <div key={t.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto auto", gap: 8, alignItems: "center", padding: "10px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: t.active ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.015)", opacity: t.active ? 1 : 0.5 }}>
-<input style={inputStyle} value={d.name || ""} onChange={function(e){ updateDraft(t.id, "name", e.target.value); }} />
-<input style={inputStyle} type="number" min="1" value={d.session_count || ""} onChange={function(e){ updateDraft(t.id, "session_count", e.target.value); }} />
-<input style={inputStyle} type="number" min="0" step="0.01" value={d.price || ""} onChange={function(e){ updateDraft(t.id, "price", e.target.value); }} />
-<input style={inputStyle} type="number" value={d.sort_order || ""} onChange={function(e){ updateDraft(t.id, "sort_order", e.target.value); }} />
+<input aria-label="Pack name" style={inputStyle} value={d.name || ""} onChange={function(e){ updateDraft(t.id, "name", e.target.value); }} />
+<input aria-label="Session count" style={inputStyle} type="number" min="1" value={d.session_count || ""} onChange={function(e){ updateDraft(t.id, "session_count", e.target.value); }} />
+<input aria-label="Price in dollars" style={inputStyle} type="number" min="0" step="0.01" value={d.price || ""} onChange={function(e){ updateDraft(t.id, "price", e.target.value); }} />
+<input aria-label="Sort order" style={inputStyle} type="number" value={d.sort_order || ""} onChange={function(e){ updateDraft(t.id, "sort_order", e.target.value); }} />
 <button disabled={savingId === t.id} onClick={function(){ saveTier(t.id); }} style={{ padding: "8px 12px", borderRadius: 8, border: "none", background: "rgba(184,107,255,0.85)", color: "#0A0814", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Save</button>
 {t.active ? (
 <button disabled={savingId === t.id} onClick={function(){ deactivateTier(t.id); }} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "rgba(255,255,255,0.6)", fontFamily: FB, fontSize: 12, cursor: "pointer" }}>Deactivate</button>
@@ -11769,11 +11783,18 @@ return (
 </div>
 
 <div style={{ fontFamily: FB, fontSize: 12, letterSpacing: "0.2em", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: 10 }}>Add a pack</div>
+<div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 8, marginBottom: 6 }}>
+<span style={labelStyle}>Name</span>
+<span style={labelStyle}>Sessions</span>
+<span style={labelStyle}>Price ($)</span>
+<span style={labelStyle}>Sort</span>
+<span></span>
+</div>
 <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 8 }}>
-<input style={inputStyle} placeholder="Name" value={newTier.name} onChange={function(e){ setNewTier(Object.assign({}, newTier, { name: e.target.value })); }} />
-<input style={inputStyle} placeholder="Sessions" type="number" min="1" value={newTier.session_count} onChange={function(e){ setNewTier(Object.assign({}, newTier, { session_count: e.target.value })); }} />
-<input style={inputStyle} placeholder="Price $" type="number" min="0" step="0.01" value={newTier.price} onChange={function(e){ setNewTier(Object.assign({}, newTier, { price: e.target.value })); }} />
-<input style={inputStyle} placeholder="Sort" type="number" value={newTier.sort_order} onChange={function(e){ setNewTier(Object.assign({}, newTier, { sort_order: e.target.value })); }} />
+<input aria-label="Name" style={inputStyle} placeholder="e.g. 5-Session Pack" value={newTier.name} onChange={function(e){ setNewTier(Object.assign({}, newTier, { name: e.target.value })); }} />
+<input aria-label="Sessions" style={inputStyle} placeholder="1" type="number" min="1" value={newTier.session_count} onChange={function(e){ setNewTier(Object.assign({}, newTier, { session_count: e.target.value })); }} />
+<input aria-label="Price in dollars" style={inputStyle} placeholder="12.00" type="number" min="0" step="0.01" value={newTier.price} onChange={function(e){ setNewTier(Object.assign({}, newTier, { price: e.target.value })); }} />
+<input aria-label="Sort order" style={inputStyle} placeholder="0" type="number" value={newTier.sort_order} onChange={function(e){ setNewTier(Object.assign({}, newTier, { sort_order: e.target.value })); }} />
 <button disabled={creating} onClick={createTier} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "linear-gradient(135deg, #B86BFF, #E84393)", color: "#0A0814", fontFamily: FB, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Add</button>
 </div>
 </>
