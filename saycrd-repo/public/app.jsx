@@ -12136,8 +12136,8 @@ setPhase(3);
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
 {cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){setPhase(7);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
 {cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}} onNavigateToJourneys={function(){setPhase(8);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
-{cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onBack={function(){setPhase(7);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
-{cp==="report"&&<ReportViewerPhase sessionIndex={reportSessionIndex} onBack={function(){setPhase(7);}}/>}
+  {cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onBack={function(){setPhase(0);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
+  {cp==="report"&&<ReportViewerPhase sessionIndex={reportSessionIndex} onBack={function(){setPhase(8);}}/>}
 {fieldTransition && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", animation: "morphIn 0.4s ease both" }}>
 <div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase", animation: "pulse 1.5s ease infinite" }}>entering the field</div>
 </div>}
