@@ -249,7 +249,7 @@ features, analytics, and Square/payment changes.
 | `api/reports.js` | Retrieve a report by its owning `session_id`. Read-only. |
 | `api/captures.js` | Capture create, list, delete. No update route exists. |
 | `api/bookmarks.js` | Bookmark create, list, delete. No update route exists. |
-| `api/package.json` (`{"type":"module"}`) | Scopes Node's module resolution to ESM for everything under `api/`, matching the `import`/`export` syntax these files (and the pre-existing Stage-1-adjacent routes such as `_lib.js`) already use. Vercel's Node builder already auto-detects and runs this ESM syntax in production regardless of this file, so it changes no deployed behavior -- it only makes `api/__tests__`'s `node --test` runs work locally without a bundler, since plain Node needs an explicit `"type": "module"` (or a `.mjs` extension) to parse `import`/`export` itself. Scoped to `api/` only, not the repo root, so `build/compile.js`'s own `require(...)` calls are unaffected. |
+| `api/package.json` (`{"type":"module"}`) -- **REMOVED, see incident note below** | Originally added to scope Node's module resolution to ESM for local `node --test` runs. The assumption that Vercel's Node builder would "run this ESM syntax in production regardless of this file" was wrong: the builder always compiles `api/*.js` down to CommonJS output, and this file was copied verbatim into every deployed function's bundle directory, which made the CommonJS-compiled handler code load under a forced ES-module interpretation. Every API function (including untouched ones like `session-tiers.js`) crashed at module-load time in production/preview with `ReferenceError: exports is not defined in ES module scope`. **File deleted.** Local ESM parsing for `node --test` no longer depends on a directory-scoped `package.json`; it relies on Node's own syntax-based auto-detection of `import`/`export` in the test files, which is sufficient for `npm test` to pass (see Stage 3 test results below) and emits only a harmless `MODULE_TYPELESS_PACKAGE_JSON` performance-notice warning, not an error. |
 | `api/__tests__/*.test.js`, `api/__tests__/_mock-supabase.js`, `api/__tests__/_http.js` | Unit tests (Node's built-in `node:test` runner -- no new dependency) plus a small in-memory mock Supabase query builder and fake req/res, so every test exercises route logic with zero network or database access. Run with `npm test`. |
 
 Every route follows the same security shape: `getAuthedUser` (from
@@ -374,3 +374,96 @@ and `session-sync.test.js`).
   loading against a real Supabase project and real browser (unit tests
   use a fake fetch/localStorage; no live staging or production run has
   been performed as part of this stage).
+
+## Incident: `api/package.json` broke every API function in production
+
+`api/package.json` (`{"type":"module"}`, added as part of the Stage 2
+batch above) caused a site-wide outage: every deployed API function --
+old and new alike, including completely unmodified routes such as
+`session-tiers.js` -- crashed at module-load time with `ReferenceError:
+exports is not defined in ES module scope`, because Vercel's Node builder
+compiles `api/*.js` to CommonJS regardless of this file, and the file was
+copied into each function's deployed bundle directory, forcing that
+CommonJS output to be parsed as ESM instead.
+
+**Fix applied:** `api/package.json` deleted. No `"type": "module"` was
+added anywhere else (not the repo root, not any production directory).
+Verified: `npm test` still passes 67/67 (Node's own syntax-based
+`import`/`export` auto-detection is sufficient for the local test runner,
+independent of any `package.json`); `vercel build` produces function
+bundles with zero directory-level `"type":"module"` declarations;
+directly invoking every compiled handler (`node --require ./<fn>.js`,
+matching the exact command that reproduced the crash) now exits 0 for
+all 16 functions; a staging-scoped Preview deployment exercised all four
+Stage 2/3 API routes live and confirmed no `FUNCTION_INVOCATION_FAILED`
+crash.
+
+## Required follow-up: environment-aware browser configuration
+
+**Tracked item -- not yet fixed, blocks routine Preview usage.**
+
+`public/index.html` currently **hardcodes** the production Supabase URL
+and anon key as literal strings (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
+This is static markup with no build-time templating step, so:
+
+- Preview-environment environment variables (`NEXT_PUBLIC_SUPABASE_URL`,
+  etc.) **cannot override these literals** -- setting them in the Vercel
+  project has no effect on what the browser actually loads. Every Preview
+  deployment's browser client talks to **production** Supabase today,
+  regardless of what the API side is configured to use.
+- The staging Preview deployment used to verify the `api/package.json`
+  fix above worked around this with a **temporary, uncommitted**
+  substitution: the two literal values were edited in a disposable git
+  worktree (never the tracked branch), built, deployed, verified, then
+  reverted before the worktree was discarded. This is a one-off
+  verification technique, not a real mechanism, and is not meant to be
+  repeated by hand for every future Preview.
+
+**Before relying on routine Preview deployments, replace this with a
+proper runtime or build-time public-configuration mechanism** (e.g.
+templating `index.html` from `NEXT_PUBLIC_SUPABASE_URL` /
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` at build time, or fetching a small public
+runtime-config endpoint at page load) such that:
+
+- The browser's Supabase target and the API's Supabase target **always
+  match** for a given deployment/environment -- there must be no scenario
+  where the browser silently talks to production while the API talks to
+  staging (or vice versa).
+- Only genuinely public values (anon/publishable key, project URL) ever
+  reach browser-served assets. `SUPABASE_SERVICE_ROLE_KEY` (or any other
+  secret/service-role credential) must **never** be embedded in
+  `index.html`, any client bundle, or any other browser-served file.
+
+This item belongs on the final production-readiness checklist below and
+should be resolved before Preview deployments are used routinely (as
+opposed to the one-off, worktree-only verification already performed for
+this incident).
+
+## Production-readiness checklist
+
+Tracked items that must be resolved before this work is considered
+production-ready, gathered from the stage notes above:
+
+- [ ] **Environment-aware browser configuration** (see dedicated section
+  above). Replace `public/index.html`'s hardcoded production
+  `SUPABASE_URL`/`SUPABASE_ANON_KEY` literals with a real runtime/build
+  -time mechanism so the browser and API Supabase targets always match
+  per environment, with no service-role or other secret ever reaching
+  browser-served assets.
+- [ ] **Stage 1 clean-replay rehearsal**: all six Stage 1 migration files
+  rehearsed from scratch via `apply_migration` on a fresh, isolated
+  branch -- not the hand-corrected staging project currently in use --
+  before any of them is applied to production.
+- [ ] **Stage 2 live-staging verification items**: cursor-pagination
+  `.or()` SQL behavior at real page boundaries, the DB content-size
+  constraint vs. the app-level check at the boundary, end-to-end JWT
+  verification against a real Supabase project, and confirming
+  `service_role`'s actual per-table grants match the corrected Stage 1
+  matrix on whichever database is ultimately used.
+- [ ] **Stage 3 live-staging verification items**: the `reports
+  .session_id` unique-violation (`23505`) fallback path against the real
+  DB constraint, and end-to-end guest-to-account transfer / cross-device
+  Dashboard loading against a real Supabase project and real browser.
+- [ ] **`schema.sql` disposition**: decide whether the historical,
+  superseded `supabase/schema.sql` is deleted or kept with an explicit
+  superseded-comment; currently left unmodified pending that decision.
