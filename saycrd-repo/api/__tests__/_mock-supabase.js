@@ -158,6 +158,52 @@ class MockQueryBuilder {
   }
 }
 
+// Mimics the persistence half of the complete_session_and_consume_entitlement
+// RPC (see supabase/migrations/20260906080000_create_complete_session_entitlement_rpc.sql)
+// closely enough to unit-test session-complete.js's handling of every
+// {ok, error} shape it branches on: not_found (missing or not owned),
+// session_not_editable (status isn't draft), already_completed (idempotent
+// replay -- no further writes), and the success path (session marked
+// completed + exactly one report row created). Deliberately does not model
+// the entitlement/credit-ledger side (free_sessions_used, credit_ledger,
+// session_entitlement_usage, no_entitlement) -- this mock has no fixtures
+// for those tables and no test here exercises that branch; entitlement
+// timing is covered separately by live staging verification against the
+// real Postgres RPC, per this file's header note on requiring live
+// verification for logic this mock can't faithfully reproduce.
+function mockCompleteSessionAndConsumeEntitlement(state, params) {
+  const sessionId = params.p_session_id;
+  const userId = params.p_user_id;
+  const session = state.sessions.find((s) => s.id === sessionId);
+
+  if (!session || session.user_id !== userId) {
+    return { ok: false, error: "not_found" };
+  }
+  if (session.status === "completed") {
+    return { ok: true, already_completed: true };
+  }
+  if (session.status !== "draft") {
+    return { ok: false, error: "session_not_editable" };
+  }
+
+  const now = new Date().toISOString();
+  Object.assign(session, { status: "completed", completed_at: now, updated_at: now, content: params.p_session_content });
+
+  state.reports.push({
+    id: `generated-report-${state.reports.length}-${Math.random().toString(36).slice(2)}`,
+    session_id: sessionId,
+    user_id: userId,
+    status: "complete",
+    schema_version: 1,
+    content: params.p_report_content,
+    one_line_verdict: params.p_verdict,
+    created_at: now,
+    updated_at: now,
+  });
+
+  return { ok: true };
+}
+
 export function createMockSupabase(fixtures = {}) {
   const state = {
     sessions: [...(fixtures.sessions || [])],
@@ -168,6 +214,12 @@ export function createMockSupabase(fixtures = {}) {
   return {
     from(table) {
       return new MockQueryBuilder(table, state);
+    },
+    async rpc(fnName, params) {
+      if (fnName === "complete_session_and_consume_entitlement") {
+        return { data: mockCompleteSessionAndConsumeEntitlement(state, params), error: null };
+      }
+      throw new Error(`mock supabase: unhandled rpc "${fnName}"`);
     },
     _state: state,
   };
