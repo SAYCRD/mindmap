@@ -2,7 +2,8 @@
   "name": "saycrd",
   "private": true,
   "scripts": {
-    "build": "node build/compile.js"
+    "build": "node build/compile.js",
+    "test": "node --test api/__tests__/*.test.js"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
