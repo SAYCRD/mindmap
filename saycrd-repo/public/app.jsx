@@ -10374,13 +10374,14 @@ var [starting, setStarting] = useState(false);
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 var MILESTONES = [3, 10, 20, 50];
 function guardedStart() {
-  // A credit-consuming request is in flight (or a global lock from another
+  // An eligibility-check request is in flight (or a global lock from another
   // instance of this same button elsewhere on the page is held) — ignore
-  // further clicks. Without this guard, a real double-click or a slow
-  // network response left the button clickable while the first request was
-  // still pending, so a second click fired a second credit-consume call and
-  // silently burned an extra paid/free session before any session content
-  // even loaded.
+  // further clicks. This is just a UX debounce now, not a spend guard: the
+  // actual entitlement (free-session count / credit balance) is only ever
+  // consumed atomically at session-complete time via the
+  // complete_session_and_consume_entitlement RPC (see api/session-complete.js),
+  // so a duplicate click here can no longer burn an extra paid/free session —
+  // worst case it fires a redundant read-only eligibility check.
   if (starting || window._sessionStartInFlight) return;
   if (_isRealAccount()) {
     /* Real accounts skip the guest free-session cap entirely and instead go
@@ -10526,10 +10527,10 @@ var [starting, setStarting] = useState(false);
 useEffect(function(){ function refresh(){ try { setCaptures(JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]")); } catch(e){} } window.addEventListener("saycrd-captures-updated", refresh); return function(){ window.removeEventListener("saycrd-captures-updated", refresh); }; }, []);
 
 function guardedStart() {
-  // See JourneysPhase's guardedStart for why this guard exists: without it,
-  // a double-click (or a slow response leaving the button clickable) could
-  // fire _consumeSessionCredit() twice and silently burn two sessions for
-  // one click.
+  // See JourneysPhase's guardedStart for why this guard exists: it's now
+  // just a UX debounce against redundant eligibility checks, not a spend
+  // guard -- entitlement is only ever consumed atomically at
+  // session-complete time.
   if (starting || window._sessionStartInFlight) return;
   if (_isRealAccount()) {
     if (!window._consumeSessionCredit) { onStart(); return; }
@@ -10734,10 +10735,10 @@ useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.s
 
 var [starting, setStarting] = useState(false);
 function guardedStart() {
-  // See JourneysPhase's guardedStart for why this guard exists: without it,
-  // a double-click (or a slow response leaving the button clickable) could
-  // fire _consumeSessionCredit() twice and silently burn two sessions for
-  // one click.
+  // See JourneysPhase's guardedStart for why this guard exists: it's now
+  // just a UX debounce against redundant eligibility checks, not a spend
+  // guard -- entitlement is only ever consumed atomically at
+  // session-complete time.
   if (starting || window._sessionStartInFlight) return;
   if (_isRealAccount()) {
     if (!window._consumeSessionCredit) { onStart(); return; }

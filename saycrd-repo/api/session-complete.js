@@ -89,8 +89,11 @@ export function createSessionCompleteHandler({ getAuthedUser, getServiceClient }
         // "retry_needed" (a session_entitlement_usage race caught as
         // unique_violation) or any other unrecognized code: safe to retry --
         // no partial charge or partial persistence can have happened, the
-        // whole RPC is one transaction.
-        return res.status(409).json({ error: "retry_needed", message: "Please try again" });
+        // whole RPC is one transaction. Respond 500 (not 409) so it falls
+        // into session-sync.js's existing ">=500 is retryable" bucket
+        // automatically, without that generic client needing to special-case
+        // this reason.
+        return res.status(500).json({ error: "retry_needed", message: "Please try again" });
       }
 
       // Whether this call just completed the session or it was already

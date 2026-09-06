@@ -765,10 +765,18 @@ window._localBypass = function() {
    Session-pack paywall
    Real accounts get 2 free sessions (tracked server-side), then must buy
    a pack via Square Checkout. guardedStart() (in app.jsx) calls
-   _consumeSessionCredit() before letting a real account start a session,
-   and only opens the paywall on an explicit "no credits left" response —
-   any network/server hiccup fails OPEN so an outage never strands a
-   paying user mid-session.
+   _consumeSessionCredit() before letting a real account start a session
+   -- despite the name, this is a read-only eligibility check against
+   /api/session-start (it consumes nothing): it lets the client show the
+   paywall up front instead of the user investing time in a session that
+   can't be completed. The entitlement itself is only ever actually
+   consumed atomically, at session-complete time, by the
+   complete_session_and_consume_entitlement RPC (see
+   api/session-complete.js) -- so this check's answer is advisory only,
+   and a "yes" here followed by running out of entitlement before
+   completion (e.g. two tabs finishing concurrently) is handled safely by
+   session-complete.js, not by this function. Any network/server hiccup
+   here fails OPEN so an outage never strands a paying user mid-session.
    ==================================================================== */
 window._consumeSessionCredit = async function() {
   var tok = window._saycrdToken;
