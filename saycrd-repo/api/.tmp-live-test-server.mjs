@@ -106,10 +106,30 @@ function shim(req, res) {
   return parsed.pathname;
 }
 
+// Test-only failure injection: toggled via a local control endpoint so we
+// can simulate "sync fails" (client retry-banner path) without touching
+// any real route handler or app logic. Only affects THIS disposable
+// harness process; never present in the real deployed API.
+let FAIL_SYNC_ROUTES = false;
+const FAILABLE_ROUTES = new Set(["/api/sessions", "/api/session-complete", "/api/reports"]);
+
 const server = http.createServer((req, res) => {
   const pathname = shim(req, res);
+
+  if (pathname === "/__test_fail_toggle") {
+    FAIL_SYNC_ROUTES = req.query.on === "1";
+    console.log(`[test-harness] FAIL_SYNC_ROUTES = ${FAIL_SYNC_ROUTES}`);
+    res.status(200).json({ failSyncRoutes: FAIL_SYNC_ROUTES });
+    return;
+  }
+
   const routeHandler = ROUTES[pathname];
   if (!routeHandler) return serveStatic(req, res, pathname);
+
+  if (FAIL_SYNC_ROUTES && FAILABLE_ROUTES.has(pathname)) {
+    res.status(503).json({ error: "simulated network failure (test harness)" });
+    return;
+  }
 
   if (req.method === "GET" || req.method === "DELETE" || req.method === "OPTIONS") {
     req.body = {};
