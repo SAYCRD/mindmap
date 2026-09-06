@@ -108,8 +108,13 @@ begin
     end if;
   end if;
 
-  insert into public.session_entitlement_usage (session_id, user_id, entitlement_type, credit_ledger_id)
-  values (p_session_id, p_user_id, v_source, v_credit_ledger_id);
+  -- session_ref (not session_id) is the column Stage 1 actually put the
+  -- unique index on (idx_entitlement_usage_session_ref) -- that's the
+  -- real double-charge backstop this insert relies on, so it must be the
+  -- column populated here. session_id is also set, redundantly, purely
+  -- so ad-hoc queries/joins against sessions.id read naturally.
+  insert into public.session_entitlement_usage (session_ref, session_id, user_id, entitlement_type, credit_ledger_id)
+  values (p_session_id, p_session_id, p_user_id, v_source, v_credit_ledger_id);
 
   update public.sessions
   set content = p_session_content,

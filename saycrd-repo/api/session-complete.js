@@ -1,21 +1,27 @@
-// api/session-complete.js — Stage 3 (session-persistence-audit): the one
-// write path that transitions a session from draft/processing to
-// completed AND writes its report, in the same request. Stage 2's
-// sessions.js/reports.js deliberately left this transition unbuilt (see
-// MIGRATIONS_STATUS.md's Stage 2 section, which named it a future "Stage
-// 5 completion RPC") -- this route is the minimal, additive piece Stage 3
-// needs to fulfil "session and report are attached to the authenticated
-// user and saved server-side." It requires no schema or privilege
-// change: sessions already grants service_role UPDATE and reports
-// already grants service_role INSERT+UPDATE (see the Stage 1 migration
-// files) -- exactly what this route uses, nothing more.
+// api/session-complete.js — Stage 4 (session-persistence-audit): the ONLY
+// write path that transitions a session from draft/processing to completed,
+// writes its report, AND consumes the user's free/paid entitlement — all
+// three, atomically, in a single Postgres transaction via the
+// complete_session_and_consume_entitlement RPC (SECURITY DEFINER,
+// search_path='', advisory-locked per user, tied to this session's UUID
+// through session_entitlement_usage). This replaces the old design where
+// session-start.js spent the credit up front and this route only persisted
+// content — that split meant a charge could exist with no completed session
+// behind it (abandon/refresh/fail) and vice versa. Now a charge cannot exist
+// without a successfully completed server-side session, by construction: if
+// the RPC's persistence half fails, its entitlement half rolls back with it,
+// and if the entitlement half is denied (no_entitlement), no persistence
+// happens either.
 //
 // Idempotent by design, matching sessions.js's own idempotent-create
-// pattern: retrying the same session_id after a successful completion is
-// a safe no-op (returns the existing session+report, applies no further
-// writes), and a retry that races a first attempt's report insert falls
-// back to an update instead of erroring -- so a flaky network retry can
-// never duplicate a session or a report row.
+// pattern: retrying the same session_id after a successful completion is a
+// safe no-op (the RPC detects status='completed' and returns
+// already_completed:true without touching the ledger or free-session count
+// again), so a lost HTTP response followed by a client retry can never
+// consume a second entitlement for the same session. A concurrent duplicate
+// request for the same session_id is serialized by the RPC's per-user
+// advisory lock plus its `for update` row lock on the session, so at most
+// one of two simultaneous completion attempts ever consumes an entitlement.
 import { getAuthedUser, getServiceClient, setCors } from "./_lib.js";
 import { isValidUuid, validateSessionContent, validateReportContent, MAX_VERDICT_CHARS } from "./_validate.js";
 
@@ -62,42 +68,39 @@ export function createSessionCompleteHandler({ getAuthedUser, getServiceClient }
     }
 
     try {
-      const { data: existing, error: fetchErr } = await sb
-        .from("sessions")
-        .select("id, user_id, status")
-        .eq("id", sessionId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (fetchErr) throw fetchErr;
-      // Identical response whether the session doesn't exist at all or
-      // belongs to another user -- never reveal which.
-      if (!existing) return res.status(404).json({ error: "not_found" });
+      const { data: rpcResult, error: rpcErr } = await sb.rpc("complete_session_and_consume_entitlement", {
+        p_session_id: sessionId,
+        p_user_id: user.id,
+        p_session_content: sessionContent,
+        p_report_content: reportContent,
+        p_verdict: verdict,
+      });
+      if (rpcErr) throw rpcErr;
 
-      if (existing.status === "completed") {
-        // Idempotent replay: a retry after a successful completion (the
-        // client never saw the first response, a duplicate click, etc.)
-        // must never re-apply writes or error -- return current state.
-        return await respondWithCurrentState(sb, user, sessionId, res);
+      if (!rpcResult || rpcResult.ok !== true) {
+        const errCode = rpcResult && rpcResult.error;
+        if (errCode === "not_found") return res.status(404).json({ error: "not_found" });
+        if (errCode === "session_not_editable") return res.status(409).json({ error: "session_not_editable" });
+        if (errCode === "no_entitlement") {
+          // Local content is never lost here -- the client keeps it and
+          // shows the paywall/retry path; nothing was persisted or charged.
+          return res.status(402).json({ error: "no_credits", message: "No free or paid sessions remaining" });
+        }
+        // "retry_needed" (a session_entitlement_usage race caught as
+        // unique_violation) or any other unrecognized code: safe to retry --
+        // no partial charge or partial persistence can have happened, the
+        // whole RPC is one transaction.
+        return res.status(409).json({ error: "retry_needed", message: "Please try again" });
       }
 
-      if (existing.status !== "draft" && existing.status !== "processing") {
-        // failed/abandoned: never resurrect into completed through this route.
-        return res.status(409).json({ error: "session_not_editable" });
-      }
-
-      const { data: session, error: updateErr } = await sb
-        .from("sessions")
-        .update({ content: sessionContent, status: "completed", completed_at: new Date().toISOString() })
-        .eq("id", sessionId)
-        .eq("user_id", user.id)
-        .select(SESSION_PUBLIC_FIELDS)
-        .single();
-      if (updateErr) throw updateErr;
-
-      const report = await upsertReport(sb, user, sessionId, reportContent, verdict);
-      return res.status(200).json({ session, report });
+      // Whether this call just completed the session or it was already
+      // completed by an earlier attempt (idempotent replay), respond with
+      // the current persisted state.
+      return await respondWithCurrentState(sb, user, sessionId, res);
     } catch (err) {
       console.error("session-complete error:", err.message);
+      // Local content is preserved client-side regardless -- this response
+      // tells the client to show Retry rather than treat the session as lost.
       return res.status(500).json({ error: "request_failed" });
     }
   };
@@ -119,44 +122,6 @@ async function respondWithCurrentState(sb, user, sessionId, res) {
     .maybeSingle();
   if (rErr) throw rErr;
   return res.status(200).json({ session, report: report || null });
-}
-
-async function upsertReport(sb, user, sessionId, content, verdict) {
-  const { data: existingReport, error: findErr } = await sb
-    .from("reports")
-    .select("id")
-    .eq("session_id", sessionId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (findErr) throw findErr;
-
-  if (!existingReport) {
-    const { data, error } = await sb
-      .from("reports")
-      .insert({ session_id: sessionId, user_id: user.id, status: "complete", content, one_line_verdict: verdict })
-      .select(REPORT_PUBLIC_FIELDS)
-      .single();
-    // 23505 = unique_violation on reports.session_id -- a concurrent
-    // retry already inserted the row between our select and insert above.
-    // Fall back to update instead of surfacing a duplicate-row error.
-    if (error && error.code === "23505") return await updateExistingReport(sb, user, sessionId, content, verdict);
-    if (error) throw error;
-    return data;
-  }
-
-  return await updateExistingReport(sb, user, sessionId, content, verdict);
-}
-
-async function updateExistingReport(sb, user, sessionId, content, verdict) {
-  const { data, error } = await sb
-    .from("reports")
-    .update({ content, status: "complete", one_line_verdict: verdict })
-    .eq("session_id", sessionId)
-    .eq("user_id", user.id)
-    .select(REPORT_PUBLIC_FIELDS)
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 const handler = createSessionCompleteHandler({ getAuthedUser, getServiceClient });
