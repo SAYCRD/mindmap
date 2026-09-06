@@ -321,3 +321,56 @@ but not against a real Postgres query planner.
   fix addressed) -- and, per the required-rehearsal note above, that this
   has been proven via a clean migration replay, not a hand-corrected
   database.
+
+## Stage 3: client integration and the session-completion route (authored, no schema change)
+
+Stage 3 connects the browser client to the Stage 2 API and adds the one
+write path Stage 2 deliberately left unbuilt: transitioning a session
+from `draft`/`processing` to `completed` and writing its `reports` row.
+The original Stage 2 section above called this a future "Stage 5
+completion RPC" -- Stage 3 (per the approved session-persistence-audit
+plan) builds it now as a plain, additive API route instead of a Postgres
+RPC, using **only privileges already granted in the Stage 1 migration
+files**: `sessions` already grants `service_role` `update`, and `reports`
+already grants `service_role` `insert, update`. No new migration file,
+no new grant, no schema change.
+
+| File | Purpose |
+|---|---|
+| `api/session-complete.js` | `POST` only. Verifies ownership the same way every Stage 2 route does (JWT-derived `user_id`, generic 404 for not-found-or-not-owned). Updates the session to `completed` and upserts (insert, falling back to update on a `23505` unique-violation race) the session's one `reports` row in the same request. Idempotent: retrying the same `session_id` after a successful completion returns the existing session+report unchanged, never re-applying writes. |
+| `public/session-sync.js` | Dependency-injected client module (loaded as a plain `<script>`, also `require()`-able from tests). Owns: UUID session identity assigned at save time, idempotent create (`/api/sessions`) + complete (`/api/session-complete`) with a local `_syncStage` marker so a session already synced is never re-sent, retry-safe failure tracking (`_syncError`, never cleared silently), and a server-authoritative merge (`mergeServerSessionsIntoLocal`) for Dashboard loading that never erases a local-only session. |
+| `api/__tests__/session-complete.test.js`, `api/__tests__/session-sync.test.js` | New unit tests (same `node --test` + mock-Supabase / fake-fetch pattern as Stage 2), covering guest-to-account transfer, duplicate prevention, failed-upload recovery, and server-to-Dashboard merge. |
+
+Client wiring (`public/app.jsx`, `public/index.html`): every locally
+saved session gets a UUID at save time; a fire-and-forget sync runs after
+each local save and after a field report attaches; the guest-to-account
+transfer runs once, right after sign-up/sign-in, from index.html's
+`SIGNED_IN` handler (after the existing `_migrateLegacyLocalKeys` guest
+-bucket merge); `JourneysPhase`/`CompletionPhase`/`ReportViewerPhase`
+(the Dashboard-equivalent screens) now read through a shared
+`useSyncedSessions()` hook that shows the local cache immediately, then
+merges in the server's copy for a real account; a persistent
+`SyncStatusBanner` with a manual Retry button appears whenever a session
+has a recorded sync error, and never disappears on a timer -- only once
+that session actually syncs. The older single-blob `window.storage`
+sync path (`user_data` table) is untouched and keeps running alongside
+this as an additional redundancy layer, not replaced.
+
+### Stage 3 test results
+
+`npm test`: **67 passed, 0 failed** (the 50 pre-existing Stage 2 tests,
+unaffected, plus 17 new Stage 3 tests across `session-complete.test.js`
+and `session-sync.test.js`).
+
+### Stage 3 items requiring live staging verification
+
+- The `reports.session_id` unique-violation (`23505`) fallback path in
+  `session-complete.js` -- the in-memory mock Supabase used by unit tests
+  only enforces uniqueness on `id`, not on an arbitrary column, so this
+  defensive branch is exercised by code review and by the real DB
+  constraint (`reports` migration's `session_id uuid not null unique`),
+  not by a mock-backed unit test.
+- End-to-end guest-to-account transfer and cross-device Dashboard
+  loading against a real Supabase project and real browser (unit tests
+  use a fake fetch/localStorage; no live staging or production run has
+  been performed as part of this stage).

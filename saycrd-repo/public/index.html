@@ -255,6 +255,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
                 try{
                   if(currentUser&&currentUser.id)_migrateLegacyLocalKeys(currentUser.id);
                   _hydrateFromServer().then(function(){return _syncLocalToSupabase();}).catch(function(e){console.warn('[SAYCRD] Post-reset sync failed:',e);});
+                  if(currentUser&&currentUser.id)_syncPendingSessionsToServer(currentUser.id);
                 }catch(e){console.warn('[SAYCRD] Post-reset migration failed:',e);}
                 err.style.color='rgba(107,184,255,.7)';err.textContent='Password updated — welcome back.';
                 setTimeout(function(){
@@ -309,7 +310,8 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      of being transpiled in-browser via Babel Standalone on every visit. That in-browser
      compile of ~11k lines of JSX was taking ~30s on phones with nothing rendered but
      the background, since React can't draw anything until the transpile finishes. -->
-<script src="app.compiled.js?v=20260905-7"></script>
+<script src="session-sync.js?v=1"></script>
+    <script src="app.compiled.js?v=20260905-8"></script>
 
 <script>
 /* Global error handler — shows what's breaking */
@@ -667,6 +669,37 @@ window.storage = {
 };
 
 /* ====================================================================
+   Stage 3 (session-persistence-audit): the new relational
+   sessions/reports sync client (public/session-sync.js). Entirely
+   separate from window.storage above (that still runs, unchanged, as
+   the older single-blob "user_data" sync path) -- this is the bridge to
+   the JWT-verified /api/sessions, /api/session-complete, and
+   /api/reports routes that Stage 1/2 built and verified.
+   ==================================================================== */
+window._sessionSync = window.SessionSync && window.SessionSync.createSessionSync({
+  fetchImpl: function(url, opts) { return fetch(url, opts); },
+  getToken: async function() {
+    if (window._saycrdToken) return window._saycrdToken;
+    if (window.sbClient && window.sbClient.auth) {
+      try {
+        var ss = await window.sbClient.auth.getSession();
+        if (ss && ss.data && ss.data.session) return ss.data.session.access_token;
+      } catch(e) {}
+    }
+    return null;
+  },
+  storage: window.localStorage,
+  now: function() { return new Date().toISOString(); },
+});
+
+function _syncPendingSessionsToServer(uid) {
+  if (!window._sessionSync || !uid) return;
+  window._sessionSync.syncPendingSessions(uid).then(function(result) {
+    try { window.dispatchEvent(new CustomEvent("saycrd-sync-status", { detail: { pendingErrors: (result && result.failed) || 0 } })); } catch(e) {}
+  }).catch(function(e) { console.warn("[SAYCRD] Session sync failed:", e); });
+}
+
+/* ====================================================================
    FAILSAFE BYPASS — works even if Supabase is completely broken
    ==================================================================== */
 window._showAuthOverlay = function(onSuccess, opts) {
@@ -781,6 +814,9 @@ window._showAdminTiers = function() {
           if (_authResolve) _authResolve();
           /* Sync any local-only data up to Supabase */
           _syncLocalToSupabase().catch(function(e) { console.warn("Sync failed:", e); });
+          /* Stage 3: retry anything left pending from a previous visit
+             (e.g. a save that failed mid-session last time). */
+          _syncPendingSessionsToServer(currentUser.id);
         } else {
           /* No session — resolve gate anyway so local mode works */
           if (_authResolve) _authResolve();
@@ -827,6 +863,12 @@ window._showAdminTiers = function() {
             _hydrateFromServer().then(function() {
               return _syncLocalToSupabase();
             }).catch(function(e) { console.warn("[SAYCRD] Post-login sync failed:", e); });
+            /* Stage 3 (session-persistence-audit): the guest-to-account
+               transfer. Runs after _migrateLegacyLocalKeys so a
+               "Continue without account" guest's sessions have already
+               been merged under this real uid before syncing them up to
+               the relational sessions/reports API. */
+            _syncPendingSessionsToServer(session.user.id);
           }
         }
       });

@@ -71,6 +71,28 @@ export function validateSessionContent(content) {
   return { ok: true };
 }
 
+// Stage 3 (session-persistence-audit): mirrors validateSessionContent's
+// shape/size checks for a report's content, used by
+// api/session-complete.js -- the additive route that writes a report at
+// session-completion time (Stage 2's reports.js is read-only).
+export const MAX_REPORT_CONTENT_BYTES = 200000;
+
+export function validateReportContent(content) {
+  if (!isPlainObject(content)) return { ok: false, error: "content_must_be_object" };
+  let size;
+  try {
+    size = byteLength(JSON.stringify(content));
+  } catch (e) {
+    return { ok: false, error: "content_must_be_object" };
+  }
+  if (size > MAX_REPORT_CONTENT_BYTES) return { ok: false, error: "content_too_large" };
+  return { ok: true };
+}
+
+// Matches reports.one_line_verdict's DB check constraint
+// (char_length(one_line_verdict) <= 200 for non-migrated rows).
+export const MAX_VERDICT_CHARS = 200;
+
 const DEFAULT_PAGE_SIZE = 20;
 // Bounds only the size of a single page, never the total amount of history
 // a user can retrieve -- repeated calls with each response's next_cursor

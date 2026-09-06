@@ -194,6 +194,37 @@ function _guestSessionCount() {
 }
 function _canStartNewSession() { return _isRealAccount() || _guestSessionCount() < FREE_GUEST_SESSION_LIMIT; }
 
+// Stage 3 (session-persistence-audit): a session's server identity is
+// this UUID, assigned once at save time and reused for every later sync
+// attempt of that same session -- this is what makes create/complete
+// idempotent (see public/session-sync.js and api/session-complete.js):
+// retrying with the same id can never produce a duplicate row server-side.
+function _newSessionId() {
+try { if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID(); } catch(e) {}
+return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+var r = Math.random() * 16 | 0, v = c === "x" ? r : (r & 0x3 | 0x8);
+return v.toString(16);
+});
+}
+
+// Stage 3 (session-persistence-audit): the only bridge from app.jsx into
+// window._sessionSync (defined in index.html, backed by
+// public/session-sync.js). Fire-and-forget and real-accounts-only by
+// design -- guests have no account to attach to yet; the actual
+// guest-to-account transfer happens once, right after sign-up/sign-in,
+// from index.html's own SIGNED_IN handler. A failure here is never
+// silent: it is recorded per-session (session._syncError, persisted to
+// localStorage by session-sync.js itself) and surfaced via the
+// "saycrd-sync-status" event that SyncStatusBanner listens for.
+function triggerSessionSync() {
+try {
+if (!window._sessionSync || !_isRealAccount()) return;
+window._sessionSync.syncPendingSessions(getCurrentUid()).then(function(result) {
+try { window.dispatchEvent(new CustomEvent("saycrd-sync-status", { detail: { pendingErrors: (result && result.failed) || 0 } })); } catch(e) {}
+}).catch(function() { /* never let a sync failure break the app -- the banner already reflects per-session errors */ });
+} catch(e) {}
+}
+
 // First-time disclaimer ("Before we begin") acknowledgment. Stored per-uid in
 // localStorage (works for guests and logged-in users alike, synchronously,
 // so it can gate the very first "begin" click with no async wait). For real
@@ -4090,6 +4121,7 @@ return { label: lbl, weight: t.weight || 1, short_desc: sd || undefined };
 });
 var avgWeight = themes.length > 0 ? themes.reduce(function(s, t) { return s + t.weight; }, 0) / themes.length : 0;
 sessions.push({
+id: data.id || _newSessionId(),
 date: new Date().toISOString(),
 rawText: (data.rawText || "").slice(0, 4000),
 sessionSummary: null,
@@ -4128,6 +4160,11 @@ localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
 if (sessions.length >= 2) try { computePatternEngine(); } catch(pe) {}
 if (sessions.length >= 3) try { computeNarrativeArc(); } catch(na) {}
 console.log("[SAYCRD] Session saved locally. Total sessions:", sessions.length);
+// Stage 3 (session-persistence-audit): local save is never blocked or
+// affected by this -- fire-and-forget, real-accounts-only (see
+// triggerSessionSync). Guests are synced later, once, right after they
+// create/log into an account.
+triggerSessionSync();
 
 // Anonymous, no-PII usage beacon for guests only (real accounts are already
 // tracked server-side via free_sessions_used/credit_ledger). device_id is
@@ -4205,6 +4242,11 @@ localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
 if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
 window.storage.set("sessions", JSON.stringify(sessions)).catch(function() {});
 }
+// Stage 3 (session-persistence-audit): the session was already synced
+// (or attempted) as a draft when it was first saved -- now that its
+// report exists, re-run the sync so the session+report pair actually
+// reaches "attached to the account" completion server-side.
+triggerSessionSync();
 }
 } catch(e) { console.warn("[SAYCRD] Failed to save field report:", e); }
 }
@@ -10296,9 +10338,36 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 );
 }
 
+// Stage 3 (session-persistence-audit): shared "read sessions" hook for
+// every screen that lists or opens session history (JourneysPhase,
+// CompletionPhase, ReportViewerPhase). Returns the local cache
+// immediately (synchronous read, same as every screen's previous
+// behavior -- no loading flash), then, for a real account only, fetches
+// this user's sessions from the server (authoritative once signed in)
+// and merges them in via window._sessionSync's local-wins merge rule --
+// never erasing a local-only session that hasn't finished syncing yet.
+// A server load failure here is silent to the user (this is a read;
+// SyncStatusBanner covers write failures only) and simply leaves
+// whatever is already cached locally, so a network hiccup can never
+// blank out a screen that already had something to show.
+function useSyncedSessions() {
+var [sessions, setSessions] = useState(function() { return loadSessions(); });
+useEffect(function() {
+if (!window._sessionSync || !_isRealAccount()) return;
+var uid = getCurrentUid();
+var cancelled = false;
+window._sessionSync.loadSessionsFromServer({ limit: 100 }).then(function(result) {
+if (cancelled || !result.ok) return;
+var merged = window._sessionSync.mergeServerSessionsIntoLocal(uid, result.sessions);
+setSessions(merged);
+}).catch(function(){});
+return function() { cancelled = true; };
+}, []);
+return sessions;
+}
+
 function JourneysPhase({ onStart, onBack, onNavigateToReport }) {
-var sessions = [];
-try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+var sessions = useSyncedSessions();
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
 var [starting, setStarting] = useState(false);
@@ -10435,8 +10504,7 @@ Your next session could deepen this thread.
 }
 
 function CompletionPhase({ onStart, onNavigateToJourneys, onNavigateToReport }) {
-var sessions = [];
-try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+var sessions = useSyncedSessions();
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 // Previously this whole phase used a single fixed maxWidth:480 column at every
 // viewport size, so on desktop it sat as a narrow strip with large empty
@@ -10603,8 +10671,7 @@ Save My Sessions
 }
 
 function ReportViewerPhase({ sessionIndex, onBack }) {
-var sessions = [];
-try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
+var sessions = useSyncedSessions();
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var idx = (typeof sessionIndex === "number" && sessionIndex >= 0 && sessionIndex < sessions.length) ? sessionIndex : sessions.length - 1;
 var session = sessions[idx] || null;
@@ -12008,6 +12075,53 @@ return (
 );
 }
 
+// Stage 3 (session-persistence-audit): a server-save failure must never
+// be silent. Listens for "saycrd-sync-status" (dispatched by
+// triggerSessionSync/index.html's own sync calls) and, whenever at least
+// one session currently has a recorded sync error, shows a persistent,
+// dismiss-free banner with a manual Retry button -- it only disappears
+// once every pending session has actually synced, never on a timer.
+function _countPersistedSyncErrors() {
+try {
+if (!_isRealAccount()) return 0;
+var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
+return sessions.filter(function(s) { return s && s._syncError; }).length;
+} catch(e) { return 0; }
+}
+function SyncStatusBanner() {
+// Reads any error already persisted from a PREVIOUS sync attempt (e.g.
+// one that ran before this component ever mounted, or on a prior visit)
+// -- not just events fired after mount -- so a real failure is never
+// hidden just because nothing re-synced since the page loaded.
+var [pending, setPending] = useState(_countPersistedSyncErrors);
+var [retrying, setRetrying] = useState(false);
+useEffect(function() {
+function onStatus(e) { setPending((e.detail && e.detail.pendingErrors) || 0); }
+function onAuth() { setPending(_countPersistedSyncErrors()); }
+window.addEventListener("saycrd-sync-status", onStatus);
+window.addEventListener("saycrd-auth-change", onAuth);
+return function() {
+window.removeEventListener("saycrd-sync-status", onStatus);
+window.removeEventListener("saycrd-auth-change", onAuth);
+};
+}, []);
+if (!pending) return null;
+return (
+<div style={{ position: "fixed", left: 16, right: 16, bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", zIndex: 40, maxWidth: 440, margin: "0 auto", padding: "14px 18px", borderRadius: 14, background: "rgba(232,67,147,0.16)", border: "1px solid rgba(232,67,147,0.4)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.3)" }}>
+<div style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontFamily: FB, lineHeight: 1.45 }}>
+{pending === 1 ? "1 session couldn't save to your account." : pending + " sessions couldn't save to your account."} Your work is safe on this device.
+</div>
+<button disabled={retrying} onClick={function(){
+setRetrying(true);
+triggerSessionSync();
+setTimeout(function(){ setRetrying(false); }, 1500);
+}} style={{ flexShrink: 0, padding: "9px 16px", borderRadius: 10, border: "none", background: "#E84393", color: "#fff", fontFamily: FB, fontSize: 12, fontWeight: 700, letterSpacing: "0.02em", cursor: retrying ? "default" : "pointer", opacity: retrying ? 0.6 : 1 }}>
+{retrying ? "Retrying…" : "Retry"}
+</button>
+</div>
+);
+}
+
 function SAYCRDFlow() {
   // Returning users (anyone with at least one saved session) land on the
   // Dashboard ("Your Journeys", phase 8 = "journeys") instead of the landing
@@ -12174,6 +12288,7 @@ if (next) next();
 }}/>}
 <PaywallModal />
 <AdminTiersPanel />
+<SyncStatusBanner />
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 @keyframes phaseIn{from{opacity:0.6}to{opacity:1}}
