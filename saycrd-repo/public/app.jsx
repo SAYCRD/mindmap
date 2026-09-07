@@ -10729,7 +10729,15 @@ try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catc
 var returning = sessions.length > 0;
 var SG = "Space Grotesk, " + FB;
 
+// The nav repeats the hero's call to action, which is wasted space on a phone
+// where both buttons land in the same glance. Hidden below 768px so the hero
+// button is the only one on screen. Deliberately a wider boundary than the
+// app's `isMobile` (< 480), so it is kept as its own flag rather than reusing
+// that name for something it does not mean.
+const [isNavCtaHidden, setIsNavCtaHidden] = useState(typeof window !== "undefined" && window.innerWidth < 768);
+
 useEffect(function() { setTimeout(function() { setShow(true); }, 100); }, []);
+useEffect(function(){ function onResize(){ setIsNavCtaHidden(window.innerWidth < 768); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
@@ -10802,12 +10810,14 @@ Log in / Sign up
 </button>
 )}
 </div>
+{!isNavCtaHidden && (
 <button onClick={guardedStart} disabled={starting} style={{ padding:"10px 26px", borderRadius:999,
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
 fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:starting?"default":"pointer", opacity:starting?0.6:1 }}>
 {starting ? "starting…" : (isLandingRealAccount ? (returning ? "new session" : "start a session") : "begin")}
 </button>
+)}
 </div>
 </nav>
 
