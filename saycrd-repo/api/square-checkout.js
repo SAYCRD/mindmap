@@ -68,10 +68,13 @@ export function createSquareCheckoutHandler({
     }
 
     // Defence in depth: when an expected location is pinned, refuse to create
-    // a link against anything else. SQUARE_LOCATION_ID currently holds a
-    // Square *application* id (sq0idp-…), not a location id — Stage 2C fixes
-    // that. Until then this comparison keeps a mismatch loud rather than
-    // letting Square reject the call with an opaque 502.
+    // a link against anything else. SQUARE_LOCATION_ID now holds a real
+    // location id from the dedicated Blindspot Square application, and
+    // SQUARE_EXPECTED_LOCATION_ID pins the same value, so this comparison
+    // keeps a misconfiguration loud rather than letting Square reject the
+    // call with an opaque 502. (It previously held a Square *application* id,
+    // sq0idp-…, which made the interlock compare two different kinds of
+    // identifier.)
     const expectedLocationId = env.SQUARE_EXPECTED_LOCATION_ID;
     if (expectedLocationId && expectedLocationId !== locationId) {
       console.error(

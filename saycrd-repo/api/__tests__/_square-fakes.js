@@ -147,6 +147,104 @@ export function completedPaymentEvent(overrides = {}) {
   return event;
 }
 
+// ---------------------------------------------------------------------------
+// Stage 2B refund fixtures.
+// ---------------------------------------------------------------------------
+
+// A payment.updated event for a payment that has been refunded. This is the
+// shape the CURRENT subscription actually delivers: note that status stays
+// "COMPLETED" — Square has no REFUNDED payment status — and the only refund
+// markers are refunded_money and refund_ids. A handler that checked the
+// credit path first would read this as a fresh purchase.
+export function refundedPaymentEvent(overrides = {}) {
+  const {
+    refundedAmount = 1200,
+    amount = 1200,
+    refundIds = ["REFUND-001"],
+    currency = "USD",
+    omitRefundIds = false,
+  } = overrides;
+
+  return completedPaymentEvent({
+    ...overrides,
+    amount,
+    currency,
+    mutate(event) {
+      const payment = event.data.object.payment;
+      payment.refunded_money = { amount: refundedAmount, currency };
+      if (!omitRefundIds) payment.refund_ids = refundIds;
+      if (overrides.mutatePayment) overrides.mutatePayment(payment);
+    },
+  });
+}
+
+// A PaymentRefund object, as returned by GET /v2/refunds/{id} and as carried
+// on data.object.refund by refund.updated. Includes the fields we must never
+// store, so the redaction assertions have something real to catch.
+export function paymentRefundObject(overrides = {}) {
+  const {
+    refundId = "REFUND-001",
+    paymentId = "PAY-XYZ789",
+    orderId = "ORDER-ABC123",
+    status = "COMPLETED",
+    amount = 1200,
+    currency = "USD",
+    locationId = EXPECTED_LOCATION,
+  } = overrides;
+
+  const refund = {
+    id: refundId,
+    status,
+    payment_id: paymentId,
+    order_id: orderId,
+    location_id: locationId,
+    amount_money: { amount, currency },
+    created_at: "2026-09-07T13:00:00Z",
+    updated_at: "2026-09-07T13:05:00Z",
+    // Must never be propagated into anything we store: the merchant-entered
+    // reason is free text and the fee breakdown is not reconciliation data.
+    reason: "Customer jane.doe@example.com asked for her money back",
+    processing_fee: [{ amount_money: { amount: -35, currency }, type: "INITIAL" }],
+  };
+
+  if (overrides.mutate) overrides.mutate(refund);
+  return refund;
+}
+
+// A refund.updated event. Not currently subscribed in Square, but supported
+// so activation order does not matter.
+export function refundUpdatedEvent(overrides = {}) {
+  const { eventId = "EVT-REFUND-0001", refund = paymentRefundObject(overrides) } = overrides;
+  const event = {
+    merchant_id: "MERCHANT1",
+    type: "refund.updated",
+    event_id: eventId,
+    created_at: "2026-09-07T13:05:00Z",
+    data: { type: "refund", id: refund.id, object: { refund } },
+  };
+  if (overrides.omitEventId) delete event.event_id;
+  return event;
+}
+
+// Stands in for GET /v2/refunds/{id}. `refunds` maps refund id -> object;
+// `failFor` forces a transport/HTTP failure for specific ids.
+export function createRefundFetch({ refunds = {}, failFor = [], httpStatus = 200, throwFor = [] } = {}) {
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    calls.push({ url, init });
+    const id = decodeURIComponent(String(url).split("/v2/refunds/")[1] || "");
+    if (throwFor.includes(id)) throw new Error("network down");
+    if (failFor.includes(id)) {
+      return { ok: false, status: httpStatus === 200 ? 500 : httpStatus, json: async () => ({ errors: [{ code: "X" }] }) };
+    }
+    const refund = refunds[id];
+    if (!refund) return { ok: true, status: 200, json: async () => ({}) };
+    return { ok: true, status: 200, json: async () => ({ refund }) };
+  };
+  fetchImpl._calls = calls;
+  return fetchImpl;
+}
+
 export function makeWebhookReq(
   event,
   { url = PINNED_WEBHOOK_URL, key = SIGNATURE_KEY, host = "www.blindspotup.com", signature, omitSignature = false } = {}
