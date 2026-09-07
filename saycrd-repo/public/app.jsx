@@ -4322,6 +4322,16 @@ function _authMayBeSignedIn() {
   return _hasPersistedAuthToken();
 }
 
+/* Same 480px breakpoint the landing/dashboard components already use for
+   their own mobile layouts, so "mobile" means one thing across the app. */
+function _isMobileViewport() {
+  try {
+    return typeof window !== "undefined" && window.innerWidth < 480;
+  } catch (e) {
+    return false;
+  }
+}
+
 function updateLastSession(partial) {
 try {
 var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
@@ -12390,6 +12400,15 @@ function SAYCRDFlow() {
   const pendingAfterDisclaimer = useRef(null);
   const phaseRef = useRef(phase);
   useEffect(function(){ phaseRef.current = phase; }, [phase]);
+  // Has the landing page actually been put on screen during this page load?
+  // Once it has, the visitor is reading it, and a session that turns up
+  // afterwards is a BACKGROUND resolution rather than a login — see the guard
+  // in handleAuthChange below. Declared before the auth-listener effect so it
+  // is already accurate when that effect's mount-time handleAuthChange() runs.
+  const landingPresented = useRef(false);
+  useEffect(function(){
+    if (!authResolving && phase === 0) landingPresented.current = true;
+  }, [authResolving, phase]);
   // First route for a visitor who may already be signed in. Held behind the
   // branded boot state so an authenticated user never sees the public
   // homepage flash before their Dashboard, and bounded on both sides: it
@@ -12455,6 +12474,28 @@ function SAYCRDFlow() {
       // followed returned at the check above and never routed. That left a
       // fully authenticated user stranded on the homepage.
       if (phaseRef.current === 0 && isReal) {
+        // THE MOBILE FLASH. Everything above assumes an auth event means the
+        // visitor just authenticated. It does not: index.html dispatches
+        // "saycrd-auth-change" from getSession()/onAuthStateChange, which
+        // resolve on their own schedule. When that lands AFTER the landing
+        // page is already painted, setPhase(8) unmounts a page the visitor is
+        // already reading — measured at 393px, landing visible at 262ms and
+        // replaced by the Dashboard at 2430ms. It is reachable whenever auth
+        // outruns the BOOT_AUTH_TIMEOUT_MS gate (slow cellular), or when no
+        // token was persisted for the synchronous probe to find but a session
+        // materialises anyway (cross-tab sign-in, a late restore).
+        //
+        // A real login is the same event shape, so intent is the only honest
+        // discriminator: _showAuthOverlay sets window._authUserInitiated, so a
+        // visitor who actually signed in still routes to their Dashboard and
+        // the post-login routing fixed previously stays fixed. Background
+        // resolution is simply allowed to settle — the account menu picks up
+        // the signed-in state without moving anyone off the page.
+        //
+        // Mobile only: desktop routing is deliberately left as it was.
+        if (_isMobileViewport() && landingPresented.current && !window._authUserInitiated) {
+          return;
+        }
         routedOnAuth = true;
         setPhase(8);
       }

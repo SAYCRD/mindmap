@@ -20,7 +20,7 @@
 <link rel="preload" href="vendor/supabase-js.2.114.0.min.js" as="script">
 <link rel="preload" href="vendor/react.production.min.js" as="script">
 <link rel="preload" href="vendor/react-dom.production.min.js" as="script">
-<link rel="preload" href="app.compiled.js?v=20260907-13" as="script">
+<link rel="preload" href="app.compiled.js?v=20260907-14" as="script">
 <link rel="preload" href="env-config.js" as="script">
 <style>
 :root{
@@ -59,7 +59,13 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     /* ═══ Auth UI ═══ */
     .auth-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:1.5rem;background:rgb(6,9,16);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;transition:opacity .35s ease}
     .auth-overlay.is-visible{opacity:1}
-    .auth-card{width:100%;max-width:380px;text-align:center;padding:2rem 1.75rem;background:rgba(12,15,22,.6);border:1px solid rgba(232,67,147,.15);border-radius:20px;box-shadow:0 24px 48px rgba(0,0,0,.4),0 0 0 1px rgba(184,107,255,.05);transform:translateY(8px);opacity:0;transition:transform .4s ease,opacity .4s ease}
+    .auth-card{position:relative;width:100%;max-width:380px;text-align:center;padding:2rem 1.75rem;background:rgba(12,15,22,.6);border:1px solid rgba(232,67,147,.15);border-radius:20px;box-shadow:0 24px 48px rgba(0,0,0,.4),0 0 0 1px rgba(184,107,255,.05);transform:translateY(8px);opacity:0;transition:transform .4s ease,opacity .4s ease}
+    /* 44px touch target, kept clear of the card's rounded corner. */
+    .auth-close{position:absolute;top:.35rem;right:.35rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:12px;color:rgba(247,241,231,.5);font-family:'DM Sans',sans-serif;font-size:1.5rem;line-height:1;cursor:pointer;transition:color .2s,background .2s;touch-action:manipulation}
+    .auth-close:hover{color:rgba(232,67,147,.95);background:rgba(232,67,147,.1)}
+    .auth-close:focus-visible{outline:2px solid rgba(232,67,147,.7);outline-offset:2px}
+    .auth-back{display:inline-block;margin-top:1.4rem;background:none;border:none;font-family:'DM Sans',sans-serif;font-size:.85rem;color:rgba(247,241,231,.45);cursor:pointer;text-decoration:underline;text-underline-offset:3px;transition:color .2s;min-height:44px;touch-action:manipulation}
+    .auth-back:hover{color:rgba(232,67,147,.9)}
     .auth-overlay.is-visible .auth-card{transform:translateY(0);opacity:1}
     .auth-logo{font-family:'Space Grotesk',sans-serif;font-size:1.9rem;letter-spacing:.25em;background:linear-gradient(90deg,#E84393,#B86BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;font-weight:700;text-indent:.25em;margin-bottom:.5rem}
     .auth-sub{font-family:'DM Sans',sans-serif;font-size:1rem;color:rgba(232,67,147,.6);margin-bottom:2.5rem;font-weight:400}
@@ -114,6 +120,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
 
 <div class="auth-overlay" id="auth-overlay">
       <div class="auth-card">
+        <button type="button" class="auth-close" id="auth-close" aria-label="Close and return to the page" onclick="window._closeAuthOverlay()">&times;</button>
         <div class="auth-logo">BLINDSPOT</div>
         <div class="auth-sub">clarity, not control</div>
         <div class="auth-sub" id="auth-require-account-msg" style="display:none;margin-top:-.4rem;margin-bottom:1.2rem;color:rgba(232,67,147,.85);font-size:.85rem;line-height:1.5">You&apos;ve used your 2 free sessions. Create an account to keep going.</div>
@@ -274,6 +281,10 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
         <div id="auth-bypass-row" style="margin-top:1.8rem;padding-top:1.2rem;border-top:1px solid rgba(244,241,234,.06)">
           <button id="auth-local-bypass" style="width:100%;padding:.7rem;border-radius:12px;border:1px solid rgba(244,241,234,.06);background:transparent;color:rgba(247,241,231,.3);font-family:'Space Grotesk',sans-serif;font-size:.82rem;cursor:pointer;transition:all .2s" onclick="window._localBypass();">Continue without account</button>
         </div>
+        <!-- Worded escape, always shown. The bypass row above is hidden in
+             requireAccount mode, so without this the only way out of the card
+             would be the × icon. -->
+        <button type="button" class="auth-back" id="auth-back" onclick="window._closeAuthOverlay()">Back to the page</button>
       </div>
     </div>
 
@@ -317,7 +328,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      synchronously further down and several call sites depend on it existing. -->
 <script src="env-config.js"></script>
 <script src="session-sync.js?v=2"></script>
-    <script src="app.compiled.js?v=20260907-13"></script>
+    <script src="app.compiled.js?v=20260907-14"></script>
 
 <script>
 /* Global error handler — shows what's breaking */
@@ -722,6 +733,12 @@ function _syncPendingSessionsToServer(uid) {
 window._showAuthOverlay = function(onSuccess, opts) {
   var overlay = document.getElementById("auth-overlay");
   if (overlay) {
+    /* The visitor is deliberately authenticating. app.jsx reads this to tell a
+       real login apart from a session that merely resolved in the background:
+       only the former may navigate away from a landing page that is already on
+       screen. Set on open (not on success) so it is already true by the time
+       any auth event arrives. */
+    window._authUserInitiated = true;
     /* Opening must be instant, not faded in: the base .auth-overlay rule
        animates opacity 0->1 over .35s, and during that fade the overlay
        (background + blur) is only partially opaque, letting whatever is
@@ -753,6 +770,44 @@ window._showAuthOverlay = function(onSuccess, opts) {
     }, 120);
   }
 };
+
+/* Dismiss the auth overlay and go back to whatever is behind it.
+   Previously there was no way out at all: no close control, no Escape
+   handler, no backdrop click, and the single "Continue without account"
+   escape is deliberately hidden whenever requireAccount is set — so that
+   path left a mobile visitor with a full-screen, undismissable card and only
+   a page reload to escape it. */
+window._closeAuthOverlay = function() {
+  var overlay = document.getElementById("auth-overlay");
+  if (!overlay) return;
+  overlay.classList.remove("is-visible");
+  overlay.style.transition = "opacity .4s ease";
+  setTimeout(function() { overlay.style.display = "none"; }, 400);
+  /* Dismissing is not authenticating. Drop the stashed continuation so an
+     unrelated auth event later in this page load cannot silently resume a
+     flow the visitor abandoned, and clear the intent flag so a background
+     session resolution is treated as background again. */
+  window._authSuccessCallback = null;
+  window._authUserInitiated = false;
+};
+
+/* The two dismissals people try before hunting for a button. Registered once,
+   here, rather than inline on the markup so the overlay cannot end up with a
+   close control that only works in one of the three ways. */
+document.addEventListener("keydown", function(e) {
+  if (e.key !== "Escape") return;
+  var overlay = document.getElementById("auth-overlay");
+  if (overlay && overlay.classList.contains("is-visible")) window._closeAuthOverlay();
+});
+(function() {
+  var overlay = document.getElementById("auth-overlay");
+  if (!overlay) return;
+  overlay.addEventListener("click", function(e) {
+    /* Backdrop only — a click anywhere inside the card must not dismiss it
+       mid-typing. */
+    if (e.target === overlay) window._closeAuthOverlay();
+  });
+})();
 
 window._localBypass = function() {
   if (window._authRequireAccount) return; /* hard wall: free guest sessions used up, no anonymous fallback */
@@ -910,6 +965,9 @@ window._showAdminTiers = function() {
     try { if (sbClient && sbClient.auth) sbClient.auth.signOut(); } catch(e) {}
     currentUser = null;
     window.currentUser = null;
+    /* Signing out is not an attempt to sign in: clear the intent flag so the
+       next background session resolution cannot be mistaken for a login. */
+    window._authUserInitiated = false;
     window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
     var o = document.getElementById("auth-overlay");
     if (o) { o.style.display = ""; o.style.opacity = "1"; }
