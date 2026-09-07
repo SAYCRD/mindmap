@@ -38,6 +38,13 @@
 // path first would therefore read a refund as a fresh purchase. See
 // api/_square-refund.js for how the authoritative refund status is obtained,
 // and process_square_refund for what may be clawed back.
+//
+// Stage 2C makes that claw-back cumulative. Refunds are measured against the
+// ORDER rather than the individual event, so a purchase refunded in
+// instalments removes credits once the running total reaches the purchase
+// price — and exactly once, whichever delivery happens to cross the line.
+// Partial refunds are answered 200 and preserved for reconciliation; a
+// running total that exceeds the purchase price is answered 409 and flagged.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getServiceClient, setCors } from "./_lib.js";
 import {
@@ -119,6 +126,12 @@ const RETRYABLE_RESULTS = new Set(["unmatched", "retry_needed"]);
 // they change no credits: the refund IS recorded, with requires_review set,
 // and Square must stop retrying. The open money question lives in
 // square_refunds, not in Square's retry queue.
+//
+// recorded_partial is emphatically not an error under Stage 2C — it is the
+// correct outcome for an instalment refund. A later refund on the same order
+// can push the cumulative total to the purchase price and trigger the
+// claw-back then. Retrying a partial would achieve nothing, because the RPC
+// counts each refund id exactly once no matter how often it is delivered.
 const REFUND_HANDLED_RESULTS = new Set([
   "credits_removed",
   "no_credits_to_remove",
@@ -131,6 +144,15 @@ const REFUND_HANDLED_RESULTS = new Set([
 // A refund whose payment we cannot correlate yet is real money in flight;
 // Square SHOULD keep retrying rather than have us discard it.
 const REFUND_RETRYABLE_RESULTS = new Set(["unmatched_payment", "retry_needed"]);
+
+// Deliberately in NEITHER set above: conflict_over_refund. The RPC has already
+// persisted the event with requires_review, so it is preserved for
+// reconciliation, but it is answered 409 rather than 200 — a cumulative
+// refunded total above the purchase price cannot arise from Square operating
+// normally, so the inputs are wrong and redelivering the same wrong inputs
+// cannot fix them. Named here so the intent is explicit rather than an
+// accident of set membership.
+const REFUND_FLAGGED_RESULTS = new Set(["conflict_over_refund"]);
 
 // Processes every refund carried by one event. Each refund id is independent
 // and separately idempotent, so a 503 that makes Square redeliver the whole
@@ -212,13 +234,30 @@ async function handleRefundEvent({ res, sb, env, event, refundSignal, makeDeadLe
 
     const code = (data && data.result) || "unknown";
 
+    // Cumulative position of the order after this event, as decided by the
+    // RPC under its lock. Logged and echoed because "why was this partial?"
+    // is otherwise unanswerable from the outside.
+    const cumulative = data && typeof data.cumulative_refunded_cents === "number"
+      ? data.cumulative_refunded_cents
+      : null;
+    const purchaseCents = data && typeof data.purchase_amount_cents === "number"
+      ? data.purchase_amount_cents
+      : null;
+    const remaining = data && typeof data.remaining_cents === "number" ? data.remaining_cents : null;
+
     if (REFUND_HANDLED_RESULTS.has(code)) {
       if (code === "credits_removed") {
         console.warn(
-          `square-webhook: refund ${summary.refund_id} removed ${data.credits_removed} unused credit(s) for order ${summary.order_id} (basis ${data.attribution_basis})`
+          `square-webhook: refund ${summary.refund_id} completed the full refund of order ${summary.order_id} (${cumulative}/${purchaseCents} cents) and removed ${data.credits_removed} unused credit(s) (basis ${data.attribution_basis})`
+        );
+      } else if (code === "recorded_partial") {
+        // Expected, non-alarming path. Logged at info so instalment refunds
+        // are traceable without polluting the warning stream.
+        console.log(
+          `square-webhook: refund ${summary.refund_id} is a partial refund of order ${summary.order_id} (${cumulative}/${purchaseCents} cents refunded, ${remaining} remaining); credits unchanged pending full refund`
         );
       }
-      if (data && data.requires_review) {
+      if (data && data.requires_review && code !== "recorded_partial") {
         console.warn(
           `square-webhook: refund ${summary.refund_id} needs manual review (${code}); no credits changed`
         );
@@ -230,14 +269,30 @@ async function handleRefundEvent({ res, sb, env, event, refundSignal, makeDeadLe
         credits_removed: typeof data.credits_removed === "number" ? data.credits_removed : null,
         attribution_basis: (data && data.attribution_basis) || null,
         requires_review: !!(data && data.requires_review),
+        cumulative_refunded_cents: cumulative,
+        purchase_amount_cents: purchaseCents,
+        remaining_cents: remaining,
+        is_full_refund: !!(data && data.is_full_refund),
       });
       continue;
     }
 
     const status = REFUND_RETRYABLE_RESULTS.has(code) ? 503 : 409;
-    console.error(`square-webhook: refund ${code} for order ${summary.order_id}`);
+    if (REFUND_FLAGGED_RESULTS.has(code)) {
+      console.error(
+        `square-webhook: refund ${summary.refund_id} would take order ${summary.order_id} to ${cumulative} cents refunded against a ${purchaseCents} cent purchase; recorded for review, no credits changed`
+      );
+    } else {
+      console.error(`square-webhook: refund ${code} for order ${summary.order_id}`);
+    }
     await deadLetter(code, status);
-    results.push({ refund_id: summary.refund_id, result: code, status });
+    results.push({
+      refund_id: summary.refund_id,
+      result: code,
+      status,
+      cumulative_refunded_cents: cumulative,
+      purchase_amount_cents: purchaseCents,
+    });
   }
 
   // Retry beats conflict: a redelivery re-runs the conflicting refunds
