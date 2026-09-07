@@ -386,6 +386,42 @@ test('the compiled bundle carries the debug gate and the mobile breakpoint', () 
 });
 
 // ---------------------------------------------------------------------------
+// Encoding ratchet
+// ---------------------------------------------------------------------------
+
+/* A tooling pass through this file silently turned a "→" inside an AI prompt
+   string into three U+FFFD replacement characters. Nothing failed: the app
+   still ran, and the damage was invisible except as garbage handed to the
+   model. 16 such characters already exist in app.jsx and are out of scope
+   here; this ratchet just refuses to let the count grow. */
+const KNOWN_REPLACEMENT_CHARS = 16;
+
+test('no new U+FFFD replacement characters creep into the bundle source', () => {
+  const count = (SOURCE.match(/\uFFFD/g) || []).length;
+  assert.ok(
+    count <= KNOWN_REPLACEMENT_CHARS,
+    'app.jsx gained replacement characters (' + count + ' > ' + KNOWN_REPLACEMENT_CHARS +
+    '). Some tool has mangled non-ASCII text — check the diff for "\\uFFFD" before committing.'
+  );
+});
+
+test('the compiled bundle carries no more mangled characters than its source', () => {
+  const compiled = fs.readFileSync(COMPILED, 'utf8');
+  const compiledCount = (compiled.match(/\uFFFD/g) || []).length;
+  assert.ok(
+    compiledCount <= KNOWN_REPLACEMENT_CHARS,
+    'app.compiled.js has ' + compiledCount + ' replacement characters'
+  );
+});
+
+test('the card-slider prompt keeps its arrow glyph', () => {
+  const line = SOURCE.split('\n').find((l) => l.includes('cfLines = cfKeys.map'));
+  assert.ok(line, 'card-slider prompt line not found — update this test');
+  assert.ok(line.includes('\u2192'), 'the "→" in the card-slider prompt has been mangled');
+  assert.ok(!line.includes('\uFFFD'), 'the card-slider prompt contains replacement characters');
+});
+
+// ---------------------------------------------------------------------------
 // Negative controls — these prove the assertions above are load-bearing
 // ---------------------------------------------------------------------------
 

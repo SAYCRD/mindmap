@@ -8343,7 +8343,7 @@ return "CHOSE middle (between \""+poles.left+"\" and \""+poles.right+"\")";
 var cardFeedbackBlurb = "";
 var cfKeys = Object.keys(sliderValues).filter(function(k){ return sliderValues[k] !== undefined && SLIDER_LABELS[k]; });
 if (cfKeys.length > 0) {
-var cfLines = cfKeys.map(function(k){ var v = sliderValues[k]; return k + ": value=" + v + " ��� " + sliderToChose(k, v) + " (scale: 0=left \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].left:"") + "\", 100=right \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].right:"") + "\")"; });
+var cfLines = cfKeys.map(function(k){ var v = sliderValues[k]; return k + ": value=" + v + " → " + sliderToChose(k, v) + " (scale: 0=left \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].left:"") + "\", 100=right \"" + (SLIDER_POLES[k]?SLIDER_POLES[k].right:"") + "\")"; });
 cardFeedbackBlurb = "CARD SLIDERS — SUBJECT'S EXACT CHOICE (0=left pole, 100=right pole. Use ONLY what they chose — never invert):\n" + cfLines.join("\n") + "\n\nCRITICAL: Only the cards listed above were interacted with. If a card is NOT in this list, the subject did NOT interact with it — do NOT claim it landed, resonated, or that they responded to it. The subject did NOT choose what the options were. Do NOT highlight specific choices or percentages as significant — never \"you chose 50%\" or \"you leaned toward X on 2 cards.\" It's data collection, not a verdict. They are not on trial. Weave into the story only when it adds genuine insight — never as a list of choices they \"made.\"\n\n";
 } else {
 cardFeedbackBlurb = "CARD SLIDERS: (none — subject did not interact with any field card sliders). Do NOT claim that the mirror, synthesis, blind spot, or any other card landed or resonated. You have no basis for that.\n\n";
