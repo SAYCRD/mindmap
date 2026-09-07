@@ -194,11 +194,17 @@ create index if not exists idx_square_refunds_order
 --
 -- Every non-success path leaves credits exactly as they were.
 --
--- Concurrency: pg_advisory_xact_lock(hashtext(order_id)) uses the SAME key as
+-- Concurrency: TWO advisory locks, always in this order — first
+-- pg_advisory_xact_lock(hashtext(order_id)), the SAME key as
 -- process_square_payment, so a refund and a payment for one order fully
--- serialize against each other, and two concurrent refund deliveries
--- serialize too — the second observes the first's committed work and takes
--- already_processed.
+-- serialize against each other and two concurrent refund deliveries serialize
+-- too (the second observes the first's committed work and takes
+-- already_processed); then pg_advisory_xact_lock(hashtext(user_id::text)), the
+-- SAME key as complete_session_and_consume_entitlement, without which a refund
+-- and a session completion can both spend the same last credit and drive the
+-- balance negative. No caller ever takes the user lock before the order lock,
+-- so the fixed order cannot deadlock. Full case analysis lives in the header
+-- of 20260907160000_square_refund_cumulative.sql.
 --
 -- Validation is always against the server-created square_payments row, never
 -- against refund metadata: the purchase amount, currency, location and
@@ -292,6 +298,15 @@ begin
     -- Real money moved for an order we have no record of. Never discard it.
     return jsonb_build_object('ok', false, 'result', 'unmatched_payment');
   end if;
+
+  -- ---- Second lock: the USER. Same key as
+  -- complete_session_and_consume_entitlement, which is the other writer of
+  -- this user's credit_ledger rows and serializes on the user, not the order.
+  -- Without this, a refund and a session completion can both observe the same
+  -- final credit and both spend it, leaving the balance negative. Taken here,
+  -- after the order lock, so the acquisition order is globally consistent —
+  -- see the lock-ordering analysis in the header.
+  perform pg_advisory_xact_lock(hashtext(v_pay.user_id::text));
 
   -- ---- Replay / transition handling, under the lock.
   select id, square_order_id, amount_cents, currency, refund_status, result_code,

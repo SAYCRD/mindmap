@@ -50,6 +50,47 @@
 --   (c) uq_credit_ledger_refund_square_order permits at most one refund
 --       ledger row per order, whatever happens above it.
 --
+-- TWO LOCKS, IN A FIXED ORDER.
+--
+-- The order lock alone is not enough. It makes refunds mutually exclusive with
+-- each other and with process_square_payment, but session completion is a
+-- THIRD writer of the same credit_ledger rows and it does not know about
+-- orders — complete_session_and_consume_entitlement serializes on
+-- pg_advisory_xact_lock(hashtext(p_user_id::text)). Two different keys mean no
+-- mutual exclusion, so with a balance of 1 a refund could read balance = 1 and
+-- decide to remove 1 while a completion concurrently read the same 1 and
+-- inserted its -1. Both commit; the balance lands at -1. The
+-- least(v_unused, v_balance) clamp cannot help: it clamps to a value that was
+-- already stale when it was read.
+--
+-- So this function takes BOTH locks, always in this order:
+--
+--   1. pg_advisory_xact_lock(hashtext(order_id))        -- the order
+--   2. pg_advisory_xact_lock(hashtext(user_id::text))   -- the user
+--   3. row locks (SELECT ... FOR UPDATE on square_payments)
+--
+-- Deadlock freedom, by cases. This is the only function that takes both
+-- advisory locks, and it always takes them in the order above:
+--   * refund vs refund       - same order: serialize at (1). Different orders,
+--                              same user: both wait at (2) for a lock neither
+--                              holds, so one proceeds; no cycle.
+--   * refund vs payment      - process_square_payment takes ONLY the order
+--                              lock, so it can never hold the user lock while
+--                              a refund waits for it.
+--   * refund vs completion   - complete_session_and_consume_entitlement takes
+--                              ONLY the user lock and never touches
+--                              square_payments or the order lock, so it can
+--                              never hold anything a refund is waiting for
+--                              beyond (2), which it releases at commit.
+-- A cycle needs two transactions acquiring the same two locks in opposite
+-- orders. No caller acquires the user lock before the order lock, so no cycle
+-- exists.
+--
+-- The user lock is acquired AFTER the order lock and after the payment row is
+-- known, because the user id is only discoverable from that row. Acquiring it
+-- after a row lock is safe by the same argument: nothing that holds the user
+-- lock ever waits on a square_payments row.
+--
 -- Over-refunds are RECORDED AND FLAGGED rather than acted on. A cumulative
 -- total above the purchase price cannot arise from Square operating normally
 -- (Square itself refuses to refund more than a payment), so it indicates
@@ -199,6 +240,18 @@ begin
     -- Real money moved for an order we have no record of. Never discard it.
     return jsonb_build_object('ok', false, 'result', 'unmatched_payment');
   end if;
+
+  -- ---- Second lock: the USER. Same key as
+  -- complete_session_and_consume_entitlement, which is the other writer of
+  -- this user's credit_ledger rows and serializes on the user, not the order.
+  -- Without this, a refund and a session completion can both observe the same
+  -- final credit and both spend it, leaving the balance negative. Taken here,
+  -- after the order lock, so the acquisition order is globally consistent —
+  -- see the lock-ordering analysis in the header.
+  --
+  -- Every balance read below this line, and every ledger write, therefore
+  -- happens while no completion for this user can be in flight.
+  perform pg_advisory_xact_lock(hashtext(v_pay.user_id::text));
 
   -- ---- Replay / transition handling, under the lock.
   select id, square_order_id, amount_cents, currency, refund_status, result_code,
