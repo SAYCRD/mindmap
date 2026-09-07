@@ -2,20 +2,23 @@
 // Never expose the service-role key to the client; every function in this file
 // only runs server-side (Vercel serverless / the local dev-server shim).
 import { createClient } from "@supabase/supabase-js";
+import { resolveServerConfig } from "./_env.js";
 
 let _serviceClient = null;
 
 // Service-role client: bypasses RLS, so every caller MUST scope queries by
 // the authed user's id manually (see getAuthedUser below) rather than relying
 // on row-level security to do it for them.
+//
+// Which project this connects to is decided by api/_env.js — the same module
+// build/env-config.js uses to generate the browser's config — so the API and
+// the browser always agree. Production reads the integration-managed variables;
+// Preview and local development read STAGING_*. Any misconfiguration throws
+// here rather than connecting to the wrong database.
 export function getServiceClient() {
   if (_serviceClient) return _serviceClient;
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Supabase service credentials are not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
-  }
-  _serviceClient = createClient(url, key, { auth: { persistSession: false } });
+  const { url, serviceRoleKey } = resolveServerConfig(process.env);
+  _serviceClient = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
   return _serviceClient;
 }
 

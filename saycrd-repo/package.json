@@ -2,7 +2,7 @@
   "name": "saycrd",
   "private": true,
   "scripts": {
-    "build": "node build/compile.js",
+    "build": "node build/env-config.js && node build/compile.js",
     "test": "node --test api/__tests__/*.test.js"
   },
   "devDependencies": {

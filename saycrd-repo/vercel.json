@@ -5,6 +5,12 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
+  "headers": [
+    {
+      "source": "/env-config.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    }
+  ],
   "functions": {
     "api/claude.js": { "maxDuration": 60 }
   }
