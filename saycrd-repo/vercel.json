@@ -7,7 +7,6 @@
   ],
   "headers": [
     {
-      "comment": "env-config.js is generated per deployment and carries no version in its URL, so it must never be reused from cache: a stale copy would point the browser at whichever Supabase project built it last.",
       "source": "/env-config.js",
       "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }

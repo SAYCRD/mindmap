@@ -11,6 +11,15 @@
 // Which project this build targets is decided entirely by api/_env.js, the same
 // module the server uses at runtime, so the browser and the API can never
 // disagree. This file only renders and writes the result.
+//
+// The generated file is served Cache-Control: no-store (see the headers block in
+// vercel.json). That matters because its URL carries no version or content hash,
+// so a cached copy would point the browser at whichever Supabase project built
+// it last — a Preview visitor could end up authenticating against production.
+// The rationale lives here rather than beside the rule because vercel.json is
+// strict JSON: it permits neither comments nor any unrecognised property inside
+// a headers entry, and an extra key there is rejected at deployment creation
+// with a 400 before the build even starts.
 
 import fs from "node:fs";
 import path from "node:path";
