@@ -10387,12 +10387,13 @@ function useCredits() {
       if (!tok) return;
       fetch("/api/credits", { headers: { Authorization: "Bearer " + tok } })
         .then(function(r){ return r.ok ? r.json() : null; })
-        .then(function(d){
-          if (cancelled || !d) return;
-          var bal = d.balance || 0;
-          var free = d.freeRemaining || 0;
-          setCredits({ balance: bal, freeRemaining: free, total: bal + free, loaded: true });
-        })
+          .then(function(d){
+            if (cancelled) return;
+            var next = _parseCreditsPayload(d);
+            // An unusable payload leaves `loaded` false, so nothing renders.
+            if (!next) return;
+            setCredits(next);
+          })
         .catch(function(){ /* leaves `loaded` false so nothing is rendered */ });
     }
     load();
@@ -10405,6 +10406,31 @@ function useCredits() {
     };
   }, []);
   return credits;
+}
+
+/* A malformed or incomplete /api/credits body must never reach the screen as
+   a number. Reading `d.balance || 0` turned `{}` — an error envelope, a
+   truncated response, a future field rename — into a confident "No sessions
+   available" for someone who owns sessions, which is the exact false zero the
+   `loaded` flag exists to prevent. And because `bal + free` concatenates when
+   either side is a string, `{"balance":"3"}` rendered "30 sessions available".
+   An unrecognized shape is now rejected outright.
+
+   Digit strings are accepted and coerced rather than rejected: a numeric
+   Postgres column can legitimately serialize as a string. `credit_ledger.delta`
+   is `integer` today so /api/credits returns real numbers, but coercing means a
+   driver or column-type change degrades to a correct number instead of a blank. */
+function _creditCount(v) {
+  if (typeof v === "number") return Number.isFinite(v) && v >= 0 && Math.floor(v) === v ? v : null;
+  if (typeof v === "string" && /^[0-9]+$/.test(v)) return Number(v);
+  return null;
+}
+function _parseCreditsPayload(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return null;
+  var bal = _creditCount(d.balance);
+  var free = _creditCount(d.freeRemaining);
+  if (bal === null || free === null) return null;
+  return { balance: bal, freeRemaining: free, total: bal + free, loaded: true };
 }
 
 /* SessionBalance — the user's own session entitlement. Until this existed the
@@ -11278,7 +11304,7 @@ return React.createElement("line",{key:i,x1:(50+Math.cos(rad)*12)+"%",y1:65+Math
 <div style={{ padding:"0 22px 22px" }}>
 <h3 style={{ fontFamily:FB, fontSize:17, fontWeight:700, color:"#D6B26D", marginBottom:8 }}>Practice, not features</h3>
 <p style={{ fontFamily:FD, fontSize:15, fontStyle:"italic", color:"rgba(220,200,160,0.55)", lineHeight:1.65, margin:0 }}>
-A breath, a pause, a reflection — only when needed. The experience stays whole.
+A breath, a pause, a reflection ��� only when needed. The experience stays whole.
 </p>
 </div>
 </div>

@@ -88,9 +88,13 @@ const SRC_SESSION_BALANCE = extractFunction(SOURCE, "SessionBalance");
 // The real predicate, not a reimplementation — so the signed-out test is
 // bound to the app's actual definition of "is this a real account".
 const SRC_IS_REAL_ACCOUNT = extractFunction(SOURCE, "_isRealAccount");
+// The response-shape gate useCredits depends on. Extracted rather than
+// reimplemented so the malformed-payload test is bound to the real rules.
+const SRC_CREDIT_COUNT = extractFunction(SOURCE, "_creditCount");
+const SRC_PARSE_PAYLOAD = extractFunction(SOURCE, "_parseCreditsPayload");
 
 const { code: COMPILED } = babel.transform(
-  [SRC_IS_REAL_ACCOUNT, SRC_USE_CREDITS, SRC_SESSION_BALANCE].join("\n\n"),
+  [SRC_IS_REAL_ACCOUNT, SRC_CREDIT_COUNT, SRC_PARSE_PAYLOAD, SRC_USE_CREDITS, SRC_SESSION_BALANCE].join("\n\n"),
   { presets: [["@babel/preset-react", { development: false }]], configFile: false, babelrc: false, filename: "app.jsx" }
 );
 
@@ -272,6 +276,79 @@ test("useCredits: a signed-in user's purchased credit is fetched and reported", 
   assert.equal(calls[0].url, "/api/credits");
   assert.equal(calls[0].opts.headers.Authorization, "Bearer tok", "the session token is sent");
   assert.deepEqual(h.value, { balance: 1, freeRemaining: 0, total: 1, loaded: true });
+});
+
+test("useCredits: a malformed or incomplete /api/credits response is rejected and never renders a balance", async () => {
+  // Each of these is something a live deployment can actually return: an
+  // error envelope from the 500 branch, a truncated or renamed payload, a
+  // proxy's own JSON, a value of the wrong type. None may become a number on
+  // screen, and none may be reported as loaded.
+  const unusable = [
+    ["empty object", {}],
+    ["error envelope", { error: "Failed to load credits" }],
+    ["balance only (incomplete)", { balance: 2 }],
+    ["freeRemaining only (incomplete)", { freeRemaining: 1 }],
+    ["nulls", { balance: null, freeRemaining: null }],
+    ["non-numeric strings", { balance: "abc", freeRemaining: "abc" }],
+    ["empty strings", { balance: "", freeRemaining: "" }],
+    ["negative balance", { balance: -3, freeRemaining: 0 }],
+    ["fractional balance", { balance: 1.5, freeRemaining: 0 }],
+    ["NaN", { balance: NaN, freeRemaining: 0 }],
+    ["Infinity", { balance: Infinity, freeRemaining: 0 }],
+    ["booleans", { balance: true, freeRemaining: true }],
+    ["array body", [1, 0]],
+    ["bare string body", "unauthorized"],
+    ["bare number body", 7],
+    ["null body", null],
+  ];
+
+  for (const [label, payload] of unusable) {
+    const calls = [];
+    const win = makeWindow({ currentUser: { id: "user-1" }, _saycrdToken: "tok" });
+    const h = createHarness(win, okFetch(payload, calls));
+
+    h.mount();
+    await flush();
+
+    assert.equal(calls.length, 1, label + ": the read itself still happens");
+    assert.equal(h.value.loaded, false, label + ": must not be reported as loaded");
+    assert.equal(h.value.total, 0, label + ": no total may be derived from an unusable payload");
+    assert.equal(h.value.balance, 0, label + ": no balance may be derived from an unusable payload");
+
+    // The part that actually protects the user: nothing renders at all, so
+    // there is neither a wrong number nor a false "No sessions available".
+    assert.equal(renderBalance(h.mod, h.value), null, label + ": dashboard renders nothing");
+    assert.equal(renderBalance(h.mod, h.value, "menu"), null, label + ": account menu renders nothing");
+  }
+
+  // The concatenation bug specifically. `bal + free` on strings produced
+  // "30 sessions available" from a balance of 3; the value must be coerced to
+  // a real number instead, so the user sees the truth rather than nothing.
+  const calls = [];
+  const win = makeWindow({ currentUser: { id: "user-1" }, _saycrdToken: "tok" });
+  const h = createHarness(win, okFetch({ balance: "3", freeRemaining: "0" }, calls));
+
+  h.mount();
+  await flush();
+
+  assert.deepEqual(h.value, { balance: 3, freeRemaining: 0, total: 3, loaded: true });
+  const text = textOf(renderBalance(h.mod, h.value));
+  assert.match(text, /3 sessions available/, "a digit-string balance must read as its real value");
+  assert.ok(!text.includes("30"), "string concatenation would have rendered '30 sessions available'");
+
+  // Guarding against over-rejection, which would be its own outage: the real
+  // /api/credits body is `{ balance, freeUsed, freeRemaining }`, so the extra
+  // `freeUsed` key must not make a valid payload look malformed.
+  const realCalls = [];
+  const realWin = makeWindow({ currentUser: { id: "user-1" }, _saycrdToken: "tok" });
+  const real = createHarness(realWin, okFetch({ balance: 1, freeUsed: 2, freeRemaining: 0 }, realCalls));
+
+  real.mount();
+  await flush();
+
+  assert.deepEqual(real.value, { balance: 1, freeRemaining: 0, total: 1, loaded: true },
+    "the real three-key API shape must still be accepted");
+  assert.match(textOf(renderBalance(real.mod, real.value)), /1 session available/);
 });
 
 test("useCredits: total sums complimentary and purchased, because a session is spent from free first", async () => {
