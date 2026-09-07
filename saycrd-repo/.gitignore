@@ -5,3 +5,8 @@
 # Environment-specific by design, so it must never be committed — a committed
 # copy would pin every environment to whichever project built it last.
 public/env-config.js
+
+# Scratch state written by the Supabase CLI (version checks, link/project refs).
+# Machine-local, and project-ref files here can leak which database a developer
+# last pointed the CLI at.
+supabase/.temp/
