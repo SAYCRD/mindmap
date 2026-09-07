@@ -1,162 +1,31 @@
-// Generates public/env-config.js — the browser's Supabase configuration — from
-// environment variables at build time, so a Preview deployment can point its
-// browser at the staging Supabase project while Production points at production.
+// Generates public/env-config.js — the browser's Supabase configuration — at
+// build time, so Preview and local development point the browser at the staging
+// project while Production points at production.
 //
 // Why this exists: public/index.html is a plain static asset (vercel.json sets
 // framework:null + outputDirectory:public), so the browser has no access to
 // environment variables. The Supabase URL and anon key were therefore hardcoded
 // in index.html, which meant EVERY deployment — Preview included — signed users
-// in against the production project. The server half of the app already reads
-// process.env (api/_lib.js), so pointing a Preview's API at staging while its
-// browser still authenticated against production would hand the API
-// production-issued JWTs that its staging service client cannot verify: blanket
-// 401s, and any write that did land would hit the wrong database.
+// in against the production project.
 //
-// Only browser-safe values are ever emitted. A secret or service-role key is
-// rejected rather than written, and every failure aborts the build instead of
-// shipping a file that would send real users to the wrong project.
+// Which project this build targets is decided entirely by api/_env.js, the same
+// module the server uses at runtime, so the browser and the API can never
+// disagree. This file only renders and writes the result.
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveBrowserConfig, classifyKey } from "../api/_env.js";
 
-export const PRODUCTION_REF = "lydamoxkymwuccepeeyz";
-
-// A Supabase project ref is 20 lowercase letters; the staging environment is a
-// Supabase *branch* of production, which gets its own ref of the same shape.
-const REF_PATTERN = /^[a-z]{20}$/;
-
-export function extractProjectRef(url) {
-  const match = /^https:\/\/([a-z0-9-]+)\.supabase\.co\/?$/i.exec(String(url || "").trim());
-  if (!match) return null;
-  const ref = match[1].toLowerCase();
-  return REF_PATTERN.test(ref) ? ref : null;
-}
-
-function decodeJwtPayload(token) {
-  const parts = String(token).split(".");
-  if (parts.length !== 3) return null;
-  try {
-    return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-  } catch (e) {
-    return null;
-  }
-}
-
-// Decides whether a key may be handed to a browser at all. Anything we cannot
-// positively identify as browser-safe is refused, so an unrecognised future key
-// format fails the build rather than silently shipping.
-export function classifyKey(key) {
-  const value = String(key || "");
-  if (value.startsWith("sb_secret_")) {
-    return { browserSafe: false, kind: "secret", reason: "modern secret key" };
-  }
-  if (value.startsWith("sb_publishable_")) {
-    return { browserSafe: true, kind: "publishable", ref: null };
-  }
-  if (value.startsWith("eyJ")) {
-    const payload = decodeJwtPayload(value);
-    if (!payload) {
-      return { browserSafe: false, kind: "malformed-jwt", reason: "unreadable JWT payload" };
-    }
-    if (payload.role !== "anon") {
-      return {
-        browserSafe: false,
-        kind: "privileged-jwt",
-        reason: 'JWT role is "' + payload.role + '", not "anon"',
-      };
-    }
-    return { browserSafe: true, kind: "legacy-anon-jwt", ref: payload.ref || null };
-  }
-  return { browserSafe: false, kind: "unrecognised", reason: "unrecognised key format" };
-}
-
-// Resolves and fully validates the browser configuration, or throws with an
-// actionable message. Never includes key material in an error.
-export function resolveBrowserConfig(env) {
-  const browserUrl = (env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
-  const serverUrl = (env.SUPABASE_URL || "").trim();
-  const url = browserUrl || serverUrl;
-
-  if (!url) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_URL) is not set — refusing to emit a browser config with no Supabase project."
-    );
-  }
-
-  const ref = extractProjectRef(url);
-  if (!ref) {
-    throw new Error(
-      "Supabase URL is not a recognisable project URL (expected https://<20-char-ref>.supabase.co)."
-    );
-  }
-
-  // Split-brain guard: the browser and the API must agree on the project, or
-  // every session token the browser mints will fail server-side verification.
-  if (browserUrl && serverUrl) {
-    const serverRef = extractProjectRef(serverUrl);
-    if (serverRef && serverRef !== ref) {
-      throw new Error(
-        "Supabase project mismatch: the browser would use ref " +
-          ref +
-          " while the API uses ref " +
-          serverRef +
-          ". Point NEXT_PUBLIC_SUPABASE_URL and SUPABASE_URL at the same project."
-      );
-    }
-  }
-
-  const key = (env.NEXT_PUBLIC_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY || "").trim();
-  if (!key) {
-    throw new Error(
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY) is not set — refusing to emit a browser config with no anon key."
-    );
-  }
-
-  const classified = classifyKey(key);
-  if (!classified.browserSafe) {
-    throw new Error(
-      "Refusing to write a non-browser-safe key into env-config.js (" +
-        classified.reason +
-        "). Use the project's anon or publishable key, never a service-role or secret key."
-    );
-  }
-
-  // A legacy anon JWT carries the project ref it belongs to, so we can prove the
-  // key and the URL describe the same project. Publishable keys are opaque and
-  // carry no ref, so this check does not apply to them.
-  if (classified.kind === "legacy-anon-jwt" && classified.ref && classified.ref !== ref) {
-    throw new Error(
-      "Anon key belongs to project " +
-        classified.ref +
-        " but the Supabase URL points at " +
-        ref +
-        ". These must match."
-    );
-  }
-
-  // Deployment-target guards. VERCEL_ENV is set by Vercel; when it is absent
-  // (local build) the ref is not asserted, but every check above still applies.
-  const target = env.VERCEL_ENV || "";
-  if (target === "production" && ref !== PRODUCTION_REF) {
-    throw new Error(
-      "Production build resolved Supabase ref " +
-        ref +
-        ", which is not the production project (" +
-        PRODUCTION_REF +
-        "). Aborting rather than shipping production against another database."
-    );
-  }
-  if (target === "preview" && ref === PRODUCTION_REF) {
-    throw new Error(
-      "Preview build resolved the production Supabase ref (" +
-        PRODUCTION_REF +
-        "). Set Preview-scoped NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to the staging project before deploying a Preview."
-    );
-  }
-
-  return { url, anonKey: key, ref, keyKind: classified.kind, target: target || "local" };
-}
+// Re-exported for convenience so callers of the emitter can reach the resolver's
+// vocabulary without a second import path. The definitions live in api/_env.js.
+export {
+  PRODUCTION_REF,
+  STAGING_REF,
+  extractProjectRef,
+  classifyKey,
+  resolveBrowserConfig,
+} from "../api/_env.js";
 
 export function renderEnvConfig(config) {
   // Only these two values are browser-safe and only these two are emitted.
@@ -169,10 +38,54 @@ export function renderEnvConfig(config) {
   );
 }
 
+// Belt and braces. resolveBrowserConfig already refuses a non-browser-safe key,
+// but this proves no secret material reached the rendered text even if a future
+// edit widens the payload by mistake.
+const FORBIDDEN_MARKERS = ["sb_secret_", "service_role"];
+const SECRET_VARS = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "STAGING_SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_SECRET_KEY",
+  "SUPABASE_JWT_SECRET",
+  "POSTGRES_PASSWORD",
+];
+
+export function assertNoSecrets(text, env) {
+  for (const marker of FORBIDDEN_MARKERS) {
+    if (text.includes(marker)) {
+      throw new Error('Refusing to write env-config.js: rendered output contains "' + marker + '".');
+    }
+  }
+
+  // A privileged JWT would slip past the marker scan above, because its payload
+  // is base64-encoded: the literal text "service_role" never appears in the
+  // token. So decode every JWT-shaped token in the output and check its role.
+  for (const token of text.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g) || []) {
+    const classified = classifyKey(token);
+    if (!classified.browserSafe) {
+      throw new Error(
+        "Refusing to write env-config.js: rendered output contains a non-browser-safe JWT (" +
+          classified.reason +
+          ")."
+      );
+    }
+  }
+
+  for (const name of SECRET_VARS) {
+    const value = String((env && env[name]) || "").trim();
+    if (value && text.includes(value)) {
+      throw new Error("Refusing to write env-config.js: rendered output contains the value of " + name + ".");
+    }
+  }
+  return true;
+}
+
 export function emitEnvConfig(env, outDir) {
   const config = resolveBrowserConfig(env);
+  const text = renderEnvConfig(config);
+  assertNoSecrets(text, env);
   const outPath = path.join(outDir, "env-config.js");
-  fs.writeFileSync(outPath, renderEnvConfig(config));
+  fs.writeFileSync(outPath, text);
   return { outPath, config };
 }
 
@@ -185,19 +98,34 @@ function isDirectRun() {
 }
 
 if (isDirectRun()) {
+  const outDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
+  const outPath = path.join(outDir, "env-config.js");
   try {
-    const outDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
     const { config } = emitEnvConfig(process.env, outDir);
-    // Ref and key *kind* are safe to log; the key itself never is.
+    // Ref, target and key *kind* are safe to log; the key itself never is.
     console.log(
       "[build] Wrote public/env-config.js — target=" +
         config.target +
+        " source=" +
+        config.source +
         " ref=" +
         config.ref +
         " key=" +
-        config.keyKind
+        config.keyKind +
+        " via=" +
+        config.keyVar
     );
   } catch (err) {
+    // Remove any file left by an earlier successful build. Without this a failed
+    // build could still serve a stale config pointing at the wrong project.
+    try {
+      if (fs.existsSync(outPath)) {
+        fs.unlinkSync(outPath);
+        console.error("[build] Removed stale public/env-config.js so nothing serves the wrong project.");
+      }
+    } catch (cleanupErr) {
+      console.error("[build] Could not remove stale public/env-config.js: " + cleanupErr.message);
+    }
     console.error("[build] " + err.message);
     process.exit(1);
   }

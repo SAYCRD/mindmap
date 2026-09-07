@@ -1,187 +1,125 @@
 // api/__tests__/env-config.test.js — Phase 1 (environment-aware Supabase):
-// unit tests for build/env-config.js, the build-time emitter that writes the
-// browser's Supabase configuration. These are the safety rails that keep a
-// Preview deployment off the production database and keep a secret key out of
-// a file served to browsers, so they assert the *refusals* as much as the
-// happy paths. No network, no filesystem, no Supabase.
+// tests for build/env-config.js, the build-time emitter that writes the
+// browser's Supabase configuration.
+//
+// Project resolution itself is tested in env-resolve.test.js; this file covers
+// what the emitter adds on top: the rendered payload, the secret-leak
+// assertion, and actually writing the file. No network, no Supabase.
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   PRODUCTION_REF,
-  extractProjectRef,
-  classifyKey,
-  resolveBrowserConfig,
+  STAGING_REF,
   renderEnvConfig,
+  assertNoSecrets,
+  emitEnvConfig,
 } from "../../build/env-config.js";
 
-const STAGING_REF = "lbydmtgeojnozzhwsava";
-const PROD_URL = "https://" + PRODUCTION_REF + ".supabase.co";
 const STAGING_URL = "https://" + STAGING_REF + ".supabase.co";
 
 function b64url(obj) {
   return Buffer.from(JSON.stringify(obj)).toString("base64url");
 }
 
-// Shaped like a real Supabase key but signed with nothing — these tests only
-// ever inspect the payload, never verify a signature.
 function fakeJwt(payload) {
   return b64url({ alg: "HS256", typ: "JWT" }) + "." + b64url(payload) + ".sig";
 }
 
-const PROD_ANON = fakeJwt({ iss: "supabase", ref: PRODUCTION_REF, role: "anon" });
 const STAGING_ANON = fakeJwt({ iss: "supabase", ref: STAGING_REF, role: "anon" });
-const STAGING_SERVICE = fakeJwt({ iss: "supabase", ref: STAGING_REF, role: "service_role" });
+const SECRET_KEY = "sb_secret_" + "x".repeat(31);
 
-test("extractProjectRef reads the ref from a project URL and rejects anything else", () => {
-  assert.equal(extractProjectRef(PROD_URL), PRODUCTION_REF);
-  assert.equal(extractProjectRef(STAGING_URL + "/"), STAGING_REF);
-  assert.equal(extractProjectRef("https://example.com"), null);
-  assert.equal(extractProjectRef("not a url"), null);
-  assert.equal(extractProjectRef(""), null);
-});
-
-test("classifyKey admits only browser-safe key formats", () => {
-  assert.equal(classifyKey(STAGING_ANON).browserSafe, true);
-  assert.equal(classifyKey(STAGING_ANON).kind, "legacy-anon-jwt");
-  assert.equal(classifyKey("sb_publishable_" + "x".repeat(31)).browserSafe, true);
-
-  // The three that must never reach a browser.
-  assert.equal(classifyKey("sb_secret_" + "x".repeat(31)).browserSafe, false);
-  assert.equal(classifyKey(STAGING_SERVICE).browserSafe, false);
-  assert.equal(classifyKey("some-random-token").browserSafe, false);
-});
-
-test("a missing URL or missing anon key fails the build", () => {
-  assert.throws(
-    () => resolveBrowserConfig({ NEXT_PUBLIC_SUPABASE_ANON_KEY: PROD_ANON }),
-    /NEXT_PUBLIC_SUPABASE_URL/
-  );
-  assert.throws(() => resolveBrowserConfig({ NEXT_PUBLIC_SUPABASE_URL: PROD_URL }), /ANON_KEY/);
-});
-
-test("a service-role or secret key is refused instead of emitted", () => {
-  assert.throws(
-    () =>
-      resolveBrowserConfig({
-        NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: STAGING_SERVICE,
-      }),
-    /non-browser-safe/
-  );
-  assert.throws(
-    () =>
-      resolveBrowserConfig({
-        NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_secret_" + "x".repeat(31),
-      }),
-    /non-browser-safe/
-  );
-});
-
-test("browser and API pointing at different projects fails the build", () => {
-  // This is the split-brain the whole phase exists to prevent: the browser would
-  // mint production JWTs that a staging API cannot verify.
-  assert.throws(
-    () =>
-      resolveBrowserConfig({
-        NEXT_PUBLIC_SUPABASE_URL: PROD_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: PROD_ANON,
-        SUPABASE_URL: STAGING_URL,
-      }),
-    /project mismatch/
-  );
-});
-
-test("an anon key from a different project than the URL fails the build", () => {
-  assert.throws(
-    () =>
-      resolveBrowserConfig({
-        NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: PROD_ANON,
-      }),
-    /must match/
-  );
-});
-
-test("Preview refuses to build against the production project", () => {
-  assert.throws(
-    () =>
-      resolveBrowserConfig({
-        VERCEL_ENV: "preview",
-        NEXT_PUBLIC_SUPABASE_URL: PROD_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: PROD_ANON,
-        SUPABASE_URL: PROD_URL,
-      }),
-    /Preview build resolved the production Supabase ref/
-  );
-});
-
-test("Production refuses to build against a non-production project", () => {
-  assert.throws(
-    () =>
-      resolveBrowserConfig({
-        VERCEL_ENV: "production",
-        NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: STAGING_ANON,
-        SUPABASE_URL: STAGING_URL,
-      }),
-    /not the production project/
-  );
-});
-
-test("the intended Production and Preview configurations both resolve", () => {
-  const prod = resolveBrowserConfig({
-    VERCEL_ENV: "production",
-    NEXT_PUBLIC_SUPABASE_URL: PROD_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: PROD_ANON,
-    SUPABASE_URL: PROD_URL,
-  });
-  assert.equal(prod.ref, PRODUCTION_REF);
-  assert.equal(prod.target, "production");
-
-  const preview = resolveBrowserConfig({
-    VERCEL_ENV: "preview",
-    NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: STAGING_ANON,
-    SUPABASE_URL: STAGING_URL,
-  });
-  assert.equal(preview.ref, STAGING_REF);
-  assert.equal(preview.target, "preview");
-});
-
-test("a local build with no VERCEL_ENV is allowed but still validated", () => {
-  const local = resolveBrowserConfig({
-    NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: STAGING_ANON,
-  });
-  assert.equal(local.target, "local");
-
-  assert.throws(
-    () =>
-      resolveBrowserConfig({
-        NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "sb_secret_" + "x".repeat(31),
-      }),
-    /non-browser-safe/
-  );
-});
+const PREVIEW_ENV = {
+  VERCEL_ENV: "preview",
+  STAGING_SUPABASE_URL: STAGING_URL,
+  STAGING_SUPABASE_ANON_KEY: STAGING_ANON,
+  STAGING_SUPABASE_SERVICE_ROLE_KEY: SECRET_KEY,
+};
 
 test("the emitted file carries only the two browser-safe values", () => {
   const out = renderEnvConfig({ url: STAGING_URL, anonKey: STAGING_ANON });
   const parsed = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
   assert.deepEqual(Object.keys(parsed).sort(), ["SUPABASE_ANON_KEY", "SUPABASE_URL"]);
   assert.equal(parsed.SUPABASE_URL, STAGING_URL);
+  assert.equal(parsed.SUPABASE_ANON_KEY, STAGING_ANON);
 });
 
-test("a staging build leaks no production project ref into the emitted file", () => {
-  const out = renderEnvConfig(
-    resolveBrowserConfig({
-      VERCEL_ENV: "preview",
-      NEXT_PUBLIC_SUPABASE_URL: STAGING_URL,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: STAGING_ANON,
-      SUPABASE_URL: STAGING_URL,
-    })
+test("the emitted file assigns the global the browser bootstrap reads", () => {
+  // index.html reads window.SAYCRD_ENV_CONFIG synchronously, so the shape of
+  // this assignment is a contract with the browser, not an implementation detail.
+  const out = renderEnvConfig({ url: STAGING_URL, anonKey: STAGING_ANON });
+  assert.match(out, /^window\.SAYCRD_ENV_CONFIG = \{/m);
+  assert.match(out, /do not commit/);
+});
+
+test("assertNoSecrets rejects secret markers in the rendered output", () => {
+  assert.throws(() => assertNoSecrets('window.X = "' + SECRET_KEY + '";', {}), /sb_secret_/);
+});
+
+test("assertNoSecrets decodes JWTs, catching a service_role token the marker scan cannot see", () => {
+  // A privileged JWT's payload is base64-encoded, so the literal string
+  // "service_role" never appears in the token. Only decoding catches it.
+  const serviceJwt = fakeJwt({ ref: STAGING_REF, role: "service_role" });
+  assert.ok(!serviceJwt.includes("service_role"), "precondition: the marker is not visible in the token");
+  assert.throws(() => assertNoSecrets('window.X = "' + serviceJwt + '";', {}), /non-browser-safe JWT/);
+
+  // An anon JWT is legitimate and must still pass.
+  assert.equal(assertNoSecrets('window.X = "' + STAGING_ANON + '";', {}), true);
+});
+
+test("assertNoSecrets rejects the literal value of any known secret variable", () => {
+  // Catches a leak even when the value carries no recognisable marker.
+  const opaque = "opaque-secret-value-with-no-marker";
+  assert.throws(
+    () => assertNoSecrets('window.X = "' + opaque + '";', { POSTGRES_PASSWORD: opaque }),
+    /contains the value of POSTGRES_PASSWORD/
   );
-  assert.ok(!out.includes(PRODUCTION_REF), "emitted config must not mention the production ref");
-  assert.ok(out.includes(STAGING_REF));
+  assert.throws(
+    () => assertNoSecrets('window.X = "' + opaque + '";', { SUPABASE_JWT_SECRET: opaque }),
+    /contains the value of SUPABASE_JWT_SECRET/
+  );
+});
+
+test("assertNoSecrets passes a legitimate browser config", () => {
+  const out = renderEnvConfig({ url: STAGING_URL, anonKey: STAGING_ANON });
+  assert.equal(assertNoSecrets(out, PREVIEW_ENV), true);
+});
+
+test("emitEnvConfig writes a staging config that leaks nothing", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "saycrd-env-"));
+  try {
+    const { outPath, config } = emitEnvConfig(PREVIEW_ENV, dir);
+    assert.equal(path.basename(outPath), "env-config.js");
+    assert.equal(config.ref, STAGING_REF);
+    assert.equal(config.target, "preview");
+
+    const written = fs.readFileSync(outPath, "utf8");
+    assert.ok(written.includes(STAGING_REF), "must point at staging");
+    assert.ok(!written.includes(PRODUCTION_REF), "must not mention the production ref");
+    assert.ok(!written.includes(SECRET_KEY), "must not contain the service key");
+    assert.ok(!written.includes("sb_secret_"));
+    assert.ok(!written.includes("service_role"));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("emitEnvConfig writes nothing when resolution fails", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "saycrd-env-"));
+  try {
+    // Preview with production variables only: must abort, not write a file.
+    assert.throws(
+      () =>
+        emitEnvConfig(
+          { VERCEL_ENV: "preview", SUPABASE_URL: "https://" + PRODUCTION_REF + ".supabase.co" },
+          dir
+        ),
+      /STAGING_SUPABASE_URL/
+    );
+    assert.equal(fs.existsSync(path.join(dir, "env-config.js")), false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
