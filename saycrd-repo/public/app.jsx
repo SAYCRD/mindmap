@@ -10363,11 +10363,117 @@ setSessions(merged);
 }).catch(function(){});
 return function() { cancelled = true; };
 }, []);
-return sessions;
+  return sessions;
+}
+
+// Reads this user's own entitlement from /api/credits — the same endpoint
+// PaywallModal already polls after checkout. Two numbers come back and both
+// matter: `freeRemaining` (of the 2 complimentary sessions) and `balance`
+// (purchased credits). complete_session_and_consume_entitlement spends the
+// complimentary ones FIRST and only then a credit, so the honest thing to
+// show a user is the sum, broken down — a bare credit balance would read as
+// "0 sessions" to someone who still has a free one left.
+//
+// Re-reads on "saycrd-credits-changed" (dispatched on session completion and
+// after a successful purchase) and on auth change, so the number can't go
+// stale while the app sits open.
+function useCredits() {
+  var [credits, setCredits] = useState(function(){ return { balance: 0, freeRemaining: 0, total: 0, loaded: false }; });
+  useEffect(function() {
+    var cancelled = false;
+    function load() {
+      if (!_isRealAccount()) { if (!cancelled) setCredits({ balance: 0, freeRemaining: 0, total: 0, loaded: false }); return; }
+      var tok = window._saycrdToken;
+      if (!tok) return;
+      fetch("/api/credits", { headers: { Authorization: "Bearer " + tok } })
+        .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(d){
+            if (cancelled) return;
+            var next = _parseCreditsPayload(d);
+            // An unusable payload leaves `loaded` false, so nothing renders.
+            if (!next) return;
+            setCredits(next);
+          })
+        .catch(function(){ /* leaves `loaded` false so nothing is rendered */ });
+    }
+    load();
+    window.addEventListener("saycrd-credits-changed", load);
+    window.addEventListener("saycrd-auth-change", load);
+    return function() {
+      cancelled = true;
+      window.removeEventListener("saycrd-credits-changed", load);
+      window.removeEventListener("saycrd-auth-change", load);
+    };
+  }, []);
+  return credits;
+}
+
+/* A malformed or incomplete /api/credits body must never reach the screen as
+   a number. Reading `d.balance || 0` turned `{}` — an error envelope, a
+   truncated response, a future field rename — into a confident "No sessions
+   available" for someone who owns sessions, which is the exact false zero the
+   `loaded` flag exists to prevent. And because `bal + free` concatenates when
+   either side is a string, `{"balance":"3"}` rendered "30 sessions available".
+   An unrecognized shape is now rejected outright.
+
+   Digit strings are accepted and coerced rather than rejected: a numeric
+   Postgres column can legitimately serialize as a string. `credit_ledger.delta`
+   is `integer` today so /api/credits returns real numbers, but coercing means a
+   driver or column-type change degrades to a correct number instead of a blank. */
+function _creditCount(v) {
+  if (typeof v === "number") return Number.isFinite(v) && v >= 0 && Math.floor(v) === v ? v : null;
+  if (typeof v === "string" && /^[0-9]+$/.test(v)) return Number(v);
+  return null;
+}
+function _parseCreditsPayload(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return null;
+  var bal = _creditCount(d.balance);
+  var free = _creditCount(d.freeRemaining);
+  if (bal === null || free === null) return null;
+  return { balance: bal, freeRemaining: free, total: bal + free, loaded: true };
+}
+
+/* SessionBalance — the user's own session entitlement. Until this existed the
+   balance was only visible to admins (AdminUsersTab) and to the paywall's
+   internal polling, so a user who had just paid had no way to see what they
+   owned. Rendered on the Dashboard beside "Start a new session" and in the
+   account menu; `variant` changes only density, never the numbers. */
+function SessionBalance({ credits, variant }) {
+  // Never render a number that hasn't been confirmed. A guest, a token that
+  // isn't ready yet, and a failed /api/credits read all leave `loaded` false —
+  // rendering a placeholder "0 sessions" in those cases would tell someone who
+  // just paid that their credit had vanished.
+  if (!credits || !credits.loaded) return null;
+  var total = credits.total;
+  var parts = [];
+  if (credits.freeRemaining > 0) parts.push(credits.freeRemaining + " complimentary");
+  if (credits.balance > 0) parts.push(credits.balance + " purchased");
+  var detail = parts.join(" · ");
+  var accent = total > 0 ? "rgba(184,107,255,0.95)" : "rgba(255,255,255,0.5)";
+  var headline = total === 0 ? "No sessions available" : (total === 1 ? "1 session available" : total + " sessions available");
+
+  if (variant === "menu") {
+    return (
+      <div style={{ padding: "0 16px 10px" }}>
+        <div style={{ fontSize: 12, fontFamily: FB, fontWeight: 600, color: accent }}>{headline}</div>
+        {detail && <div style={{ fontSize: 11, fontFamily: FB, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>{detail}</div>}
+      </div>
+    );
+  }
+  return (
+    <div role="status" aria-live="polite" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: accent, boxShadow: total > 0 ? "0 0 10px rgba(184,107,255,0.7)" : "none" }} />
+        <span style={{ fontSize: 12, letterSpacing: "0.16em", fontFamily: FB, fontWeight: 600, color: accent, textTransform: "uppercase" }}>{headline}</span>
+      </div>
+      {detail && <div style={{ fontSize: 13, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.45)" }}>{detail}</div>}
+    </div>
+  );
 }
 
 function JourneysPhase({ onStart, onBack, onNavigateToReport }) {
 var sessions = useSyncedSessions();
+var credits = useCredits();
 var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
 var [captures, setCaptures] = useState(function(){ try { return JSON.parse(localStorage.getItem("saycrd-" + getCurrentUid() + "-captures") || "[]"); } catch(e){ return []; } });
 var [starting, setStarting] = useState(false);
@@ -10488,6 +10594,7 @@ return (
 ← Back
 </button>
 )}
+<SessionBalance credits={credits} />
 <button onClick={guardedStart} disabled={starting} style={{ width: "100%", padding: "18px 28px", borderRadius: 24, background: "linear-gradient(135deg, #E84393, #B86BFF)", border: "none", color: "#fff", fontSize: 16, fontFamily: FB, fontWeight: 600, letterSpacing: "0.05em", cursor: starting ? "default" : "pointer", opacity: starting ? 0.6 : 1, boxShadow: "0 8px 32px rgba(184,107,255,0.3)" }}>
 {starting ? "Starting…" : "Start a new session"}
 </button>
@@ -11197,7 +11304,7 @@ return React.createElement("line",{key:i,x1:(50+Math.cos(rad)*12)+"%",y1:65+Math
 <div style={{ padding:"0 22px 22px" }}>
 <h3 style={{ fontFamily:FB, fontSize:17, fontWeight:700, color:"#D6B26D", marginBottom:8 }}>Practice, not features</h3>
 <p style={{ fontFamily:FD, fontSize:15, fontStyle:"italic", color:"rgba(220,200,160,0.55)", lineHeight:1.65, margin:0 }}>
-A breath, a pause, a reflection — only when needed. The experience stays whole.
+A breath, a pause, a reflection ��� only when needed. The experience stays whole.
 </p>
 </div>
 </div>
@@ -11556,6 +11663,7 @@ function UserMenu({ phase, setPhase }) {
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 var [open, setOpen] = useState(false);
 var [isAdmin, setIsAdmin] = useState(false);
+var credits = useCredits();
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 // Purely a UX convenience to decide whether to show the admin link at all —
 // admin-tiers.js re-checks the ADMIN_EMAILS allowlist server-side on every
@@ -11604,6 +11712,7 @@ return (
 <div style={{ fontSize: 13, color: "rgba(255,255,255,0.9)", fontFamily: FB, fontWeight: 600 }}>{(authUser.email || "").split("@")[0]}</div>
 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FB }}>{(authUser.email || "").slice(0, 28)}{(authUser.email || "").length > 28 ? "…" : ""}</div>
 </div>
+<SessionBalance credits={credits} variant="menu" />
 {showDashboard && <button onClick={function(){ setPhase(8); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.9)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Dashboard</button>}
 {isAdmin && <button onClick={function(){ if (window._showAdminTiers) window._showAdminTiers(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(184,107,255,0.95)", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontWeight: 500 }}>Admin: Session Packs</button>}
 <button onClick={function(){ if (window._signOut) window._signOut(); setOpen(false); }} style={{ display: "block", width: "100%", padding: "12px 16px", fontSize: 14, fontFamily: FB, color: "rgba(255,255,255,0.7)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>Log out</button>
@@ -11661,7 +11770,7 @@ var tok = window._saycrdToken;
 fetch("/api/credits", { headers: tok ? { Authorization: "Bearer " + tok } : {} })
 .then(function(r){ return r.ok ? r.json() : null; })
 .then(function(d){
-if (d && d.balance > 0) { setConfirming(false); setSucceeded(true); return; }
+if (d && d.balance > 0) { setConfirming(false); setSucceeded(true); try { window.dispatchEvent(new CustomEvent("saycrd-credits-changed")); } catch(e) {} return; }
 if (tries < 10) setTimeout(attempt, 1500); else setConfirming(false);
 })
 .catch(function(){ if (tries < 10) setTimeout(attempt, 1500); else setConfirming(false); });
