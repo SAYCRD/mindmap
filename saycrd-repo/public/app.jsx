@@ -4261,12 +4261,53 @@ function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
 // screen: that screen displays saved session history, and a guest browsing
 // with no active session (e.g. right after logging out, or on a fresh
 // logged-out visit) should never land on a screen showing session data.
-function _hasReturningSessions() {
+/* How long the branded boot state may hold the first route before we give up
+   and render whatever we already know. index.html has its own backstop on
+   _authReady, but it is 5000ms — fine for gating a storage write, far too long
+   to hold a screen in front of a person. */
+const BOOT_AUTH_TIMEOUT_MS = 1200;
+
+/* Can this visitor POSSIBLY be signed in, answered synchronously with zero
+   network work?
+
+   supabase-js persists its session in localStorage under
+   `sb-<project-ref>-auth-token` (see the vendored UMD:
+   "sb-${r.hostname.split(`.`)[0]}-auth-token"). If no such key is present the
+   visitor is definitively signed out, so a public visitor is never held behind
+   an auth round-trip and the landing page paints on the very first frame.
+
+   Matched by pattern rather than by a ref derived from SUPABASE_URL so that
+   changing Supabase projects cannot silently turn every visitor into a
+   "maybe signed in" one and reintroduce a boot delay for the public page.
+   A false positive only costs a brief boot state; a false negative would
+   flash the homepage at a signed-in user, so anything uncertain counts as
+   "maybe". */
+function _hasPersistedAuthToken() {
   try {
-    if (!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user")) return false;
-    return JSON.parse(localStorage.getItem(_sessionKey()) || "[]").length > 0;
-  } catch(e) { return false; }
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k || k.indexOf("sb-") !== 0) continue;
+      if (k.indexOf("-auth-token") < 0) continue;
+      // PKCE scratch value written before a session exists — not a session.
+      if (k.indexOf("code-verifier") >= 0) continue;
+      if (localStorage.getItem(k)) return true;
+    }
+  } catch (e) {
+    // localStorage unavailable (private mode, embedded webview). Treat as
+    // signed out: the auth listener still routes if a session turns up.
+  }
+  return false;
 }
+
+function _authMayBeSignedIn() {
+  try {
+    // Magic-link / recovery callbacks carry the session in the URL fragment
+    // before anything has been persisted yet.
+    if (typeof location !== "undefined" && location.hash && location.hash.indexOf("access_token") >= 0) return true;
+  } catch (e) {}
+  return _hasPersistedAuthToken();
+}
+
 function updateLastSession(partial) {
 try {
 var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
@@ -10352,17 +10393,30 @@ transform: visited ? "scaleY(1)" : "scaleY(1)" }} />;
 // blank out a screen that already had something to show.
 function useSyncedSessions() {
 var [sessions, setSessions] = useState(function() { return loadSessions(); });
+// This hook can mount before auth resolves, and the effect below bails out
+// when the account is not real yet. With an empty dep array that bail-out was
+// permanent, so history stayed local-only for the rest of the page load. The
+// tick re-runs the server load once the account becomes real.
+var [authTick, setAuthTick] = useState(0);
+useEffect(function() {
+function bump() { setAuthTick(function(n) { return n + 1; }); }
+window.addEventListener("saycrd-auth-change", bump);
+return function() { window.removeEventListener("saycrd-auth-change", bump); };
+}, []);
 useEffect(function() {
 if (!window._sessionSync || !_isRealAccount()) return;
 var uid = getCurrentUid();
 var cancelled = false;
+// The local cache is keyed by uid, so re-read it on an auth change before
+// the server responds — otherwise a guest's cached list stays on screen.
+setSessions(loadSessions());
 window._sessionSync.loadSessionsFromServer({ limit: 100 }).then(function(result) {
 if (cancelled || !result.ok) return;
 var merged = window._sessionSync.mergeServerSessionsIntoLocal(uid, result.sessions);
 setSessions(merged);
 }).catch(function(){});
 return function() { cancelled = true; };
-}, []);
+}, [authTick]);
   return sessions;
 }
 
@@ -10471,6 +10525,23 @@ function SessionBalance({ credits, variant }) {
   );
 }
 
+/* Shown ONLY to a visitor who may already hold a session, and only until auth
+   resolves (or BOOT_AUTH_TIMEOUT_MS elapses). A signed-out visitor never
+   reaches this, so the public homepage keeps painting on the first frame.
+   Deliberately quiet — it exists to avoid a homepage-then-Dashboard jump, not
+   to be looked at, and it reuses the Dashboard's own background so settling
+   onto the Dashboard is not a second visual jump. */
+function BootGate() {
+return (
+<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(160deg, #0A0814 0%, #120A1E 40%, #0E0C1A 100%)" }}>
+<div role="status" aria-live="polite" style={{ textAlign: "center", animation: "pulse 1.6s ease-in-out infinite" }}>
+<div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, fontWeight: 600 }}>BLINDSPOT</div>
+<div style={{ marginTop: 14, fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: FD, fontStyle: "italic" }}>Restoring your session</div>
+</div>
+</div>
+);
+}
+
 function JourneysPhase({ onStart, onBack, onNavigateToReport }) {
 var sessions = useSyncedSessions();
 var credits = useCredits();
@@ -10523,12 +10594,19 @@ return (
 <div style={{ position: "relative", zIndex: 1, maxWidth: 480, margin: "0 auto", padding: "calc(60px + env(safe-area-inset-top, 0px)) 24px calc(80px + env(safe-area-inset-bottom, 0px))" }}>
 <div style={{ textAlign: "center", marginBottom: 32 }}>
 <div style={{ fontSize: 11, letterSpacing: "0.55em", color: "rgba(184,107,255,0.65)", fontFamily: FB, marginBottom: 20, fontWeight: 600 }}>BLINDSPOT</div>
-<div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>YOUR JOURNEYS</div>
-<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, letterSpacing: "-0.02em" }}>Your sessions over time</h1>
+<div style={{ fontSize: 14, letterSpacing: "0.45em", color: "rgba(255,255,255,0.4)", fontFamily: FB, marginBottom: 10, fontWeight: 500 }}>{sessions.length === 0 ? "GETTING STARTED" : "YOUR JOURNEYS"}</div>
+<h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", fontFamily: FD, fontWeight: 400, color: "rgba(255,255,255,0.98)", lineHeight: 1.25, letterSpacing: "-0.02em" }}>{sessions.length === 0 ? "Welcome to Blindspot" : "Your sessions over time"}</h1>
 </div>
 {sessions.length === 0 ? (
-<div style={{ padding: "32px 24px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 24, textAlign: "center" }}>
-<div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", fontFamily: FD, fontStyle: "italic" }}>No sessions yet. Start your first.</div>
+/* A brand-new account lands here, so this is a deliberate first-run
+   destination rather than an empty list: it says where this is, what will
+   accumulate, and leaves the entitlement and the primary action directly
+   below to speak for themselves. */
+<div style={{ padding: "28px 24px", background: "rgba(255,255,255,0.03)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 24 }}>
+<div style={{ fontSize: 16, color: "rgba(255,255,255,0.9)", fontFamily: FD, lineHeight: 1.5, marginBottom: 12 }}>This is your dashboard.</div>
+<div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: FB, lineHeight: 1.6 }}>
+A session is a short guided conversation that maps what you are carrying. Each one you finish is saved here as a report you can return to at any time.
+</div>
 </div>
 ) : isMobile ? (
 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 32, gridAutoFlow: "dense" }}>
@@ -12233,15 +12311,20 @@ setTimeout(function(){ setRetrying(false); }, 1500);
 }
 
 function SAYCRDFlow() {
-  // Returning users (anyone with at least one saved session) land on the
-  // Dashboard ("Your Journeys", phase 8 = "journeys") instead of the landing
-  // page — NEVER the post-session ceremony (phase 7 = "complete"), which must
-  // only ever appear right after a genuine session completion. At mount, real
-  // auth (Supabase) may not have resolved yet, so this only catches the
-  // local/cached-uid case synchronously — the effect below catches up once
-  // "saycrd-auth-change" fires for a real account whose sessions weren't
-  // visible under the local uid yet.
-  const [phase, setPhase] = useState(function(){ return _hasReturningSessions() ? 8 : 0; });
+  // Phase 0 ("landing") is the honest starting point for everyone: the old
+  // initializer called _hasReturningSessions(), which reads
+  // window.currentUser — but index.html does not assign that until AFTER
+  // app.compiled.js has been executed, so it was false on every load for
+  // every user and never once routed anybody. The real decision is made
+  // below, once auth has actually resolved.
+  const [phase, setPhase] = useState(0);
+  // Whether the first route is still waiting on auth. Signed-out visitors are
+  // NOT gated: _authMayBeSignedIn() is a synchronous localStorage read, so
+  // with no persisted token this starts false and the landing page renders
+  // immediately with no auth work at all. Only a visitor who may hold a
+  // session sees the boot state, and only until _authReady settles or
+  // BOOT_AUTH_TIMEOUT_MS elapses.
+  const [authResolving, setAuthResolving] = useState(_authMayBeSignedIn);
   // Transient, one-time authorization to enter the post-session ceremony
   // (phase 7 = "complete"). Set ONLY by FieldPhase's genuine onSessionComplete
   // transition and consumed immediately when that screen mounts. It is a ref
@@ -12258,6 +12341,30 @@ function SAYCRDFlow() {
   const pendingAfterDisclaimer = useRef(null);
   const phaseRef = useRef(phase);
   useEffect(function(){ phaseRef.current = phase; }, [phase]);
+  // First route for a visitor who may already be signed in. Held behind the
+  // branded boot state so an authenticated user never sees the public
+  // homepage flash before their Dashboard, and bounded on both sides: it
+  // settles the moment _authReady resolves, and unconditionally after
+  // BOOT_AUTH_TIMEOUT_MS if auth is slow or unreachable.
+  useEffect(function(){
+    if (!authResolving) return;
+    var settled = false;
+    function settle() {
+      if (settled) return;
+      settled = true;
+      // index.html assigns window.currentUser BEFORE calling _authResolve()
+      // at every resolve site, so by now this read is accurate.
+      if (_isRealAccount() && phaseRef.current === 0) setPhase(8);
+      setAuthResolving(false);
+    }
+    var timer = setTimeout(settle, BOOT_AUTH_TIMEOUT_MS);
+    // _authReady is a top-level `var` in a classic <script>, so it is a
+    // property of window.
+    var ready = typeof window !== "undefined" ? window._authReady : null;
+    if (ready && typeof ready.then === "function") ready.then(settle, settle);
+    else settle();
+    return function(){ settled = true; clearTimeout(timer); };
+  }, []);
   useEffect(function(){
     var routedOnAuth = false;
     function handleAuthChange() {
@@ -12269,12 +12376,18 @@ function SAYCRDFlow() {
       // whatever phase it was already on, so the Dashboard/Journeys screen
       // (and the session data it lists) stayed fully mounted underneath.
       var isReal = !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user");
-      if (!isReal && (phaseRef.current === 7 || phaseRef.current === 8 || phaseRef.current === 9)) {
-        setPhase(0);
+      if (!isReal) {
+        // Dropping to signed-out re-arms the one-shot routing latch. Without
+        // this, signing out and back in during a SINGLE page load left the
+        // second login stranded: the latch was already spent, and sign-out had
+        // reset phase to 0, so nothing routed to the Dashboard again.
+        routedOnAuth = false;
+        if (phaseRef.current === 7 || phaseRef.current === 8 || phaseRef.current === 9) {
+          setPhase(0);
+        }
         return;
       }
       if (routedOnAuth) return;
-      routedOnAuth = true;
       // Only auto-route if the user is still sitting on the untouched landing
       // page — never yank them away from a phase they've already navigated to.
       // Route on isReal (not _hasReturningSessions, which requires session
@@ -12286,9 +12399,25 @@ function SAYCRDFlow() {
       // "complete" is the post-session ceremony screen — routing here
       // wrongly showed brand-new accounts a "you've completed a session"
       // message despite never having done one.
-      if (phaseRef.current === 0 && isReal) setPhase(8);
+      // The latch is set ONLY once a route actually happened. It used to be
+      // set before this test, so a non-real auth event — "Continue without
+      // account", or a sign-out earlier in the same page load — burned the
+      // one-shot latch without routing anywhere, and the genuine login that
+      // followed returned at the check above and never routed. That left a
+      // fully authenticated user stranded on the homepage.
+      if (phaseRef.current === 0 && isReal) {
+        routedOnAuth = true;
+        setPhase(8);
+      }
     }
     window.addEventListener("saycrd-auth-change", handleAuthChange);
+    // Re-read the auth state immediately instead of trusting that the event
+    // was caught. index.html dispatches "saycrd-auth-change" from .then()
+    // callbacks on getSession()/onAuthStateChange; for a cached token those
+    // resolve with no network, i.e. on the microtask queue, while this effect
+    // is scheduled as a macrotask by createRoot. Measured, the dispatch beat
+    // the listener by ~0.6ms and the event was lost for the whole page load.
+    handleAuthChange();
     return function(){ window.removeEventListener("saycrd-auth-change", handleAuthChange); };
   }, []);
 
@@ -12364,7 +12493,7 @@ return (
 <div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys" || cp === "report" || cp === "privacy" || cp === "terms" || cp === "disclaimer-info") ? "100%" : "var(--saycrd-shell-w)",height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
 <div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
-{cp==="landing"&&<LandingPhase onStart={function(){beginSessionOrGate(function(){setPhase(1);});}} onNavigateLegal={goToLegalPage}/>}
+{cp==="landing"&&(authResolving?<BootGate/>:<LandingPhase onStart={function(){beginSessionOrGate(function(){setPhase(1);});}} onNavigateLegal={goToLegalPage}/>)}
 {(cp==="privacy"||cp==="terms"||cp==="disclaimer-info")&&<LegalPage page={cp} onBack={function(){setPhase(0);}}/>}
 {cp==="pour"&&<PourPhase onComplete={function(t){
 // New pour text invalidates whatever was synthesized/mapped for the PREVIOUS
