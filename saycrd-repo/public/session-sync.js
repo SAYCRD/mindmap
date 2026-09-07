@@ -120,7 +120,14 @@
       return authedRequest("/api/session-complete", { method: "POST", body: JSON.stringify(body) }).then(function (r) {
         if (r.noToken) return { ok: false, retry: false, reason: "no_token" };
         if (r.networkError) return { ok: false, retry: true, reason: "network" };
-        if (r.status === 200) return { ok: true, session: r.body && r.body.session, report: r.body && r.body.report };
+        if (r.status === 200) {
+          // Completing a session is exactly when an entitlement is spent
+          // server-side (complete_session_and_consume_entitlement), so nudge
+          // any mounted balance indicator to re-read /api/credits rather than
+          // keep showing the pre-session number.
+          try { window.dispatchEvent(new CustomEvent("saycrd-credits-changed")); } catch (e) {}
+          return { ok: true, session: r.body && r.body.session, report: r.body && r.body.report };
+        }
         if (r.status >= 500) return { ok: false, retry: true, reason: "server_error" };
         return { ok: false, retry: false, reason: (r.body && r.body.error) || "request_failed" };
       });
