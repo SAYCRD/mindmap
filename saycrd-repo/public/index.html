@@ -21,6 +21,7 @@
 <link rel="preload" href="vendor/react.production.min.js" as="script">
 <link rel="preload" href="vendor/react-dom.production.min.js" as="script">
 <link rel="preload" href="app.compiled.js?v=20260905-8" as="script">
+<link rel="preload" href="env-config.js" as="script">
 <style>
 :root{
   /* ═══ Fluid layout tokens ═══
@@ -310,6 +311,11 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      of being transpiled in-browser via Babel Standalone on every visit. That in-browser
      compile of ~11k lines of JSX was taking ~30s on phones with nothing rendered but
      the background, since React can't draw anything until the transpile finishes. -->
+<!-- Generated per deployment by build/env-config.js from environment variables.
+     Must load before the configuration block below reads window.SAYCRD_ENV_CONFIG,
+     so it is a blocking script rather than a fetch: the Supabase client is created
+     synchronously further down and several call sites depend on it existing. -->
+<script src="env-config.js"></script>
 <script src="session-sync.js?v=1"></script>
     <script src="app.compiled.js?v=20260905-8"></script>
 
@@ -331,19 +337,23 @@ window.onerror = function(msg, url, line, col, err) {
 
 /* ====================================================================
    SAYCRD — Configuration
-   Replace these with your Supabase project values
+
+   The Supabase values are NOT hardcoded here. This file is one static asset
+   shared by every deployment, so a literal project URL in it pointed Preview
+   deployments at the production database — while the API half of the app reads
+   process.env and could be pointed elsewhere, which would hand a staging API
+   production-issued JWTs it cannot verify.
+
+   They now come from env-config.js, generated per deployment by
+   build/env-config.js from environment variables. That build step refuses to
+   emit anything but a browser-safe anon/publishable key, refuses to build
+   Preview against production, and refuses to build Production against
+   anything else.
    ==================================================================== */
+const SAYCRD_ENV = window.SAYCRD_ENV_CONFIG || null;
 const SAYCRD_CONFIG = {
-  // NOTE: this used to point at a different, unrelated Supabase project
-  // (perataksccqmdocgshyl) than the one actually wired up via this
-  // project's Supabase integration / server-side env vars
-  // (lydamoxkymwuccepeeyz) — meaning the client was reading/writing a
-  // database with none of the real schema (session_tiers, credit_ledger,
-  // etc.) in it. Fixed to match the real project. Both values below are
-  // public-by-design (anon key, not a secret) so hardcoding them here is
-  // fine, same as before — just pointed at the right project now.
-  SUPABASE_URL: "https://lydamoxkymwuccepeeyz.supabase.co",
-  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5ZGFtb3hreW13dWNjZXBlZXl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMjA2MDgsImV4cCI6MjEwMzg5NjYwOH0.FcwnC4NSBv7cPhYnWDEAt0IgvO7mtIi_8rUC4hpOdJc",
+  SUPABASE_URL: (SAYCRD_ENV && SAYCRD_ENV.SUPABASE_URL) || "",
+  SUPABASE_ANON_KEY: (SAYCRD_ENV && SAYCRD_ENV.SUPABASE_ANON_KEY) || "",
   API_ENDPOINT: "/api/claude",
 };
 
@@ -354,6 +364,13 @@ var sbClient = null;
 window.sbClient = null;
 var supabaseAvailable = false;
 try {
+  // Fail closed. With no browser configuration there is no authentication, so
+  // do not build a client against empty values and appear half-working: leave
+  // supabaseAvailable false so the app uses local-only storage, exactly as it
+  // already does whenever Supabase is unreachable.
+  if (!SAYCRD_CONFIG.SUPABASE_URL || !SAYCRD_CONFIG.SUPABASE_ANON_KEY) {
+    throw new Error("env-config.js missing or incomplete — no browser Supabase configuration");
+  }
   sbClient = window.supabase.createClient(
     SAYCRD_CONFIG.SUPABASE_URL,
     SAYCRD_CONFIG.SUPABASE_ANON_KEY

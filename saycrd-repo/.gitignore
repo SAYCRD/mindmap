@@ -1,2 +1,7 @@
 .vercel
 .env*
+
+# Generated per-deployment by build/env-config.js from environment variables.
+# Environment-specific by design, so it must never be committed — a committed
+# copy would pin every environment to whichever project built it last.
+public/env-config.js
