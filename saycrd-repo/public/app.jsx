@@ -4322,6 +4322,16 @@ function _authMayBeSignedIn() {
   return _hasPersistedAuthToken();
 }
 
+/* The same 480px breakpoint the landing and dashboard components already use
+   for their own mobile layouts, so "mobile" means one thing across the app. */
+function _isMobileViewport() {
+  try {
+    return typeof window !== "undefined" && window.innerWidth < 480;
+  } catch (e) {
+    return false;
+  }
+}
+
 function updateLastSession(partial) {
 try {
 var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
@@ -12374,6 +12384,12 @@ function SAYCRDFlow() {
   // session sees the boot state, and only until _authReady settles or
   // BOOT_AUTH_TIMEOUT_MS elapses.
   const [authResolving, setAuthResolving] = useState(_authMayBeSignedIn);
+  // Did THIS page load boot as a possibly-authenticated visitor? Captured once
+  // at mount, from the same synchronous probe that arms the boot gate above, so
+  // the two can never disagree. This is the honest way to tell a returning
+  // user's initial destination decision apart from a session that merely turns
+  // up later in the background — see the route guard in handleAuthChange.
+  const bootedWithSession = useRef(_authMayBeSignedIn());
   // Transient, one-time authorization to enter the post-session ceremony
   // (phase 7 = "complete"). Set ONLY by FieldPhase's genuine onSessionComplete
   // transition and consumed immediately when that screen mounts. It is a ref
@@ -12455,6 +12471,34 @@ function SAYCRDFlow() {
       // followed returned at the check above and never routed. That left a
       // fully authenticated user stranded on the homepage.
       if (phaseRef.current === 0 && isReal) {
+        // THE MOBILE FLASH. index.html dispatches "saycrd-auth-change" from
+        // getSession()/onAuthStateChange, which resolve on their own schedule,
+        // so a real event here does NOT imply the visitor just authenticated.
+        // When one lands after the landing page is already painted, setPhase(8)
+        // unmounts a page the visitor is reading — measured at 393px: landing
+        // visible at 262ms, replaced by the Dashboard at 2430ms.
+        //
+        // The fix is not to suppress routing for returning users. It is to
+        // recognise which decision this event belongs to:
+        //
+        //   bootedWithSession  a token existed at mount, so the boot gate above
+        //                      owns this visitor's FIRST destination and routes
+        //                      them to the Dashboard without ever painting the
+        //                      landing page. Late resolution is still that same
+        //                      initial decision, so it must be allowed through.
+        //   _authUserInitiated the visitor opened the login overlay and signed
+        //                      in. An explicit act, so it always routes.
+        //
+        // Neither is true only when someone booted signed-out, was handed the
+        // landing page, and a session appeared underneath them (cross-tab
+        // sign-in, a late restore). Navigating then is a forced navigation
+        // mid-session, so the state is allowed to settle instead — the account
+        // menu reflects it without moving anyone off the page.
+        //
+        // Mobile only: desktop routing is deliberately left exactly as it was.
+        if (_isMobileViewport() && !bootedWithSession.current && !window._authUserInitiated) {
+          return;
+        }
         routedOnAuth = true;
         setPhase(8);
       }
