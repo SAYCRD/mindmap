@@ -176,6 +176,20 @@ function getCurrentUid() { return (typeof window !== "undefined" && window.curre
 
 function _isRealAccount() { return typeof window !== "undefined" && !!(window.currentUser && window.currentUser.id && window.currentUser.id !== "local-user"); }
 
+/* Gate for the version/phase readout in the corner. It is a genuinely useful
+   hand-debugging aid (it is how phase routing gets confirmed by eye), so it is
+   kept rather than deleted -- but it was rendering to real visitors on
+   production. Deliberately opt-in via ?debug=1 rather than keyed off hostname:
+   a hostname allowlist would still have shown it on every preview URL, and an
+   explicit flag is the only version that is off by default everywhere. */
+function _isDebugSurface() {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window._saycrdDebug === true) return true;
+    return new URLSearchParams(window.location.search).get("debug") === "1";
+  } catch (e) { return false; }
+}
+
 // Guests get a fixed number of free sessions on this device, then must
 // create a real account to continue. Counted across BOTH guest buckets
 // ("saycrd-local-sessions" for a never-bypassed anonymous visitor, and
@@ -10913,8 +10927,22 @@ var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
 var returning = sessions.length > 0;
 var SG = "Space Grotesk, " + FB;
+// Phone breakpoint, following the convention already used by UserMenu and the
+// session flow: a plain innerWidth check plus a resize listener.
+var [isMobile, setIsMobile] = useState(function(){ return typeof window !== "undefined" && window.innerWidth < 480; });
+useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 
-useEffect(function() { setTimeout(function() { setShow(true); }, 100); }, []);
+/* The same staggered fade on both, but mobile runs it roughly 2.5x faster. On
+   a phone the desktop cadence -- the CTA row only finishes settling ~1.4s
+   after mount -- reads as the page being stuck, because the hero IS the whole
+   first screen. This compresses the choreography; it deliberately keeps it. */
+function reveal(desktop, mobile) { return isMobile ? mobile : desktop; }
+
+// The 100ms beat before the reveal is intentional on desktop. On mobile it is
+// dead time in front of the only content on screen, so it drops to ~2 frames:
+// still enough for the opacity:0 initial state to paint, so the fade runs
+// rather than snapping straight to opaque.
+useEffect(function() { var t = setTimeout(function() { setShow(true); }, isMobile ? 32 : 100); return function(){ clearTimeout(t); }; }, []);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
@@ -10972,9 +11000,13 @@ filter:"blur(80px)", animation:"floatWord 18s ease-in-out infinite", animationDe
 padding:"calc(20px + env(safe-area-inset-top, 0px)) 0 20px",
 background:"rgba(10,9,20,0.8)", backdropFilter:"blur(20px)",
 borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
-<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", maxWidth:1400, margin:"0 auto", padding:"0 7vw" }}>
+{/* 7vw side padding leaves only ~275px of usable width at 320px, which the
+    logo and auth control alone overflow. Mobile uses a fixed 20px gutter and a
+    slightly tighter wordmark so the two always fit with room to spare.
+    Desktop keeps the original 7vw / 18px / 0.3em values untouched. */}
+<div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", maxWidth:1400, margin:"0 auto", padding: isMobile ? "0 20px" : "0 7vw" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
-<div style={{ fontFamily:SG, fontSize:18, fontWeight:700, letterSpacing:"0.3em",
+<div style={{ fontFamily:SG, fontSize: isMobile ? 16 : 18, fontWeight:700, letterSpacing: isMobile ? "0.18em" : "0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
 WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
 {isLandingRealAccount ? (
@@ -10987,12 +11019,21 @@ Log in / Sign up
 </button>
 )}
 </div>
+{/* The nav CTA is desktop-only. Its signed-out label was still the legacy
+    "begin", and because neither it nor the left group could shrink it was
+    drawn straight on top of "Log in / Sign up" on every phone width (96px of
+    overlap at 320px, where it covered the control completely). On mobile the
+    hero's own "start a session" button sits directly below the fold line and
+    is the primary action, so the nav keeps just the wordmark and the single
+    auth control. Desktop rendering is unchanged. */}
+{!isMobile && (
 <button onClick={guardedStart} disabled={starting} style={{ padding:"10px 26px", borderRadius:999,
 background:"linear-gradient(135deg, rgba(232,67,147,0.15), rgba(184,107,255,0.15))",
 border:"1px solid rgba(232,67,147,0.3)", color:"#E84393",
-fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:starting?"default":"pointer", opacity:starting?0.6:1 }}>
+fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:starting?"default":"pointer", opacity:starting?0.6:1, flexShrink:0 }}>
 {starting ? "starting…" : (isLandingRealAccount ? (returning ? "new session" : "start a session") : "begin")}
 </button>
+)}
 </div>
 </nav>
 
@@ -11003,27 +11044,27 @@ fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:start
 marginBottom:20, fontWeight:600,
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
 WebkitTextFillColor:"transparent",
-opacity:show?1:0, transition:"opacity 0.8s ease" }}>
+opacity:show?1:0, transition:reveal("opacity 0.8s ease", "opacity 0.35s ease") }}>
 A place to go in the moment
 </div>
 
 <h1 style={{ fontFamily:FD, fontSize:"clamp(42px,6.5vw,68px)", fontWeight:300,
 lineHeight:1.1, color:"rgba(255,255,255,0.95)", marginBottom:28, letterSpacing:"-0.01em",
 maxWidth:820,
-opacity:show?1:0, transform:show?"translateY(0)":"translateY(24px)",
-transition:"all 1s cubic-bezier(.25,.46,.45,.94) 0.1s" }}>
+opacity:show?1:0, transform:show?"translateY(0)":reveal("translateY(24px)","translateY(12px)"),
+transition:reveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.1s", "all 0.45s cubic-bezier(.25,.46,.45,.94) 0.04s") }}>
 The space between your inner world and the next true move.
 </h1>
 
 <p style={{ fontFamily:FD, fontSize:21, fontWeight:300, fontStyle:"italic",
 color:"rgba(200,185,230,0.7)", lineHeight:1.7, marginBottom:40, maxWidth:540,
-opacity:show?1:0, transform:show?"translateY(0)":"translateY(16px)",
-transition:"all 1s cubic-bezier(.25,.46,.45,.94) 0.25s" }}>
+opacity:show?1:0, transform:show?"translateY(0)":reveal("translateY(16px)","translateY(10px)"),
+transition:reveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.25s", "all 0.45s cubic-bezier(.25,.46,.45,.94) 0.12s") }}>
 BLINDSPOT listens like a human, shapes what you say into a living visual, and remembers your patterns without turning you into a project.
 </p>
 
 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center",
-opacity:show?1:0, transition:"opacity 1s ease 0.4s", marginBottom:16 }}>
+opacity:show?1:0, transition:reveal("opacity 1s ease 0.4s", "opacity 0.4s ease 0.18s"), marginBottom:16 }}>
 <button onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
@@ -11041,7 +11082,7 @@ see the concept
 </div>
 
 {!authUser && (
-<div style={{ marginTop: 16, opacity: show ? 1 : 0, transition: "opacity 0.8s ease 0.5s" }}>
+<div style={{ marginTop: 16, opacity: show ? 1 : 0, transition: reveal("opacity 0.8s ease 0.5s", "opacity 0.4s ease 0.24s") }}>
 <button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
 Log in or create an account to save your sessions
 </button>
@@ -12588,7 +12629,7 @@ button:active{transform:scale(0.97)}
 .saycrd-landing-grid{grid-template-columns:1fr!important}
 }
 `}</style>
-<div style={{ position: "fixed", bottom: 4, right: 8, fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: FB, zIndex: 9999, pointerEvents: "none" }}>v5.2 | {cp}:{phase}</div>
+{_isDebugSurface() && <div style={{ position: "fixed", bottom: 4, right: 8, fontSize: 9, color: "rgba(255,255,255,0.35)", fontFamily: FB, zIndex: 9999, pointerEvents: "none" }}>v5.2 | {cp}:{phase}</div>}
 </div>
 );
 }
