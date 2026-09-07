@@ -10916,7 +10916,11 @@ return (
 }
 
 function LandingPhase({ onStart, onNavigateLegal }) {
-var [show, setShow] = useState(false);
+// Evaluated once, ahead of any reveal state, because `show` seeds itself from
+// it: on a phone the landing has to be fully painted on the very first render,
+// with no state transition left to wait for.
+var initialMobile = typeof window !== "undefined" && window.innerWidth < 480;
+var [show, setShow] = useState(initialMobile);
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 // Same "local-user" bypass fake-account issue as UserMenu: `authUser` alone is
 // truthy for a guest who only clicked "Continue without account", so the nav
@@ -10929,20 +10933,24 @@ var returning = sessions.length > 0;
 var SG = "Space Grotesk, " + FB;
 // Phone breakpoint, following the convention already used by UserMenu and the
 // session flow: a plain innerWidth check plus a resize listener.
-var [isMobile, setIsMobile] = useState(function(){ return typeof window !== "undefined" && window.innerWidth < 480; });
+var [isMobile, setIsMobile] = useState(initialMobile);
 useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 
-/* The same staggered fade on both, but mobile runs it roughly 2.5x faster. On
-   a phone the desktop cadence -- the CTA row only finishes settling ~1.4s
-   after mount -- reads as the page being stuck, because the hero IS the whole
-   first screen. This compresses the choreography; it deliberately keeps it. */
-function reveal(desktop, mobile) { return isMobile ? mobile : desktop; }
+/* Phones render the landing complete and opaque on the first paint: no
+   opacity:0 start state, no timer, no state gate, nothing that can strand the
+   page mid-fade. `revealed` is unconditionally true when isMobile, so it does
+   not read `show` at all on a phone -- a delayed, dropped or re-ordered state
+   update cannot hide content. Desktop keeps the original staggered fade. */
+var revealed = isMobile || show;
+function desktopReveal(transition) { return isMobile ? "none" : transition; }
 
-// The 100ms beat before the reveal is intentional on desktop. On mobile it is
-// dead time in front of the only content on screen, so it drops to ~2 frames:
-// still enough for the opacity:0 initial state to paint, so the fade runs
-// rather than snapping straight to opaque.
-useEffect(function() { var t = setTimeout(function() { setShow(true); }, isMobile ? 32 : 100); return function(){ clearTimeout(t); }; }, []);
+// Desktop keeps its deliberate 100ms beat before the fade begins. Phones never
+// arm the timer, so on mobile there is no delay to survive in the first place.
+useEffect(function() {
+  if (isMobile) return;
+  var t = setTimeout(function() { setShow(true); }, 100);
+  return function(){ clearTimeout(t); };
+}, [isMobile]);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
@@ -11044,27 +11052,27 @@ fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:start
 marginBottom:20, fontWeight:600,
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
 WebkitTextFillColor:"transparent",
-opacity:show?1:0, transition:reveal("opacity 0.8s ease", "opacity 0.35s ease") }}>
+opacity:revealed?1:0, transition:desktopReveal("opacity 0.8s ease") }}>
 A place to go in the moment
 </div>
 
 <h1 style={{ fontFamily:FD, fontSize:"clamp(42px,6.5vw,68px)", fontWeight:300,
 lineHeight:1.1, color:"rgba(255,255,255,0.95)", marginBottom:28, letterSpacing:"-0.01em",
 maxWidth:820,
-opacity:show?1:0, transform:show?"translateY(0)":reveal("translateY(24px)","translateY(12px)"),
-transition:reveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.1s", "all 0.45s cubic-bezier(.25,.46,.45,.94) 0.04s") }}>
+opacity:revealed?1:0, transform:revealed?"translateY(0)":"translateY(24px)",
+transition:desktopReveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.1s") }}>
 The space between your inner world and the next true move.
 </h1>
 
 <p style={{ fontFamily:FD, fontSize:21, fontWeight:300, fontStyle:"italic",
 color:"rgba(200,185,230,0.7)", lineHeight:1.7, marginBottom:40, maxWidth:540,
-opacity:show?1:0, transform:show?"translateY(0)":reveal("translateY(16px)","translateY(10px)"),
-transition:reveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.25s", "all 0.45s cubic-bezier(.25,.46,.45,.94) 0.12s") }}>
+opacity:revealed?1:0, transform:revealed?"translateY(0)":"translateY(16px)",
+transition:desktopReveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.25s") }}>
 BLINDSPOT listens like a human, shapes what you say into a living visual, and remembers your patterns without turning you into a project.
 </p>
 
 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center",
-opacity:show?1:0, transition:reveal("opacity 1s ease 0.4s", "opacity 0.4s ease 0.18s"), marginBottom:16 }}>
+opacity:revealed?1:0, transition:desktopReveal("opacity 1s ease 0.4s"), marginBottom:16 }}>
 <button onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
@@ -11082,7 +11090,7 @@ see the concept
 </div>
 
 {!authUser && (
-<div style={{ marginTop: 16, opacity: show ? 1 : 0, transition: reveal("opacity 0.8s ease 0.5s", "opacity 0.4s ease 0.24s") }}>
+<div style={{ marginTop: 16, opacity: revealed ? 1 : 0, transition: desktopReveal("opacity 0.8s ease 0.5s") }}>
 <button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
 Log in or create an account to save your sessions
 </button>
