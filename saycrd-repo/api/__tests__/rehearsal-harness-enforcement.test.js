@@ -61,6 +61,82 @@ function nameArrays(src) {
 const assertionNames = (sql) =>
   [...sql.matchAll(/select\s+'([A-Za-z0-9_]+)'\s+as test/g)].map((m) => m[1]);
 
+// `-- ...` comment text is documentation, not executable SQL. The comments
+// inside these blocks deliberately name the wrong column (seu.source) to
+// record the failure that motivated the schema check, so a column scan that
+// includes comments flags the explanation as the defect.
+const stripSqlComments = (sql) =>
+  sql
+    .split('\n')
+    .map((line) => line.replace(/--.*$/, ''))
+    .join('\n');
+
+// ---------------------------------------------------------------------------
+// Column references in the assertion SQL must exist in the real schema.
+//
+// A rehearsal run failed with `column seu.source does not exist`, and because
+// psql aborts the rest of the block on error, twelve genuine assertions
+// collapsed into "not evaluated" at once. The enforcement layer caught it (the
+// run exited nonzero), but a single invented column name should not be able to
+// take out the whole block. The migrations are the schema's source of truth, so
+// the column names used in the SQL are checked against the CREATE TABLE bodies.
+// ---------------------------------------------------------------------------
+
+// The catalog is dumped from information_schema on a branch carrying Stage
+// 2B+2C. Parsing the migrations was tried first and is not viable: several of
+// these tables (credit_ledger, square_payments) are created by migrations that
+// predate this repo's supabase/migrations directory, so the parser reported
+// zero or partial columns and silently skipped the very checks it was added to
+// perform. A dumped catalog is exact.
+const CATALOG = path.join(ROOT, 'scripts', 'schema', 'rehearsal-columns.json');
+const catalog = JSON.parse(read(CATALOG)).tables;
+
+const columnsOf = (table) => new Set(catalog[table] || []);
+
+test('assertion SQL only references columns that exist', () => {
+  // alias -> table, for the aliases the assertion SQL actually binds.
+  const aliases = {
+    seu: 'session_entitlement_usage',
+    l: 'credit_ledger',
+    r: 'square_refunds',
+    p: 'square_payments',
+    s: 'sessions',
+  };
+  // Only the SQL heredocs are scanned. Scanning whole files also picked up
+  // prose in the header comments and shell paths like "$OUT/r-$r.txt", which
+  // parsed as the column reference r.txt.
+  const sources = [USER_RACE, REFUND_RACE].map((f) =>
+    stripSqlComments(Object.values(sqlBlocks(read(f))).join('\n'))
+  );
+  const problems = [];
+
+  for (const src of sources) {
+    for (const [alias, table] of Object.entries(aliases)) {
+      const cols = columnsOf(table);
+      if (cols.size === 0) continue; // table not defined in migrations; skip
+      const refs = [...src.matchAll(new RegExp(`\\b${alias}\\.([a-z_][a-z0-9_]*)`, 'g'))];
+      for (const ref of refs) {
+        if (!cols.has(ref[1])) problems.push(`${alias}.${ref[1]} (${table})`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    [...new Set(problems)],
+    [],
+    'assertion SQL references columns absent from the migrations'
+  );
+});
+
+test('the credit-source assertion uses entitlement_type, not a source column', () => {
+  // Scoped to the SQL heredocs on purpose: the file's header comment quotes
+  // `seu.source` when documenting the failure this replaced, and a whole-file
+  // match would flag that prose as a defect.
+  const blocks = stripSqlComments(Object.values(sqlBlocks(read(USER_RACE))).join('\n'));
+  assert.match(blocks, /seu\.entitlement_type <> 'credit'/);
+  assert.doesNotMatch(blocks, /seu\.source/);
+});
+
 // ---------------------------------------------------------------------------
 // Both harnesses must be syntactically valid and share the enforcement library.
 // ---------------------------------------------------------------------------

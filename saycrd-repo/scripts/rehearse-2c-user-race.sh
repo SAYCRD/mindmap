@@ -329,20 +329,40 @@ done
 echo ""
 echo "== global assertions over every round =="
 
+# The per-run scope. ROUND_OFFSET exists so a second run starts from fresh
+# state, but the global assertions used to match every c2c-race-% user on the
+# branch, which quietly made them CUMULATIVE across runs. That is not academic:
+# after two negative-control runs (which corrupt balances on purpose to prove
+# the harness can fail), a subsequent run of the FIXED build reported
+# no_negative_balance_any_user = FALSE even though all 24 of its own rounds
+# were clean — every negative belonged to the control namespaces. A stale
+# failure that looks like a live one is as dangerous as a missed failure, so
+# the round-scoped assertions below are limited to THIS run's rounds.
+#
+# ROUND_LIST is the exact set of round numbers this invocation seeded.
+ROUND_LIST="$(seq $((OFFSET + 1)) $((OFFSET + ROUNDS)) | paste -sd, -)"
+
 GLOBAL_SQL="$(
-  cat <<'SQL'
--- The headline invariant. A single negative balance anywhere is the bug this
--- whole exercise exists to rule out.
+  cat <<SQL
+-- Branch-wide on purpose: a negative balance anywhere is the defect this whole
+-- exercise exists to rule out, so this one is NOT scoped to the current run.
+-- It is expected to fail on a branch where a negative control was run, which
+-- is correct — that state really is corrupt. Use a fresh branch (or a fresh
+-- ROUND_OFFSET plus a clean branch) for a run that must be green.
 select 'no_negative_balance_any_user' as test,
        not exists (
          select 1 from public.credit_ledger group by user_id having sum(delta) < 0
        ) as pass;
 
+-- Scoped to this run's rounds.
 select 'every_race_user_landed_on_zero' as test,
        not exists (
          select 1 from public.credit_ledger l
          join auth.users u on u.id = l.user_id
-         where u.email like 'c2c-race-%@rehearsal.test'
+         where u.email in (
+                 select 'c2c-race-' || n || '@rehearsal.test'
+                 from unnest(array[$ROUND_LIST]) as n
+               )
          group by l.user_id having sum(l.delta) <> 0
        ) as pass;
 
@@ -352,7 +372,11 @@ select 'exactly_one_debit_per_race_user' as test,
        not exists (
          select 1 from public.credit_ledger l
          join auth.users u on u.id = l.user_id
-         where u.email like 'c2c-race-%@rehearsal.test' and l.delta < 0
+         where u.email in (
+                 select 'c2c-race-' || n || '@rehearsal.test'
+                 from unnest(array[$ROUND_LIST]) as n
+               )
+           and l.delta < 0
          group by l.user_id having count(*) <> 1
        ) as pass;
 
@@ -413,12 +437,27 @@ select 'both_outcomes_observed' as test,
 -- The race is only meaningful if completion drew on the CREDIT. If the
 -- fixture ever stopped exhausting the complimentary allowance, every round
 -- would still show one debit and silently prove nothing.
+--
+-- The column is entitlement_type and it carries the RPC's v_source value;
+-- there is no seu.source column. The first version of this assertion invented
+-- one, and because psql abandons the rest of a block after an error, that
+-- single bad name aborted twelve genuine assertions at once ("not
+-- evaluated"). The enforcement layer still failed the run, which is the
+-- point, but the column names here are now also checked against the live
+-- schema by rehearsal-harness-enforcement.test.js so it cannot recur quietly.
 select 'race_completions_consumed_credit_not_complimentary' as test,
        not exists (
          select 1 from public.session_entitlement_usage seu
          join auth.users u on u.id = seu.user_id
          where u.email like 'c2c-race-%@rehearsal.test'
-           and seu.source <> 'credit'
+           and seu.entitlement_type <> 'credit'
+       )
+       and exists (
+         select 1 from public.session_entitlement_usage seu
+         join auth.users u on u.id = seu.user_id
+         where u.email like 'c2c-race-%@rehearsal.test'
+           and seu.entitlement_type = 'credit'
+           and seu.credit_ledger_id is not null
        ) as pass;
 
 -- A full refund covers the purchase in both outcomes, so every race payment
