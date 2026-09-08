@@ -392,7 +392,13 @@ test('negative control: an immutable /api rule fails the API test', () => {
 });
 
 test('negative control: a ?v= reference fails the no-manual-version test', () => {
-  const broken = committedHtml.replace('href="app.compiled.js"', 'href="app.compiled.js?v=20260907-14"');
+  // Matched by pattern rather than by literal, so the mutation lands whether
+  // index.html is in its committed (plain-name) state or the post-build (hashed)
+  // state. A literal 'href="app.compiled.js"' silently no-ops after a build, and
+  // a control whose mutation never landed proves nothing while still going green.
+  const broken = committedHtml.replace(
+    /(href|src)="((?:static\/)?app\.compiled(?:\.[0-9a-f]{16})?\.js)"/,
+    '$1="$2?v=20260907-14"');
   assert.notStrictEqual(broken, committedHtml, 'the mutation did not land, so this control proves nothing');
   assert.throws(function () { assertNoManualVersionQuery(broken); }, /manual \?v= asset references remain/);
 });
