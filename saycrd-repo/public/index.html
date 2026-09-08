@@ -839,17 +839,18 @@ window.__saycrdPricingSentence = function(tiers) {
   }
   if (!usable.length) return null;
   /* One number, no range and no pack breakdown: the best per-session rate in
-     the catalogue, to the dollar. Rounded UP, never down, so the copy can never
-     advertise a session as cheaper than it can actually be bought. Today the
-     5-pack is the best rate ($39 / 5 = $7.80) and this reads "$8 a session".
-     Still derived rather than written down, so an admin repricing a tier
-     updates the copy on its own. */
+     the catalogue, to the cent. Rounded UP at the cent, never down, so the
+     copy can never advertise a session as cheaper than it can actually be
+     bought. Today the 5-pack is the best rate ($39 / 5 = $7.80) and this
+     reads "blindspot sessions starting at $7.80". Still derived rather than
+     written down, so an admin repricing a tier updates the copy on its own. */
   var bestRate = usable[0].cents / usable[0].count;
   for (var j = 1; j < usable.length; j++) {
     var rate = usable[j].cents / usable[j].count;
     if (rate < bestRate) bestRate = rate;
   }
-  return "$" + Math.ceil(bestRate / 100) + " a session after that.";
+  var dollars = (Math.ceil(bestRate) / 100).toFixed(2);
+  return "blindspot sessions starting at $" + dollars;
 };
 window.__saycrdPricingText = function() {
   return window.__saycrdSessionTiers().then(function(tiers){
