@@ -51,7 +51,10 @@ function _handOffToApp(opts) {
 function LandingShell() {
   /* "landing" | "privacy" | "terms" | "disclaimer-info" — the same page names
      app.jsx uses in PHASES, so LegalPage receives exactly the prop it expects. */
-  var [page, setPage] = useState("landing");
+  var legalBoot = typeof window !== "undefined" ? window.__SAYCRD_LEGAL_PAGE : "";
+  var [page, setPage] = useState(
+    legalBoot === "privacy" || legalBoot === "terms" || legalBoot === "disclaimer-info" ? legalBoot : "landing"
+  );
 
   /* phaseIn fades this wrapper from opacity 0.6 to 1. On a phone that is the
      LAST thing still standing between the visitor and a readable homepage:

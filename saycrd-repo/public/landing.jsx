@@ -707,7 +707,7 @@ padding:"8px 0 32px" }}>
 { label:"Terms", page:"terms" },
 { label:"Disclaimer", page:"disclaimer-info" },
 ].map(function(l){
-return <button key={l.page} onClick={function(){ if (onNavigateLegal) onNavigateLegal(l.page); }}
+	return <button key={l.page} data-saycrd-boot="legal" data-saycrd-page={l.page} onClick={function(){ if (onNavigateLegal) onNavigateLegal(l.page); }}
 style={{ background:"none", border:"none", cursor:"pointer", padding:0,
 fontFamily:FB, fontSize:12, letterSpacing:"0.06em",
 color:"rgba(255,255,255,0.32)" }}>{l.label}</button>;

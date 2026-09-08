@@ -452,7 +452,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     var el = ev.target && ev.target.closest ? ev.target.closest("[data-saycrd-boot]") : null;
     if (!el) return;
     var action = el.getAttribute("data-saycrd-boot");
-    if (action !== "start" && action !== "login" && action !== "concept") return;
+    if (action !== "start" && action !== "login" && action !== "concept" && action !== "legal") return;
     ev.preventDefault();
     if (action === "start") {
       startSession();
@@ -461,6 +461,13 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
          begin. The overlay is static markup with its own handlers, so it opens
          and dismisses with no React and no application code. */
       if (window._showAuthOverlay) window._showAuthOverlay(startSession);
+    } else if (action === "legal") {
+      /* Privacy / Terms / Disclaimer live in the landing bundle. Record which
+         page and load that bundle; LandingShell reads __SAYCRD_LEGAL_PAGE on
+         mount so the first React paint is the legal page, not the homepage. */
+      var page = el.getAttribute("data-saycrd-page");
+      if (page) window.__SAYCRD_LEGAL_PAGE = page;
+      if (window.__saycrdLoadLanding) window.__saycrdLoadLanding();
     } else {
       /* Same in-page scroll as the React handler. The target is in the snapshot,
          so this resolves without the application. */
@@ -540,24 +547,18 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      markup and the critical CSS in <head>, so the visitor can read it before any
      of this runs.
 
-     The interactive layer is fetched once the markup is parsed, NOT on the load
-     event. The load event waits for every image on the page, so gating on it
-     chained the fonts and the whole interactive layer behind image downloads --
-     measured on a phone viewport, nothing was even requested until 8.1s, which
-     was the load event, not the network. DOMContentLoaded carries the only
-     guarantee this code actually needs (the snapshot is in the DOM) and owes
-     nothing to images. This script tag already sits at the end of <body>, so in
-     practice that has just happened.
+     React is not part of first paint on a phone. The snapshot is already in
+     the document and already visible below 480px. Fetching react + react-dom +
+     landing.compiled.js on DOMContentLoaded made createRoot() wipe that markup
+     and replace it about a second later -- which is the "blank, then everything
+     at once" the visitor actually feels. The landing bundle is still fetched
+     when the snapshot cannot paint the page: desktop (the snapshot is
+     display:none above 480px) and unbuilt source (empty markers, no
+     .saycrd-app-shell). Legal clicks load it on demand via the boot bridge.
 
-     Still not a paint observer or an idle callback: an earlier version of this
-     file used those and got the ordering wrong in both directions. Nothing
-     fetched here is required for the paint, so it does not need to thread that
-     needle -- these are async subresources and the parsed homepage paints
-     without them.
-
-     What arrives here is the landing bundle, not the application: the legal
-     pages and the session-aware hero label need React, reading the page does
-     not. The application is still only requested on a real click. */
+     Still not the load event: that waits for every image. Still not a paint
+     observer or an idle callback. The application is still only requested on
+     a real click. */
   function loadInteractive() {
     window.__saycrdLoadLanding().then(null, function (e) {
       /* The snapshot stays on screen, so a failure here leaves the visitor with a
@@ -567,10 +568,15 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
       console.error("[SAYCRD] landing bundle failed to load; the prerendered homepage stays:", e);
     });
   }
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", loadInteractive, { once: true });
-  } else {
-    loadInteractive();
+  var snap = document.getElementById("saycrd-prerender");
+  var snapshotPainted = !!(snap && snap.querySelector(".saycrd-app-shell"));
+  var snapshotHidden = window.matchMedia && window.matchMedia("(min-width: 480px)").matches;
+  if (!snapshotPainted || snapshotHidden) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", loadInteractive, { once: true });
+    } else {
+      loadInteractive();
+    }
   }
 
   /* The preferred faces. Requested immediately, but deliberately never render
