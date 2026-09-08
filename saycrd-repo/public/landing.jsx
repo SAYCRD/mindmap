@@ -132,11 +132,11 @@ return (
 }
 
 function LandingPhase({ onStart, onNavigateLegal }) {
-// Evaluated once, ahead of any reveal state, because `show` seeds itself from
-// it: on a phone the landing has to be fully painted on the very first render,
-// with no state transition left to wait for.
+// Phone vs desktop is layout only (nav gutter, the desktop-only "begin"
+// button). It must not gate visibility: the prerendered HTML is shown at
+// every width, and a fade that starts at opacity:0 would make that snapshot
+// invisible on anything wider than a phone.
 var initialMobile = typeof window !== "undefined" && window.innerWidth < 480;
-var [show, setShow] = useState(initialMobile);
 var [authUser, setAuthUser] = useState(function(){ return typeof window !== "undefined" ? window.currentUser : null; });
 // Same "local-user" bypass fake-account issue as UserMenu: `authUser` alone is
 // truthy for a guest who only clicked "Continue without account", so the nav
@@ -152,24 +152,9 @@ var SG = "Space Grotesk, " + FB;
 var [isMobile, setIsMobile] = useState(initialMobile);
 useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480); } window.addEventListener("resize", onResize); return function(){ window.removeEventListener("resize", onResize); }; }, []);
 
-/* Phones render the landing complete and opaque on the first paint: no
-   opacity:0 start state, no timer, no state gate, nothing that can strand the
-   page mid-fade. `revealed` is unconditionally true when isMobile, so it does
-   not read `show` at all on a phone -- a delayed, dropped or re-ordered state
-   update cannot hide content. Desktop keeps the original staggered fade. */
-var revealed = isMobile || show;
-function desktopReveal(transition) { return isMobile ? "none" : transition; }
-
 /* null until the live catalogue answers; the offer copy renders without it. */
 var pricingText = useSessionPricingText();
 
-// Desktop keeps its deliberate 100ms beat before the fade begins. Phones never
-// arm the timer, so on mobile there is no delay to survive in the first place.
-useEffect(function() {
-  if (isMobile) return;
-  var t = setTimeout(function() { setShow(true); }, 100);
-  return function(){ clearTimeout(t); };
-}, [isMobile]);
 useEffect(function(){ function onAuth(){ setAuthUser(window.currentUser || null); } window.addEventListener("saycrd-auth-change", onAuth); setAuthUser(window.currentUser || null); return function(){ window.removeEventListener("saycrd-auth-change", onAuth); }; }, []);
 useEffect(function(){ var el=document.getElementById("ws-signout"); if(el){ el.style.setProperty("display","none","important"); } return function(){ var el=document.getElementById("ws-signout"); if(el) el.style.removeProperty("display"); }; }, []);
 
@@ -271,28 +256,23 @@ fontFamily:FB, fontSize:14, fontWeight:600, letterSpacing:"0.06em", cursor:start
 <div style={{ fontSize:13, letterSpacing:"0.4em", fontFamily:FB, textTransform:"uppercase",
 marginBottom:20, fontWeight:600,
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
-WebkitTextFillColor:"transparent",
-opacity:revealed?1:0, transition:desktopReveal("opacity 0.8s ease") }}>
+WebkitTextFillColor:"transparent" }}>
 A place to go in the moment
 </div>
 
 <h1 style={{ fontFamily:FD, fontSize:"clamp(42px,6.5vw,68px)", fontWeight:300,
 lineHeight:1.1, color:"rgba(255,255,255,0.95)", marginBottom:28, letterSpacing:"-0.01em",
-maxWidth:820,
-opacity:revealed?1:0, transform:revealed?"translateY(0)":"translateY(24px)",
-transition:desktopReveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.1s") }}>
+maxWidth:820 }}>
 The space between your inner world and the next true move.
 </h1>
 
 <p style={{ fontFamily:FD, fontSize:21, fontWeight:300, fontStyle:"italic",
-color:"rgba(200,185,230,0.7)", lineHeight:1.7, marginBottom:40, maxWidth:540,
-opacity:revealed?1:0, transform:revealed?"translateY(0)":"translateY(16px)",
-transition:desktopReveal("all 1s cubic-bezier(.25,.46,.45,.94) 0.25s") }}>
+color:"rgba(200,185,230,0.7)", lineHeight:1.7, marginBottom:40, maxWidth:540 }}>
 BLINDSPOT listens like a human, shapes what you say into a living visual, and remembers your patterns without turning you into a project.
 </p>
 
 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center",
-opacity:revealed?1:0, transition:desktopReveal("opacity 1s ease 0.4s"), marginBottom:16 }}>
+marginBottom:16 }}>
 <button data-saycrd-boot="start" onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
@@ -316,7 +296,7 @@ see the concept
     arrived, so the offer itself is complete in the prerendered HTML and nothing
     here is gated on a request — the mobile reveal behaviour is untouched. */}
 {!authUser && (
-<div style={{ marginTop: 16, maxWidth: 540, opacity: revealed ? 1 : 0, transition: desktopReveal("opacity 0.8s ease 0.5s") }}>
+<div style={{ marginTop: 16, maxWidth: 540 }}>
 <div style={{ padding: "14px 18px", borderRadius: 14, background: "rgba(232,67,147,0.06)", border: "1px solid rgba(232,67,147,0.18)" }}>
 <div style={{ fontFamily: FB, fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.92)", letterSpacing: "0.01em" }}>
 Begin with 2 complimentary sessions

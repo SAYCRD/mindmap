@@ -18,13 +18,11 @@
  *   1. PRESENCE. The homepage copy is in index.html as markup. Not a shell, not
  *      a placeholder, not a spinner — the same copy the React render produces.
  *
- *   2. VISIBILITY. Present is not the same as visible. Rendered at desktop width
- *      the identical component emits its pre-fade state — five elements at
- *      opacity:0 — which would put an INVISIBLE homepage in the HTML and look
- *      exactly like success to a test that only grepped for the text. The
- *      snapshot is rendered below the mobile breakpoint for precisely this
- *      reason, and the check here is calibrated against the desktop render so it
- *      cannot pass by accident.
+ *   2. VISIBILITY. Present is not the same as visible. The landing is fully
+ *      opaque on first paint at every width, so a snapshot with opacity:0 on
+ *      any element is a regression — it would put an INVISIBLE homepage in the
+ *      HTML and look exactly like success to a test that only grepped for the
+ *      text.
  *
  *   3. NO JAVASCRIPT BEFORE IT. React, ReactDOM, Supabase and the application
  *      must not be parser-blocking ahead of the snapshot, or the paint waits for
@@ -113,9 +111,10 @@ function mutate(source, pattern, replacement, label) {
   return out;
 }
 
-// Renders the real landing sources at an arbitrary viewport width. This is what
-// makes the visibility claim testable in both directions rather than asserted in
-// one: the SAME component at 1280px must produce the hidden pre-fade state.
+// Renders the real landing sources at an arbitrary viewport width. The landing
+// is opaque at every width now, so this is how the visibility check is proven
+// in both directions: phone and desktop must both come back with zero hidden
+// elements.
 function renderAtWidth(width) {
   const code = prerender.compile(src.landing + '\n' + src.shell);
   const sandbox = prerender.makeSandbox();
@@ -205,16 +204,12 @@ test('the snapshot width renders an opaque homepage', () => {
     'the snapshot has hidden elements, so the homepage would be in the HTML but invisible');
 });
 
-test('the same component at desktop width renders the hidden pre-fade state', () => {
-  // The calibration. If this ever reaches 0, the desktop staggered fade is gone
-  // and the check above has stopped proving anything — it would pass at any
-  // width, including one that ships an invisible homepage.
-  const desktop = hiddenElementCount(renderAtWidth(1280));
-  assert.ok(desktop > 0,
-    'the desktop render has no hidden elements, so "opaque at phone width" no longer distinguishes anything');
-  assert.strictEqual(desktop, 5,
-    'expected exactly the five staggered reveal elements (eyebrow, h1, lede, button row, login link); ' +
-    `got ${desktop}. LandingPhase's desktop fade changed — re-derive this number before editing it.`);
+test('the same component at desktop width is also opaque', () => {
+  // The snapshot is shown above 480px too. A desktop fade that starts at
+  // opacity:0 would put an invisible homepage in the HTML for every tablet
+  // and desktop visitor — which is the "blank, then everything at once" stall.
+  assert.strictEqual(hiddenElementCount(renderAtWidth(1280)), 0,
+    'the desktop render has hidden elements, so showing the snapshot above 480px would paint an invisible page');
 });
 
 test('the snapshot width is below LandingPhase own mobile breakpoint', () => {
@@ -223,16 +218,15 @@ test('the snapshot width is below LandingPhase own mobile breakpoint', () => {
   assert.ok(m, 'LandingPhase no longer derives mobile from innerWidth');
   assert.ok(prerender.SNAPSHOT_WIDTH < Number(m[1]),
     `the snapshot renders at ${prerender.SNAPSHOT_WIDTH}px but mobile starts below ${m[1]}px — ` +
-    'the snapshot would be the desktop pre-fade state');
+    'the snapshot would include the desktop nav CTA that overlaps login on a phone');
 });
 
-test('the outer phaseIn fade is disabled on mobile', () => {
+test('the outer phaseIn fade is never applied', () => {
   const shell = stripComments(src.shell);
-  assert.match(shell, /animation:\s*isMobile\s*\?\s*"none"\s*:\s*"phaseIn/,
-    'the wrapper animation must be gated on isMobile: phaseIn fades the whole page from opacity 0.6, ' +
-    'which dims a homepage whose inner content is already fully opaque on mobile');
-  assert.match(shell, /var isMobile\s*=\s*typeof window[\s\S]{0,80}innerWidth\s*<\s*480/,
-    'isMobile must come from the same innerWidth breakpoint LandingPhase uses');
+  assert.match(shell, /animation:\s*"none"/,
+    'the wrapper must not fade the homepage in: phaseIn starts at opacity 0.6, which dims markup that is already on screen');
+  assert.doesNotMatch(shell, /phaseIn 0\.25s/,
+    'phaseIn is still applied on some widths, so those visitors wait for React then watch the whole page fade in');
 });
 
 test('the injected snapshot is opaque and unanimated', (t) => {
@@ -472,18 +466,20 @@ test('React is fetched on demand, and react-dom cannot execute before react', ()
 
 function assertReactStaysOffTheSnapshot(html) {
   const code = stripComments(html);
-  // Desktop and unbuilt source still need the bundle, because the snapshot is
-  // display:none above 480px and empty in committed source. A phone with a
-  // painted snapshot must not fetch it: createRoot() would wipe the markup
-  // and the visitor would wait ~1s for React to put the same page back.
+  // Unbuilt source still needs the bundle (empty markers). A painted snapshot
+  // at ANY width must not fetch it: createRoot() would wipe the markup and the
+  // visitor would wait ~1s for React to put the same page back.
   if (!/snapshotPainted = !!\(snap && snap\.querySelector\("\.saycrd-app-shell"\)\)/.test(code)) {
-    throw new Error('the painted-snapshot probe is gone, so a phone cannot keep the HTML');
+    throw new Error('the painted-snapshot probe is gone, so a visitor cannot keep the HTML');
   }
-  if (!/matchMedia\("\(min-width: 480px\)"\)/.test(code)) {
-    throw new Error('the desktop hide is no longer what decides whether React auto-loads');
+  if (/matchMedia\("\(min-width: 480px\)"\)/.test(code)) {
+    throw new Error('React still auto-loads above 480px, so desktop waits for the bundle then paints the whole page at once');
   }
-  if (!/if \(!snapshotPainted \|\| snapshotHidden\) \{/.test(code)) {
-    throw new Error('the landing bundle is no longer gated on the snapshot being unpainted or hidden');
+  if (!/if \(!snapshotPainted\) \{/.test(code)) {
+    throw new Error('the landing bundle is no longer gated on the snapshot being unpainted');
+  }
+  if (/snapshotHidden/.test(code)) {
+    throw new Error('snapshotHidden is back, so some widths still fetch React over a painted homepage');
   }
   if (!/document\.addEventListener\("DOMContentLoaded", loadInteractive, \{ once: true \}\)/.test(code)) {
     throw new Error('desktop / empty-snapshot still needs DOMContentLoaded to become interactive');
@@ -504,7 +500,7 @@ function assertReactStaysOffTheSnapshot(html) {
   return true;
 }
 
-test('the signed-out path does not fetch React over a painted mobile snapshot', () => {
+test('the signed-out path does not fetch React over a painted snapshot', () => {
   assertReactStaysOffTheSnapshot(src.index);
 });
 
@@ -548,8 +544,11 @@ test('a returning visitor still starts auth and React immediately', () => {
 
 function assertSnapshotIsGated(html) {
   const code = stripComments(html);
-  if (!/@media \(min-width:480px\)\{#saycrd-prerender\{display:none\}\}/.test(code)) {
-    throw new Error('the snapshot is not hidden above the mobile breakpoint');
+  if (/@media \(min-width:480px\)\{#saycrd-prerender\{display:none\}\}/.test(code)) {
+    throw new Error('the snapshot is hidden above 480px, so desktop waits for React then paints the whole page at once');
+  }
+  if (!/#saycrd-prerender\{display:block\}/.test(code)) {
+    throw new Error('the snapshot is not displayed, so signed-out visitors have nothing to paint');
   }
   if (!/html\.saycrd-no-prerender #saycrd-prerender\{display:none\}/.test(code)) {
     throw new Error('there is no opt-out class for visitors the snapshot misrepresents');
@@ -572,7 +571,7 @@ function assertSnapshotIsGated(html) {
   return true;
 }
 
-test('the snapshot is hidden for every visitor it does not describe', () => {
+test('the snapshot is shown at every width and hidden only for a token holder', () => {
   assertSnapshotIsGated(src.index);
 });
 
@@ -720,14 +719,14 @@ test('control: putting React back in a script tag fails the blocking-script test
   assert.throws(() => assertNothingBlocksTheSnapshot(poisoned), /requested during parse/);
 });
 
-test('control: dropping the desktop media query fails the gating test', () => {
+test('control: hiding the snapshot above 480px fails the gating test', () => {
   const poisoned = mutate(
     src.index,
-    /@media \(min-width:480px\)\{#saycrd-prerender\{display:none\}\}/,
-    '',
-    'gating: removed the desktop hide'
+    /#saycrd-prerender\{display:block\}/,
+    '#saycrd-prerender{display:block}@media (min-width:480px){#saycrd-prerender{display:none}}',
+    'gating: hid the snapshot above 480px'
   );
-  assert.throws(() => assertSnapshotIsGated(poisoned), /above the mobile breakpoint/);
+  assert.throws(() => assertSnapshotIsGated(poisoned), /hidden above 480px/);
 });
 
 test('control: re-adding a guest-session gate fails the gating test', () => {
@@ -752,7 +751,7 @@ test('control: re-adding a guest-session gate fails the gating test', () => {
 test('control: fetching React over a painted snapshot fails the stay-off test', () => {
   const poisoned = mutate(
     src.index,
-    /if \(!snapshotPainted \|\| snapshotHidden\) \{/,
+    /if \(!snapshotPainted\) \{/,
     'if (true) {',
     'react: auto-load landing bundle even when the snapshot is already on screen'
   );
@@ -762,16 +761,20 @@ test('control: fetching React over a painted snapshot fails the stay-off test', 
   assert.throws(() => assertReactStaysOffTheSnapshot(poisoned), /no longer gated on the snapshot/);
 });
 
-test('control: a desktop-width snapshot fails the visibility test', () => {
-  // The single most valuable control here: it proves the visibility check
-  // actually distinguishes a visible homepage from an invisible one, rather than
-  // passing on any render that contains the right words.
-  const desktop = renderAtWidth(1280);
-  const text = prerender.visibleText(desktop);
-  assert.ok(text.includes('The space between your inner world'),
-    'the desktop render still contains the copy — which is exactly why presence alone is not enough');
-  assert.ok(hiddenElementCount(desktop) > 0, 'the mutation must actually produce hidden elements');
-  assert.throws(() => prerender.verify(desktop), /opacity:0/);
+test('control: a snapshot with a hidden element fails the visibility test', () => {
+  // Proves the visibility check distinguishes a visible homepage from an
+  // invisible one, rather than passing on any render that contains the right words.
+  const html = renderAtWidth(prerender.SNAPSHOT_WIDTH);
+  const poisoned = mutate(
+    html,
+    /<h1 /,
+    '<h1 style="opacity:0" ',
+    'visibility: hide the h1'
+  );
+  assert.ok(prerender.visibleText(poisoned).includes('The space between your inner world'),
+    'the poisoned render still contains the copy — which is exactly why presence alone is not enough');
+  assert.ok(hiddenElementCount(poisoned) > 0, 'the mutation must actually produce hidden elements');
+  assert.throws(() => prerender.verify(poisoned), /opacity:0/);
 });
 
 test('control: an escaped style block fails the CSS test', () => {

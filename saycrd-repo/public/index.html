@@ -142,8 +142,9 @@
      what used to make it feel broken. Their session data and continuation are
      untouched.
 
-     Width is handled separately, in CSS: the snapshot is rendered below the
-     mobile breakpoint, and a media query hides it above it. */
+     The snapshot is shown at every width. Hiding it above 480px forced
+     desktop and this preview to download React before anything appeared,
+     which is the "blank, then the whole page at once" stall. */
   if (signedIn) {
     document.documentElement.className += " saycrd-no-prerender";
   }
@@ -211,22 +212,27 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
        React removes it on its first render (createRoot clears its container), in
        the same commit as its own first paint, so nothing is shown then withdrawn.
 
-       Shown only where the snapshot is actually correct:
+       Shown to every signed-out visitor, at every width. The landing is fully
+       opaque on first paint now, so a phone-width snapshot is readable on a
+       desktop too — and hiding it above 480px was what forced React to load
+       before anything appeared.
 
-       - Below 480px only. The snapshot is rendered at phone width because that is
-         the state LandingPhase paints fully opaque on its first render, with no
-         timers and no transitions, which is what makes React's takeover
-         invisible. The SAME render at desktop width would emit the pre-fade state
-         ��� 15 elements at opacity:0 — so above the breakpoint there is nothing
-         worth showing, and desktop keeps its staggered fade exactly as it is.
-         480px matches LandingPhase's own `innerWidth < 480` breakpoint.
+       Not for a returning visitor. .saycrd-no-prerender is set synchronously in
+       <head> for anyone with a token, who is going to the Dashboard. */
 
-       - Not for a returning visitor. .saycrd-no-prerender is set synchronously in
-         <head> for anyone with a token or saved sessions, whose homepage copy
-         differs from the snapshot's. See the boot script for why. */
     #saycrd-prerender{display:block}
-    @media (min-width:480px){#saycrd-prerender{display:none}}
     html.saycrd-no-prerender #saycrd-prerender{display:none}
+
+    /* The snapshot is the entire homepage in one document. Without this the
+       browser layouts and paints every section (SVGs, cards, explainer) before
+       first paint — the "whole page appears at once" stall. Skip anything
+       below the hero until it is near the viewport. */
+    #saycrd-prerender .saycrd-landing-grid,
+    #saycrd-prerender section:not(:first-of-type),
+    #saycrd-prerender section:first-of-type + *{
+      content-visibility:auto;
+      contain-intrinsic-size:auto 640px;
+    }
 
     /* Landing uses the document as its scroller. Nested overflow:auto inside a
        100vh overflow:hidden shell is what left the homepage unscrollable after
@@ -512,14 +518,13 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      markup and the critical CSS in <head>, so the visitor can read it before any
      of this runs.
 
-     React is not part of first paint on a phone. The snapshot is already in
-     the document and already visible below 480px. Fetching react + react-dom +
-     landing.compiled.js on DOMContentLoaded made createRoot() wipe that markup
-     and replace it about a second later -- which is the "blank, then everything
-     at once" the visitor actually feels. The landing bundle is still fetched
-     when the snapshot cannot paint the page: desktop (the snapshot is
-     display:none above 480px) and unbuilt source (empty markers, no
-     .saycrd-app-shell). Legal clicks load it on demand via the boot bridge.
+     React is not part of first paint. The snapshot is already in the document
+     and visible at every width. Fetching react + react-dom + landing.compiled.js
+     on DOMContentLoaded made createRoot() wipe that markup and replace it about
+     a second later -- which is the "blank, then everything at once" the visitor
+     actually feels. The landing bundle is still fetched when the snapshot cannot
+     paint the page (unbuilt source: empty markers, no .saycrd-app-shell). Legal
+     clicks load it on demand via the boot bridge.
 
      Still not the load event: that waits for every image. Still not a paint
      observer or an idle callback. The application is still only requested on
@@ -535,8 +540,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
   }
   var snap = document.getElementById("saycrd-prerender");
   var snapshotPainted = !!(snap && snap.querySelector(".saycrd-app-shell"));
-  var snapshotHidden = window.matchMedia && window.matchMedia("(min-width: 480px)").matches;
-  if (!snapshotPainted || snapshotHidden) {
+  if (!snapshotPainted) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", loadInteractive, { once: true });
     } else {
