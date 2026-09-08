@@ -30,6 +30,28 @@ function _guestSessionCount() {
 
 function _canStartNewSession() { return _isRealAccount() || _guestSessionCount() < FREE_GUEST_SESSION_LIMIT; }
 
+/* The "what does it cost after the complimentary sessions" line. The figure is
+   never written here: pack prices are admin-editable session_tiers rows and
+   Preview reads a different database than production, so the only honest source
+   is the public catalogue the paywall itself reads, via window.__saycrdPricingText
+   (index.html). Returns null until a real sentence exists — during prerender
+   (no window), while the request is in flight, and on any failure or unusable
+   catalogue — so the caller renders nothing rather than inventing a price.
+   The request is deliberately made from an effect, i.e. after this component has
+   mounted and painted, keeping it off the pre-paint path. */
+function useSessionPricingText() {
+  var [text, setText] = useState(null);
+  useEffect(function () {
+    if (typeof window === "undefined" || !window.__saycrdPricingText) return;
+    var live = true;
+    window.__saycrdPricingText().then(function (t) {
+      if (live && t) setText(t);
+    }).catch(function () {});
+    return function () { live = false; };
+  }, []);
+  return text;
+}
+
 const FD = "'DM Serif Display', Georgia, serif";
 
 /* The font stylesheet is no longer render-blocking (see index.html), so this
@@ -137,6 +159,9 @@ useEffect(function(){ function onResize(){ setIsMobile(window.innerWidth < 480);
    update cannot hide content. Desktop keeps the original staggered fade. */
 var revealed = isMobile || show;
 function desktopReveal(transition) { return isMobile ? "none" : transition; }
+
+/* null until the live catalogue answers; the offer copy renders without it. */
+var pricingText = useSessionPricingText();
 
 // Desktop keeps its deliberate 100ms beat before the fade begins. Phones never
 // arm the timer, so on mobile there is no delay to survive in the first place.
@@ -283,9 +308,28 @@ see the concept
 </button>
 </div>
 
+{/* What a visitor needs to know BEFORE committing: BLINDSPOT is experienced in
+    sessions, an account comes with two of them, and there is a price after that.
+    Sits directly under the primary button on every width. The price line is the
+    only part that waits on data and it renders only once a real figure has
+    arrived, so the offer itself is complete in the prerendered HTML and nothing
+    here is gated on a request — the mobile reveal behaviour is untouched. */}
 {!authUser && (
-<div style={{ marginTop: 16, opacity: revealed ? 1 : 0, transition: desktopReveal("opacity 0.8s ease 0.5s") }}>
-<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
+<div style={{ marginTop: 16, maxWidth: 540, opacity: revealed ? 1 : 0, transition: desktopReveal("opacity 0.8s ease 0.5s") }}>
+<div style={{ padding: "14px 18px", borderRadius: 14, background: "rgba(232,67,147,0.06)", border: "1px solid rgba(232,67,147,0.18)" }}>
+<div style={{ fontFamily: FB, fontSize: 15, fontWeight: 700, color: "rgba(255,255,255,0.92)", letterSpacing: "0.01em" }}>
+Begin with 2 complimentary sessions
+</div>
+<div style={{ fontFamily: FB, fontSize: 14, lineHeight: 1.6, color: "rgba(200,185,230,0.78)", marginTop: 6 }}>
+Create a free account to receive two complete BLINDSPOT sessions and save your maps and reports.
+</div>
+{pricingText && (
+<div style={{ fontFamily: FB, fontSize: 13, lineHeight: 1.6, color: "rgba(255,255,255,0.5)", marginTop: 8 }}>
+{pricingText}
+</div>
+)}
+</div>
+<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ marginTop: 12, fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
 Log in or create an account to save your sessions
 </button>
 </div>
@@ -689,7 +733,7 @@ title:"Privacy",
 body:[
 "Blindspot is a product of " + LEGAL_ENTITY + " (\"we,\" \"us,\" or \"our\"). This policy explains what we collect, how we use it, and the choices you have.",
 "What we collect: the reflections, themes, and other content you write during a session; your email address if you create an account; and basic technical data (like device and browser type) needed to run the app.",
-"What we don't collect: if you choose \"Continue without account,\" your sessions stay on your device only — we don't receive or store that content on our servers.",
+"What we don't collect: if you choose \"Continue without an account,\" your sessions stay on your device only — we don't receive or store that content on our servers.",
 "How we use it: session content is used to generate your personal reflections and, for account holders, to recognize patterns across your sessions over time. Your email is used only for account access, service updates, and — if you subscribe — billing.",
 "We do not sell your personal data, and we do not use your reflections to build advertising profiles. Session content is sent to our AI provider solely to generate your reflections and is not used to train their models beyond that purpose.",
 "You can request an export or deletion of your account and its data at any time by emailing " + LEGAL_CONTACT + ". We'll respond within a reasonable time and confirm once it's done.",
