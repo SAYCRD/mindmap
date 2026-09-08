@@ -154,17 +154,127 @@
     document.head.appendChild(l);
   }
   /* Only the returning visitor gets a preload. For a signed-out visitor there is
-     nothing worth preloading: the homepage is already in the markup, and the
-     landing bundle is deliberately not requested until the page is visible. */
+     nothing worth preloading: the homepage is already in the markup, and no
+     bundle is requested until they open signup or a legal page.
+
+     insert() / __saycrdLoadApp live AFTER the snapshot, not here. 10KB of loader
+     JS in <head> is parser-blocking: the browser cannot even see the homepage
+     markup until it has finished executing, which is the blank-then-everything
+     paint on a phone. The probe and these preloads are the only work that must
+     happen before the snapshot: hide it from a token holder, and start their
+     Dashboard download while the rest of the document arrives. */
   if (signedIn) {
     hint("preload", "app.compiled.js");
     hint("preload", "supabase-js.2.114.0.min.js");
     hint("preload", "session-sync.js");
     hint("preload", "auth-layer.js");
   }
+})();
+</script>
+<style>
+:root{
+  /* ═══ Fluid layout tokens ═══
+     Below ~517px viewport these resolve to the app's original fixed values
+     (identical to the pre-existing design on phones), then grow smoothly as
+     the viewport widens so the same "centered card" composition scales up
+     instead of staying frozen at phone width on tablets/desktops. */
+  --saycrd-shell-w: clamp(min(420px, 100vw), 214px + 43vw, 760px);
+  --saycrd-fs-hero: clamp(2rem, 1.72rem + 1.1vw, 2.75rem);
+  --saycrd-fs-title: clamp(1.3rem, 1.16rem + 0.55vw, 1.65rem);
+  --saycrd-fs-body: clamp(0.95rem, 0.92rem + 0.12vw, 1.05rem);
+  --saycrd-pad: clamp(20px, 14px + 2.4vw, 40px);
+}
+/* ═══ True desktop override ═══
+   Below this breakpoint every value above is untouched (phones/tablets keep
+   the exact "focused card" sizing they already had). At real desktop widths
+   the flow shell instead spans almost the full monitor, and type/spacing
+   scale up further with it, so the app reads as a full desktop layout
+   instead of a phone card stretched into empty space. */
+@media (min-width: 1024px){
+  :root{
+    --saycrd-shell-w: min(94vw, 1680px);
+    --saycrd-fs-hero: clamp(2.75rem, 1.4rem + 2vw, 4.25rem);
+    --saycrd-fs-title: clamp(1.65rem, 1rem + 1vw, 2.35rem);
+    --saycrd-fs-body: clamp(1.05rem, 0.85rem + 0.35vw, 1.25rem);
+    --saycrd-pad: clamp(40px, 16px + 3vw, 72px);
+  }
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body,#root{width:100%;min-height:100%;max-width:100vw;overflow-x:hidden;overflow-y:auto;background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);-webkit-overflow-scrolling:touch}
+::selection{background:rgba(107,184,255,0.5)!important;color:#fff!important}
+::-moz-selection{background:rgba(107,184,255,0.5)!important;color:#fff!important}
+body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);background-attachment:fixed}
 
-  /* One element per script, one promise per script: concurrent callers share a
-     single request instead of racing to insert a second copy. */
+    /* ── The prerendered homepage ───────────────────────────────────────────────
+       build/prerender.js renders the real LandingShell into #saycrd-prerender at
+       build time, so the homepage is readable markup before any JavaScript runs.
+       React removes it on its first render (createRoot clears its container), in
+       the same commit as its own first paint, so nothing is shown then withdrawn.
+
+       Shown only where the snapshot is actually correct:
+
+       - Below 480px only. The snapshot is rendered at phone width because that is
+         the state LandingPhase paints fully opaque on its first render, with no
+         timers and no transitions, which is what makes React's takeover
+         invisible. The SAME render at desktop width would emit the pre-fade state
+         ��� 15 elements at opacity:0 — so above the breakpoint there is nothing
+         worth showing, and desktop keeps its staggered fade exactly as it is.
+         480px matches LandingPhase's own `innerWidth < 480` breakpoint.
+
+       - Not for a returning visitor. .saycrd-no-prerender is set synchronously in
+         <head> for anyone with a token or saved sessions, whose homepage copy
+         differs from the snapshot's. See the boot script for why. */
+    #saycrd-prerender{display:block}
+    @media (min-width:480px){#saycrd-prerender{display:none}}
+    html.saycrd-no-prerender #saycrd-prerender{display:none}
+
+    /* Landing uses the document as its scroller. Nested overflow:auto inside a
+       100vh overflow:hidden shell is what left the homepage unscrollable after
+       a start-session overlay or Pour "Back" — iOS drops the inner scroller and
+       the shell clips the rest. Internal phases keep the locked viewport.
+       More specific than SaycrdShell's `.saycrd-app-shell{overflow:hidden}`. */
+    body.saycrd-landing,body.saycrd-landing #root{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
+    body.saycrd-landing .saycrd-app-shell{height:auto;min-height:100dvh;overflow:visible}
+    body.saycrd-internal,body.saycrd-internal #root{height:100%;min-height:100%;overflow:hidden}
+    body.saycrd-internal .saycrd-app-shell{height:100vh;height:100dvh;overflow:hidden}
+</style>
+
+    <!-- The Supabase SDK is still vendored locally (see /vendor) rather than loaded from
+         cdn.jsdelivr.net, for the same reason as before: on mobile networks each extra
+         external origin costs a fresh DNS lookup + TLS handshake before its bytes even
+         start downloading. It is no longer a blocking <script> here, though — nothing on
+         the signed-out homepage authenticates, so it is fetched by __saycrdEnsureAuth()
+         when a session token exists at boot or the visitor opens the auth overlay.
+
+         _toggleAuthPw lives next to the overlay markup at the end of <body>, not
+         here: a signed-out visitor never reaches those buttons before the overlay
+         script has run, and  another parser-blocking script in <head> is another
+         delay in front of the homepage. -->
+</head>
+<body class="saycrd-landing">
+
+<!-- The markers below are filled in by build/prerender.js with a build-time
+     render of the real LandingShell — the same landing.jsx + landing-shell.jsx
+     that compile.js bundles, rendered through react-dom/server. In the committed
+     source they are empty, which is the pre-build state: the page then behaves
+     exactly as it did before this step, rendering entirely from React.
+
+     It lives INSIDE #root on purpose. ReactDOM.createRoot() clears its container
+     on the first render, so React's own paint is what removes the snapshot —
+     one commit, no gap in which the page is blank, and no teardown code to keep
+     in sync. -->
+<div id="root"><div id="saycrd-prerender"><!-- SAYCRD_PRERENDER_BEGIN --><!-- SAYCRD_PRERENDER_END --></div></div>
+<script>
+/* ── Script loaders ──────────────────────────────────────────────────────────
+   Lived in <head> next to the boot probe. That made every signed-out visit
+   execute ~10KB of loader JS before the parser was allowed to see the homepage
+   sitting in the markup below, which is the blank-then-everything paint on a
+   phone. They run here, after the snapshot is in the document, so the browser
+   can paint the HTML first.
+
+   url() was already installed on window.__saycrdAssetUrl by the head probe. */
+(function () {
+  var url = window.__saycrdAssetUrl;
   var pending = {};
   function insert(name) {
     if (pending[name]) return pending[name];
@@ -267,171 +377,11 @@
      signed-out visit, then a narrower warm when the login overlay opened -- and
      both requested a 598KB bundle before the visitor had asked for anything. The
      application is now requested on exactly three signals, all of them real
-     intent: "start a session", a successful login, or a persisted token found at
-     boot. Nothing else pulls it. */
+     intent: continuing from the signup card, a successful login, or a persisted
+     token found at boot. "start a session" on the homepage opens that card and
+     does not pull the application. Nothing else pulls it. */
 })();
 </script>
-<style>
-:root{
-  /* ═══ Fluid layout tokens ═══
-     Below ~517px viewport these resolve to the app's original fixed values
-     (identical to the pre-existing design on phones), then grow smoothly as
-     the viewport widens so the same "centered card" composition scales up
-     instead of staying frozen at phone width on tablets/desktops. */
-  --saycrd-shell-w: clamp(min(420px, 100vw), 214px + 43vw, 760px);
-  --saycrd-fs-hero: clamp(2rem, 1.72rem + 1.1vw, 2.75rem);
-  --saycrd-fs-title: clamp(1.3rem, 1.16rem + 0.55vw, 1.65rem);
-  --saycrd-fs-body: clamp(0.95rem, 0.92rem + 0.12vw, 1.05rem);
-  --saycrd-pad: clamp(20px, 14px + 2.4vw, 40px);
-}
-/* ═══ True desktop override ═══
-   Below this breakpoint every value above is untouched (phones/tablets keep
-   the exact "focused card" sizing they already had). At real desktop widths
-   the flow shell instead spans almost the full monitor, and type/spacing
-   scale up further with it, so the app reads as a full desktop layout
-   instead of a phone card stretched into empty space. */
-@media (min-width: 1024px){
-  :root{
-    --saycrd-shell-w: min(94vw, 1680px);
-    --saycrd-fs-hero: clamp(2.75rem, 1.4rem + 2vw, 4.25rem);
-    --saycrd-fs-title: clamp(1.65rem, 1rem + 1vw, 2.35rem);
-    --saycrd-fs-body: clamp(1.05rem, 0.85rem + 0.35vw, 1.25rem);
-    --saycrd-pad: clamp(40px, 16px + 3vw, 72px);
-  }
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html,body,#root{width:100%;min-height:100%;max-width:100vw;overflow-x:hidden;overflow-y:auto;background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);-webkit-overflow-scrolling:touch}
-::selection{background:rgba(107,184,255,0.5)!important;color:#fff!important}
-::-moz-selection{background:rgba(107,184,255,0.5)!important;color:#fff!important}
-body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);background-attachment:fixed}
-
-    /* ═══ Auth UI ═══ */
-    .auth-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:1.5rem;background:rgb(6,9,16);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;transition:opacity .35s ease}
-    .auth-overlay.is-visible{opacity:1}
-    .auth-card{position:relative;width:100%;max-width:380px;text-align:center;padding:2rem 1.75rem;background:rgba(12,15,22,.6);border:1px solid rgba(232,67,147,.15);border-radius:20px;box-shadow:0 24px 48px rgba(0,0,0,.4),0 0 0 1px rgba(184,107,255,.05);transform:translateY(8px);opacity:0;transition:transform .4s ease,opacity .4s ease}
-    /* 44px touch target, kept clear of the card's rounded corner. */
-    .auth-close{position:absolute;top:.35rem;right:.35rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:12px;color:rgba(247,241,231,.5);font-family:'DM Sans',sans-serif;font-size:1.5rem;line-height:1;cursor:pointer;transition:color .2s,background .2s;touch-action:manipulation}
-    .auth-close:hover{color:rgba(232,67,147,.95);background:rgba(232,67,147,.1)}
-    .auth-close:focus-visible{outline:2px solid rgba(232,67,147,.7);outline-offset:2px}
-    .auth-back{display:inline-block;margin-top:1.4rem;min-height:44px;background:none;border:none;font-family:'DM Sans',sans-serif;font-size:.85rem;color:rgba(247,241,231,.45);cursor:pointer;text-decoration:underline;text-underline-offset:3px;transition:color .2s;touch-action:manipulation}
-    .auth-back:hover{color:rgba(232,67,147,.9)}
-    .auth-back:focus-visible{outline:2px solid rgba(232,67,147,.7);outline-offset:2px}
-    .auth-overlay.is-visible .auth-card{transform:translateY(0);opacity:1}
-    .auth-logo-row{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem}
- .auth-logo-mark{width:1.6rem;height:1.6rem;flex-shrink:0}
- .auth-logo{font-family:'Space Grotesk',sans-serif;font-size:1.9rem;letter-spacing:.25em;background:linear-gradient(90deg,#E84393,#B86BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;font-weight:700;text-indent:.25em;margin-bottom:0}
-    .auth-sub{font-family:'DM Sans',sans-serif;font-size:1rem;color:rgba(232,67,147,.6);margin-bottom:2.5rem;font-weight:400}
-    .auth-input{display:block;width:100%;background:rgba(14,17,21,.9);border:1px solid rgba(244,241,234,.12);border-radius:12px;color:rgba(247,241,231,.95);padding:.85rem 1rem;font-family:'Space Grotesk',sans-serif;font-size:.95rem;margin-bottom:.8rem;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box}
-    .auth-input:focus{border-color:rgba(232,67,147,.5);box-shadow:0 0 0 3px rgba(232,67,147,.12)}
-    .auth-input::placeholder{color:rgba(244,241,234,.25)}
-    .auth-btn{width:100%;padding:.85rem;border-radius:12px;border:1px solid rgba(232,67,147,.45);background:rgba(232,67,147,.12);color:rgba(255,255,255,.95);font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.08em;cursor:pointer;transition:all .2s ease;margin-top:.4rem;transform:translateY(0)}
-    .auth-btn:hover{background:rgba(232,67,147,.22);border-color:rgba(232,67,147,.65);transform:translateY(-1px)}
-    .auth-btn:active{transform:translateY(0);scale:.98}
-    .auth-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-    .auth-toggle{margin-top:1.5rem;font-size:.85rem;color:rgba(247,241,231,.35)}
-    .auth-toggle a{color:rgba(232,67,147,.7);cursor:pointer;text-decoration:none;transition:color .2s}
-    .auth-toggle a:hover{color:rgba(232,67,147,.95)}
-    .auth-error{color:rgba(196,110,95,.85);font-size:.82rem;margin-top:.6rem;min-height:1.2em;line-height:1.4}
-    .auth-divider{display:flex;align-items:center;gap:1rem;margin:1.2rem 0;color:rgba(247,241,231,.2);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
-    .auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:rgba(244,241,234,.08)}
-    .auth-social{width:100%;padding:.75rem;border-radius:12px;border:1px solid rgba(232,67,147,.2);background:rgba(255,255,255,.02);color:rgba(247,241,231,.6);font-family:'DM Sans',sans-serif;font-size:.9rem;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;gap:.5rem}
-    .auth-social:hover{border-color:rgba(232,67,147,.4);color:rgba(247,241,231,.9);background:rgba(232,67,147,.06)}
-    .auth-forgot{display:block;text-align:right;font-size:.82rem;color:rgba(232,67,147,.5);cursor:pointer;margin-top:-.3rem;margin-bottom:.5rem;transition:color .2s}
-    .auth-forgot:hover{color:rgba(232,67,147,.85)}
-    .auth-pw-wrap{position:relative}
-    .auth-pw-wrap .auth-input{padding-right:3.4rem}
-    .auth-pw-toggle{position:absolute;right:.7rem;top:0;height:100%;display:flex;align-items:center;background:none;border:none;color:rgba(247,241,231,.4);font-family:'DM Sans',sans-serif;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;padding:0 .3rem;transition:color .2s}
-    .auth-pw-toggle:hover{color:rgba(232,67,147,.85)}
-    .auth-hidden{display:none!important}
-    @media (prefers-reduced-motion: reduce){
-      .auth-overlay,.auth-card,.auth-btn,.auth-input,.auth-social{transition:none}
-      .auth-overlay.is-visible .auth-card{transform:none}
-    }
-
-    /* ═══ Mobile auth sheet ═══
-       Below 480px the centered floating card reads as a small box lost on a
-       big dark screen, and independently, backdrop-filter:blur combined with
-       position:fixed;inset:0 and a translateY entrance is a known trigger for
-       iOS Safari compositing glitches during viewport recalculation. Replace
-       the card with an edge-to-edge full-height sheet: no blur, no card
-       chrome, fade-only entrance, its own internal scroll (so a long
-       email+password+Google+legal form never needs the page behind it to
-       scroll — which is what was cutting off the logo at the top), and
-       safe-area padding top/bottom. Desktop (>480px) is untouched above. */
-    @media (max-width: 480px){
-      .auth-overlay{padding:0;background:rgb(6,9,16);backdrop-filter:none;-webkit-backdrop-filter:none;align-items:stretch;justify-content:stretch}
-      .auth-card{width:100%;height:100%;max-width:none;max-height:none;padding:calc(1.75rem + env(safe-area-inset-top,0px)) 1.5rem calc(1.75rem + env(safe-area-inset-bottom,0px));background:none;border:none;border-radius:0;box-shadow:none;transform:none;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:center}
-      .auth-overlay.is-visible .auth-card{transform:none}
-    }
-
-    /* ── The prerendered homepage ───────────────────────────────────────────────
-       build/prerender.js renders the real LandingShell into #saycrd-prerender at
-       build time, so the homepage is readable markup before any JavaScript runs.
-       React removes it on its first render (createRoot clears its container), in
-       the same commit as its own first paint, so nothing is shown then withdrawn.
-
-       Shown only where the snapshot is actually correct:
-
-       - Below 480px only. The snapshot is rendered at phone width because that is
-         the state LandingPhase paints fully opaque on its first render, with no
-         timers and no transitions, which is what makes React's takeover
-         invisible. The SAME render at desktop width would emit the pre-fade state
-         �� 15 elements at opacity:0 — so above the breakpoint there is nothing
-         worth showing, and desktop keeps its staggered fade exactly as it is.
-         480px matches LandingPhase's own `innerWidth < 480` breakpoint.
-
-       - Not for a returning visitor. .saycrd-no-prerender is set synchronously in
-         <head> for anyone with a token or saved sessions, whose homepage copy
-         differs from the snapshot's. See the boot script for why. */
-    #saycrd-prerender{display:block}
-    @media (min-width:480px){#saycrd-prerender{display:none}}
-    html.saycrd-no-prerender #saycrd-prerender{display:none}
-
-    /* Landing uses the document as its scroller. Nested overflow:auto inside a
-       100vh overflow:hidden shell is what left the homepage unscrollable after
-       a start-session overlay or Pour "Back" — iOS drops the inner scroller and
-       the shell clips the rest. Internal phases keep the locked viewport.
-       More specific than SaycrdShell's `.saycrd-app-shell{overflow:hidden}`. */
-    body.saycrd-landing,body.saycrd-landing #root{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
-    body.saycrd-landing .saycrd-app-shell{height:auto;min-height:100dvh;overflow:visible}
-    body.saycrd-internal,body.saycrd-internal #root{height:100%;min-height:100%;overflow:hidden}
-    body.saycrd-internal .saycrd-app-shell{height:100vh;height:100dvh;overflow:hidden}
-</style>
-
-    <!-- The Supabase SDK is still vendored locally (see /vendor) rather than loaded from
-         cdn.jsdelivr.net, for the same reason as before: on mobile networks each extra
-         external origin costs a fresh DNS lookup + TLS handshake before its bytes even
-         start downloading. It is no longer a blocking <script> here, though — nothing on
-         the signed-out homepage authenticates, so it is fetched by __saycrdEnsureAuth()
-         when a session token exists at boot or the visitor opens the auth overlay. -->
-    <script>
-    /* Toggles a password <input> between masked and plain text so a user
-       can verify what they actually typed — defined globally, before the
-       auth overlay markup below can be clicked, since the toggle buttons
-       reference it via an inline onclick. */
-    function _toggleAuthPw(inputId, btn) {
-      var el = document.getElementById(inputId);
-      if (!el) return;
-      var showing = el.type === "text";
-      el.type = showing ? "password" : "text";
-      btn.textContent = showing ? "Show" : "Hide";
-      btn.setAttribute("aria-label", showing ? "Show password" : "Hide password");
-    }
-    </script>
-</head>
-<body class="saycrd-landing">
-
-<!-- The markers below are filled in by build/prerender.js with a build-time
-     render of the real LandingShell — the same landing.jsx + landing-shell.jsx
-     that compile.js bundles, rendered through react-dom/server. In the committed
-     source they are empty, which is the pre-build state: the page then behaves
-     exactly as it did before this step, rendering entirely from React.
-
-     It lives INSIDE #root on purpose. ReactDOM.createRoot() clears its container
-     on the first render, so React's own paint is what removes the snapshot —
-     one commit, no gap in which the page is blank, and no teardown code to keep
-     in sync. -->
-<div id="root"><div id="saycrd-prerender"><!-- SAYCRD_PRERENDER_BEGIN --><!-- SAYCRD_PRERENDER_END --></div></div>
 <script>
 /* The snapshot is readable markup with no React behind it, so for a short window
    the homepage is real but its buttons are not wired to anything. These are the
@@ -452,10 +402,20 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      it was handed over from. The guest-session and credit checks are NOT
      duplicated here: LandingPhase's own guardedStart() already falls through to
      the handover whenever the app is not loaded yet, so the real check happens
-     once, in app.jsx's beginSessionOrGate(). */
+     once, in app.jsx's beginSessionOrGate(). Called only after the visitor
+     continues from the signup card — never from the homepage tap itself. */
   function startSession() {
     window.__SAYCRD_START_REQUESTED = true;
     if (window.__saycrdLoadApp) window.__saycrdLoadApp();
+  }
+
+  /* Mirrors LandingPhase.guardedStart for a signed-out visitor: the static
+     signup card, then the application only if they continue (sign up, log in,
+     or "Continue without an account"). An early tap before _showAuthOverlay
+     exists is remembered and opened when that function is installed. */
+  function openAuthThenStart() {
+    if (window._showAuthOverlay) window._showAuthOverlay(startSession);
+    else window.__SAYCRD_OPEN_AUTH = startSession;
   }
 
   pre.addEventListener("click", function (ev) {
@@ -464,13 +424,8 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     var action = el.getAttribute("data-saycrd-boot");
     if (action !== "start" && action !== "login" && action !== "concept" && action !== "legal") return;
     ev.preventDefault();
-    if (action === "start") {
-      startSession();
-    } else if (action === "login") {
-      /* Mirrors LandingPhase's own _showAuthOverlay(guardedStart): sign in, then
-         begin. The overlay is static markup with its own handlers, so it opens
-         and dismisses with no React and no application code. */
-      if (window._showAuthOverlay) window._showAuthOverlay(startSession);
+    if (action === "start" || action === "login") {
+      openAuthThenStart();
     } else if (action === "legal") {
       /* Privacy / Terms / Disclaimer live in the landing bundle. Record which
          page and load that bundle; LandingShell reads __SAYCRD_LEGAL_PAGE on
@@ -712,7 +667,7 @@ window._showAuthOverlay = function(onSuccess, opts) {
 
      No application prefetch here. Opening login is intent to authenticate, not
      intent to start, and the application is a 598KB download; it is fetched when
-     login actually succeeds, or when "start a session" is clicked. */
+     login actually succeeds, or when the visitor continues from this card. */
   var overlay = document.getElementById("auth-overlay");
   if (overlay) {
     /* The visitor is deliberately authenticating. app.jsx reads this to tell a
@@ -799,15 +754,6 @@ document.addEventListener("keydown", function(e) {
   var overlay = document.getElementById("auth-overlay");
   if (overlay && overlay.classList.contains("is-visible")) window._closeAuthOverlay();
 });
-(function() {
-  var overlay = document.getElementById("auth-overlay");
-  if (!overlay) return;
-  overlay.addEventListener("click", function(e) {
-    /* Backdrop only — a click anywhere inside the card must not dismiss it
-       mid-typing. */
-    if (e.target === overlay) window._closeAuthOverlay();
-  });
-})();
 
 window._localBypass = function() {
   if (window._authRequireAccount) return; /* hard wall: free guest sessions used up, no anonymous fallback */
@@ -907,6 +853,68 @@ window._localBypass = function() {
 
 // Legacy Babel error handler removed (jsxCode now in app.jsx)
 </script>
+<!-- Auth overlay CSS used to live in <head> with the homepage critical CSS.
+     A signed-out visitor never sees this card until they tap, so parsing 5KB
+     of unused rules was delaying the paint of the homepage sitting above.
+     display:none is the first rule, so the markup below cannot flash even if
+     this block arrives a moment after the snapshot. -->
+<style>
+    .auth-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:1.5rem;background:rgb(6,9,16);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;transition:opacity .35s ease}
+    .auth-overlay.is-visible{opacity:1}
+    .auth-card{position:relative;width:100%;max-width:380px;text-align:center;padding:2rem 1.75rem;background:rgba(12,15,22,.6);border:1px solid rgba(232,67,147,.15);border-radius:20px;box-shadow:0 24px 48px rgba(0,0,0,.4),0 0 0 1px rgba(184,107,255,.05);transform:translateY(8px);opacity:0;transition:transform .4s ease,opacity .4s ease}
+    .auth-close{position:absolute;top:.35rem;right:.35rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:12px;color:rgba(247,241,231,.5);font-family:'DM Sans',sans-serif;font-size:1.5rem;line-height:1;cursor:pointer;transition:color .2s,background .2s;touch-action:manipulation}
+    .auth-close:hover{color:rgba(232,67,147,.95);background:rgba(232,67,147,.1)}
+    .auth-close:focus-visible{outline:2px solid rgba(232,67,147,.7);outline-offset:2px}
+    .auth-back{display:inline-block;margin-top:1.4rem;min-height:44px;background:none;border:none;font-family:'DM Sans',sans-serif;font-size:.85rem;color:rgba(247,241,231,.45);cursor:pointer;text-decoration:underline;text-underline-offset:3px;transition:color .2s;touch-action:manipulation}
+    .auth-back:hover{color:rgba(232,67,147,.9)}
+    .auth-back:focus-visible{outline:2px solid rgba(232,67,147,.7);outline-offset:2px}
+    .auth-overlay.is-visible .auth-card{transform:translateY(0);opacity:1}
+    .auth-logo-row{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem}
+    .auth-logo-mark{width:1.6rem;height:1.6rem;flex-shrink:0}
+    .auth-logo{font-family:'Space Grotesk',sans-serif;font-size:1.9rem;letter-spacing:.25em;background:linear-gradient(90deg,#E84393,#B86BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;font-weight:700;text-indent:.25em;margin-bottom:0}
+    .auth-sub{font-family:'DM Sans',sans-serif;font-size:1rem;color:rgba(232,67,147,.6);margin-bottom:2.5rem;font-weight:400}
+    .auth-input{display:block;width:100%;background:rgba(14,17,21,.9);border:1px solid rgba(244,241,234,.12);border-radius:12px;color:rgba(247,241,231,.95);padding:.85rem 1rem;font-family:'Space Grotesk',sans-serif;font-size:.95rem;margin-bottom:.8rem;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box}
+    .auth-input:focus{border-color:rgba(232,67,147,.5);box-shadow:0 0 0 3px rgba(232,67,147,.12)}
+    .auth-input::placeholder{color:rgba(244,241,234,.25)}
+    .auth-btn{width:100%;padding:.85rem;border-radius:12px;border:1px solid rgba(232,67,147,.45);background:rgba(232,67,147,.12);color:rgba(255,255,255,.95);font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;letter-spacing:.08em;cursor:pointer;transition:all .2s ease;margin-top:.4rem;transform:translateY(0)}
+    .auth-btn:hover{background:rgba(232,67,147,.22);border-color:rgba(232,67,147,.65);transform:translateY(-1px)}
+    .auth-btn:active{transform:translateY(0);scale:.98}
+    .auth-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .auth-toggle{margin-top:1.5rem;font-size:.85rem;color:rgba(247,241,231,.35)}
+    .auth-toggle a{color:rgba(232,67,147,.7);cursor:pointer;text-decoration:none;transition:color .2s}
+    .auth-toggle a:hover{color:rgba(232,67,147,.95)}
+    .auth-error{color:rgba(196,110,95,.85);font-size:.82rem;margin-top:.6rem;min-height:1.2em;line-height:1.4}
+    .auth-divider{display:flex;align-items:center;gap:1rem;margin:1.2rem 0;color:rgba(247,241,231,.2);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+    .auth-divider::before,.auth-divider::after{content:"";flex:1;height:1px;background:rgba(244,241,234,.08)}
+    .auth-social{width:100%;padding:.75rem;border-radius:12px;border:1px solid rgba(232,67,147,.2);background:rgba(255,255,255,.02);color:rgba(247,241,231,.6);font-family:'DM Sans',sans-serif;font-size:.9rem;cursor:pointer;transition:all .2s ease;display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .auth-social:hover{border-color:rgba(232,67,147,.4);color:rgba(247,241,231,.9);background:rgba(232,67,147,.06)}
+    .auth-forgot{display:block;text-align:right;font-size:.82rem;color:rgba(232,67,147,.5);cursor:pointer;margin-top:-.3rem;margin-bottom:.5rem;transition:color .2s}
+    .auth-forgot:hover{color:rgba(232,67,147,.85)}
+    .auth-pw-wrap{position:relative}
+    .auth-pw-wrap .auth-input{padding-right:3.4rem}
+    .auth-pw-toggle{position:absolute;right:.7rem;top:0;height:100%;display:flex;align-items:center;background:none;border:none;color:rgba(247,241,231,.4);font-family:'DM Sans',sans-serif;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;padding:0 .3rem;transition:color .2s}
+    .auth-pw-toggle:hover{color:rgba(232,67,147,.85)}
+    .auth-hidden{display:none!important}
+    @media (prefers-reduced-motion: reduce){
+      .auth-overlay,.auth-card,.auth-btn,.auth-input,.auth-social{transition:none}
+      .auth-overlay.is-visible .auth-card{transform:none}
+    }
+    @media (max-width: 480px){
+      .auth-overlay{padding:0;background:rgb(6,9,16);backdrop-filter:none;-webkit-backdrop-filter:none;align-items:stretch;justify-content:stretch}
+      .auth-card{width:100%;height:100%;max-width:none;max-height:none;padding:calc(1.75rem + env(safe-area-inset-top,0px)) 1.5rem calc(1.75rem + env(safe-area-inset-bottom,0px));background:none;border:none;border-radius:0;box-shadow:none;transform:none;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:center}
+      .auth-overlay.is-visible .auth-card{transform:none}
+    }
+</style>
+<script>
+function _toggleAuthPw(inputId, btn) {
+  var el = document.getElementById(inputId);
+  if (!el) return;
+  var showing = el.type === "text";
+  el.type = showing ? "password" : "text";
+  btn.textContent = showing ? "Show" : "Hide";
+  btn.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+}
+</script>
 <!-- This markup (login/signup/reset forms, error states, the complimentary
      session offer copy) used to sit first in the body, ahead of the
      prerendered homepage snapshot and every script on the page. It is
@@ -968,7 +976,7 @@ window._localBypass = function() {
                 currentUser=r.data.user;window.currentUser=currentUser;
                 sb.auth.getSession().then(function(s){if(s.data.session)window._saycrdToken=s.data.session.access_token;});
                 if(window._authResolve)window._authResolve();
-                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';window._authSuccessCallback=null;},400);
+                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}},400);
               }catch(e){err.textContent=e.message||'Login failed';btn.disabled=false;}
             })();
           ">Enter</button>
@@ -1105,5 +1113,25 @@ window._localBypass = function() {
         <button type="button" class="auth-back" id="auth-back" onclick="window._closeAuthOverlay()">Back to the page</button>
       </div>
     </div>
+<script>
+(function() {
+  var overlay = document.getElementById("auth-overlay");
+  if (overlay) {
+    overlay.addEventListener("click", function(e) {
+      /* Backdrop only — a click anywhere inside the card must not dismiss it
+         mid-typing. Registered here, after the markup, because a lookup at
+         script-parse time used to run before this node existed. */
+      if (e.target === overlay) window._closeAuthOverlay();
+    });
+  }
+  /* The homepage tap can beat this markup on a slow parse. The bridge stashes
+     the continuation on __SAYCRD_OPEN_AUTH; open it now that the card exists. */
+  if (window.__SAYCRD_OPEN_AUTH && window._showAuthOverlay) {
+    var _pendingAuth = window.__SAYCRD_OPEN_AUTH;
+    window.__SAYCRD_OPEN_AUTH = null;
+    window._showAuthOverlay(_pendingAuth);
+  }
+})();
+</script>
 </body>
 </html>
