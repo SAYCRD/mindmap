@@ -205,7 +205,7 @@ function guardedStart() {
 }
 
 return (
-<div style={{ width:"100%", height:"100%", overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch",
+<div style={{ width:"100%", minHeight:"100%", overflowX:"hidden",
 background:"#0A0914" }}>
 
 <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, overflow:"hidden" }}>
@@ -766,7 +766,7 @@ body:[
 };
 var c = CONTENT[page] || CONTENT.privacy;
 return (
-<div style={{ width:"100%", height:"100%", overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch",
+<div style={{ width:"100%", minHeight:"100%", overflowX:"hidden",
 background:"#0A0914" }}>
 <div style={{ maxWidth:680, margin:"0 auto", padding:"calc(64px + env(safe-area-inset-top, 0px)) 7vw 80px" }}>
 <button onClick={onBack} style={{ marginBottom:40, padding:"8px 18px", borderRadius:999,
@@ -791,7 +791,7 @@ color:"rgba(210,200,225,0.72)", lineHeight:1.75, marginBottom:24 }}>{p}</p>;
 );
 }
 
-function DisclaimerGate({ onBegin, onNavigateLegal }) {
+function DisclaimerGate({ onBegin, onNavigateLegal, onClose }) {
 var [show, setShow] = useState(false);
 useEffect(function(){ setTimeout(function(){ setShow(true); }, 60); }, []);
 var SG = "Space Grotesk, " + FB;
@@ -826,9 +826,14 @@ background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
 letterSpacing:"0.05em", cursor:"pointer",
 boxShadow:"0 16px 48px rgba(184,107,255,0.25)", marginBottom:28 }}>
-Begin
-</button>
-<div style={{ display:"flex", justifyContent:"center", gap:16 }}>
+	Begin
+	</button>
+	{onClose && (
+	<button type="button" onClick={onClose} style={{ display:"block", margin:"0 auto 28px", minHeight:44, padding:"0 12px", background:"none", border:"none", fontFamily:FB, fontSize:14, color:"rgba(247,241,231,0.45)", cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, touchAction:"manipulation" }}>
+	Back to the page
+	</button>
+	)}
+	<div style={{ display:"flex", justifyContent:"center", gap:16 }}>
 <button onClick={function(){ if (onNavigateLegal) onNavigateLegal("privacy"); }}
 style={{ background:"none", border:"none", cursor:"pointer", padding:0,
 fontFamily:SG, fontSize:12, letterSpacing:"0.04em", color:"rgba(255,255,255,0.32)",

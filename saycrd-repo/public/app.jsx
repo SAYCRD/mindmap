@@ -11804,6 +11804,7 @@ return next;
 }
 
 const cp = PHASES[phase];
+const landingScroll = cp === "landing" || cp === "privacy" || cp === "terms" || cp === "disclaimer-info";
 
 // Defense-in-depth: phase 7 ("complete", the post-session ceremony) is only
 // legitimate immediately after FieldPhase's onSessionComplete, which sets
@@ -11818,7 +11819,7 @@ useLayoutEffect(function(){
   setPhase(8);
 }, [cp]);
 
-useEffect(function(){ document.body.classList.toggle("saycrd-landing", cp === "landing"); document.body.classList.toggle("saycrd-internal", cp !== "landing"); return function(){ document.body.classList.remove("saycrd-landing","saycrd-internal"); }; }, [cp]);
+useEffect(function(){ document.body.classList.toggle("saycrd-landing", landingScroll); document.body.classList.toggle("saycrd-internal", !landingScroll); return function(){ document.body.classList.remove("saycrd-landing","saycrd-internal"); }; }, [landingScroll]);
 
 function enterField() {
 setFieldTransition(true);
@@ -11849,9 +11850,9 @@ setPhase(PHASES.indexOf(page));
 
 return (
 <SaycrdShell background={cp==="map"?GRADIENTS.map:SAYCRD_SHELL_BG}>
-<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys" || cp === "report" || cp === "privacy" || cp === "terms" || cp === "disclaimer-info") ? "100%" : "var(--saycrd-shell-w)",height:"100%",minHeight:0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+<div style={{width:"100%",maxWidth: (cp === "landing" || cp === "complete" || cp === "journeys" || cp === "report" || cp === "privacy" || cp === "terms" || cp === "disclaimer-info") ? "100%" : "var(--saycrd-shell-w)",height: landingScroll ? "auto" : "100%",minHeight: landingScroll ? "100dvh" : 0,background:GRADIENTS[cp],position:"relative",display:"flex",flexDirection:"column",overflow: landingScroll ? "visible" : "hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
 {phase>=1&&phase<6&&<PhaseIndicator current={phase-1} phases={PHASES.slice(1,5)}/>}
-<div key={phase} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
+<div key={phase} style={{width:"100%",flex: landingScroll ? "none" : 1,minHeight: landingScroll ? undefined : 0,overflow: landingScroll ? "visible" : "auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation: (landingScroll && typeof window !== "undefined" && window.innerWidth < 480) ? "none" : "phaseIn 0.25s ease-out"}}>
 {cp==="landing"&&(authResolving?<BootGate/>:<LandingPhase onStart={function(){beginSessionOrGate(function(){setPhase(1);});}} onNavigateLegal={goToLegalPage}/>)}
 {(cp==="privacy"||cp==="terms"||cp==="disclaimer-info")&&<LegalPage page={cp} onBack={function(){setPhase(0);}}/>}
 {cp==="pour"&&<PourPhase onComplete={function(t){
@@ -11877,7 +11878,7 @@ setPhase(3);
 {cp !== "landing" && <UserMenu phase={phase} setPhase={setPhase} />}
 </div>
 </div>
-{showDisclaimer && <DisclaimerGate onNavigateLegal={goToLegalPage} onBegin={function(){
+{showDisclaimer && <DisclaimerGate onNavigateLegal={goToLegalPage} onClose={function(){ pendingAfterDisclaimer.current = null; setShowDisclaimer(false); }} onBegin={function(){
 markDisclaimerAcknowledged();
 setShowDisclaimer(false);
 var next = pendingAfterDisclaimer.current;

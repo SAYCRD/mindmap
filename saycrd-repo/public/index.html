@@ -386,6 +386,16 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     #saycrd-prerender{display:block}
     @media (min-width:480px){#saycrd-prerender{display:none}}
     html.saycrd-no-prerender #saycrd-prerender{display:none}
+
+    /* Landing uses the document as its scroller. Nested overflow:auto inside a
+       100vh overflow:hidden shell is what left the homepage unscrollable after
+       a start-session overlay or Pour "Back" — iOS drops the inner scroller and
+       the shell clips the rest. Internal phases keep the locked viewport.
+       More specific than SaycrdShell's `.saycrd-app-shell{overflow:hidden}`. */
+    body.saycrd-landing,body.saycrd-landing #root{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
+    body.saycrd-landing .saycrd-app-shell{height:auto;min-height:100dvh;overflow:visible}
+    body.saycrd-internal,body.saycrd-internal #root{height:100%;min-height:100%;overflow:hidden}
+    body.saycrd-internal .saycrd-app-shell{height:100vh;height:100dvh;overflow:hidden}
 </style>
 
     <!-- The Supabase SDK is still vendored locally (see /vendor) rather than loaded from
@@ -760,10 +770,16 @@ window._showAuthOverlay = function(onSuccess, opts) {
 
    Scroll position needs no special handling and must not be "restored"
    manually: the overlay is position:fixed and nothing here locks or rewrites
-   body scroll, so the document keeps the exact offset it had. */
+   body scroll, so the document keeps the exact offset it had.
+
+   iOS does keep the keyboard's visual-viewport shrink after a focused input
+   is hidden with the overlay, which is what made the homepage unscrollable
+   on close. Blur first so the viewport recovers; do not touch scrollTop. */
 window._closeAuthOverlay = function() {
   var overlay = document.getElementById("auth-overlay");
   if (!overlay) return;
+  var active = document.activeElement;
+  if (active && overlay.contains(active) && typeof active.blur === "function") active.blur();
   overlay.classList.remove("is-visible");
   overlay.style.transition = "opacity .4s ease";
   setTimeout(function() { overlay.style.display = "none"; }, 400);
