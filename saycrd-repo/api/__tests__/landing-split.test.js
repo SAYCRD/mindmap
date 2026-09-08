@@ -624,25 +624,63 @@ test('env-config.js is never content-hashed', () => {
 // cold 598KB download. That warm must never compete with the homepage's own
 // paint — measured at 393px it began at 674ms against a 700ms FCP, because
 // requestIdleCallback fires in the idle gap BEFORE React has rendered.
+//
+// Nested requestAnimationFrames were the first attempt and were NOT enough: the
+// homepage fades in, so its first committed frames are still transparent and
+// first-contentful-paint lands after the first frame. Measured at 724px that
+// version warmed at 470ms against a 500ms FCP. The gate is therefore the
+// browser's own first-contentful-paint entry, which is the event the warm must
+// not compete with — asserted here so nobody "simplifies" it back to a frame
+// callback, which looks equivalent and is not.
 function assertWarmWaitsForPaint(html) {
   const at = html.indexOf('var warm = function');
   if (at === -1) throw new Error('the app-bundle warm is gone from index.html');
-  const block = html.slice(at, at + 1400);
-  if (!/requestAnimationFrame\(function \(\) \{ requestAnimationFrame\(/.test(block)) {
-    throw new Error('the warm is not deferred past the first paint with nested rAFs');
+  const block = html.slice(at, at + 2600);
+  if (!/first-contentful-paint/.test(block)) {
+    throw new Error('the warm is not gated on the first-contentful-paint entry');
   }
-  const rafAt = block.indexOf('requestAnimationFrame');
+  if (!/observe\(\{\s*type:\s*"paint"/.test(block)) {
+    throw new Error('the warm does not observe the paint timeline');
+  }
   const idleAt = block.indexOf('requestIdleCallback');
   if (idleAt === -1) throw new Error('the warm no longer waits for idle');
   // The idle wait must be INSIDE the post-paint callback, not racing it.
-  if (!/afterPaint = function \(\) \{\s*if \(window\.requestIdleCallback\)/.test(block)) {
+  if (!/afterPaint = function \(\) \{[\s\S]{0,120}?if \(window\.requestIdleCallback\)/.test(block)) {
     throw new Error('the idle wait is not nested inside the post-paint callback');
   }
-  return { rafAt, idleAt };
+  return { paintAt: block.indexOf('first-contentful-paint'), idleAt };
 }
 
 test('the app-bundle warm waits for the homepage to paint', () => {
   assertWarmWaitsForPaint(stripComments(src.index));
+});
+
+// A gate with no escape hatch is worse than no gate: a browser that never
+// reports FCP (or reported it before this code ran) would leave the app bundle
+// un-warmed, making the first click the cold download this warm exists to
+// prevent. Both directions must be covered.
+test('the paint gate is bounded in both directions', () => {
+  const code = stripComments(src.index);
+  const at = code.indexOf('var warm = function');
+  const block = code.slice(at, at + 2600);
+
+  assert.match(block, /getEntriesByName\("first-contentful-paint"\)\.length > 0/,
+    'a paint that already happened must warm immediately, not wait for an event that will never fire again');
+  assert.match(block, /buffered:\s*true/,
+    'the observer must ask for buffered entries so an already-dispatched paint still resolves');
+  assert.match(block, /setTimeout\(afterPaint, \d+\)/,
+    'a page that never reports FCP must still warm via a timeout backstop');
+
+  // `warmScheduled` appearing somewhere is not the property that matters — the
+  // latch only works if it actually GUARDS the body. Two controls proved a bare
+  // presence check blind: short-circuiting the already-painted branch, and
+  // deleting the early return, both left the suite green.
+  assert.match(block, /if \(warmScheduled\) return;\s*warmScheduled = true;/,
+    'the warm must early-return on the latch and then set it, or the backstop and the paint gate both warm');
+  assert.match(block, /if \(alreadyPainted\) \{\s*afterPaint\(\);/,
+    'the already-painted branch must call afterPaint, or a paint that preceded this code never warms');
+  assert.doesNotMatch(block, /if \(false\)/,
+    'a disabled branch means one of the three warm paths is dead code');
 });
 
 test('the warm is a low-priority prefetch, not a preload', () => {
@@ -656,13 +694,29 @@ test('the warm is a low-priority prefetch, not a preload', () => {
 });
 
 test('control: warming without waiting for paint fails the ordering test', () => {
+  // Mutates the paint entry NAME rather than a surrounding statement: that is
+  // the single thing the gate is built on, so this cannot silently no-op the
+  // way a control keyed to an incidental line can.
   const poisoned = mutate(
     stripComments(src.index),
-    /if \(window\.requestAnimationFrame\) \{/,
-    'if (false) {',
-    'warm: removed the paint wait'
+    /first-contentful-paint/g,
+    'load',
+    'warm: dropped the FCP gate'
   );
-  assert.throws(() => assertWarmWaitsForPaint(poisoned), /deferred past the first paint/);
+  assert.throws(() => assertWarmWaitsForPaint(poisoned), /first-contentful-paint entry/);
+});
+
+test('control: an unbounded paint gate fails the bounds test', () => {
+  const poisoned = mutate(
+    stripComments(src.index),
+    /setTimeout\(afterPaint, 2500\);/,
+    '',
+    'warm: removed the never-painted backstop'
+  );
+  const at = poisoned.indexOf('var warm = function');
+  const block = poisoned.slice(at, at + 2600);
+  assert.doesNotMatch(block, /setTimeout\(afterPaint, 2500\)/,
+    'the mutation must actually have removed the backstop');
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════

@@ -485,21 +485,56 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
       document.head.appendChild(l);
     };
     /* Wait for the homepage to actually PAINT before warming anything.
-       requestIdleCallback alone is not enough: this runs the moment the landing
+       requestIdleCallback alone is not enough: it runs the moment the landing
        script finishes executing, which is before React has rendered, and the
-       browser is briefly idle in exactly that gap. Measured at 393px, the warm
-       fetch started at 674ms against an FCP of 700ms — a 598KB download
-       competing with the paint it was supposed to follow.
+       browser is briefly idle in exactly that gap. Measured at 393px the warm
+       began at 674ms against a 700ms FCP — a 598KB download competing with the
+       paint it was supposed to follow.
 
-       Two nested rAFs put this after the frame that contains the first paint,
-       and only then do we wait for idle. The 3000ms timeout still bounds it, so
-       a permanently busy thread cannot postpone the warm forever. */
+       Nested rAFs are not enough either, for a reason specific to this page: the
+       homepage FADES in, so its first committed frames are still transparent and
+       first-contentful-paint lands later than the first frame. Measured at 724px
+       that version warmed at 470ms against a 500ms FCP — after the frame, still
+       ahead of the paint.
+
+       So this waits on the browser's own first-contentful-paint entry, which is
+       precisely the event we must not compete with, and only then waits for idle.
+       Every wait is bounded — buffered entries cover a paint that already
+       happened, a 2500ms backstop covers a page that never reports one, and idle
+       carries its own 3000ms timeout — so the warm cannot be postponed forever
+       and a cold first click stays impossible. */
+    var warmScheduled = false;
     var afterPaint = function () {
+      if (warmScheduled) return;
+      warmScheduled = true;
       if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 3000 });
       else setTimeout(warm, 1500);
     };
-    if (window.requestAnimationFrame) {
-      requestAnimationFrame(function () { requestAnimationFrame(afterPaint); });
+
+    var alreadyPainted = false;
+    try {
+      alreadyPainted = performance.getEntriesByName("first-contentful-paint").length > 0;
+    } catch (e) {}
+
+    if (alreadyPainted) {
+      afterPaint();
+    } else if (window.PerformanceObserver) {
+      try {
+        var po = new PerformanceObserver(function (list) {
+          var entries = list.getEntries();
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].name === "first-contentful-paint") {
+              po.disconnect();
+              afterPaint();
+              return;
+            }
+          }
+        });
+        po.observe({ type: "paint", buffered: true });
+      } catch (e) {
+        afterPaint();
+      }
+      setTimeout(afterPaint, 2500);
     } else {
       setTimeout(afterPaint, 1500);
     }
