@@ -20,7 +20,7 @@
 <link rel="preload" href="vendor/supabase-js.2.114.0.min.js" as="script">
 <link rel="preload" href="vendor/react.production.min.js" as="script">
 <link rel="preload" href="vendor/react-dom.production.min.js" as="script">
-<link rel="preload" href="app.compiled.js?v=20260907-14" as="script">
+<link rel="preload" href="app.compiled.js" as="script">
 <link rel="preload" href="env-config.js" as="script">
 <style>
 :root{
@@ -328,8 +328,13 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      so it is a blocking script rather than a fetch: the Supabase client is created
      synchronously further down and several call sites depend on it existing. -->
 <script src="env-config.js"></script>
-<script src="session-sync.js?v=2"></script>
-    <script src="app.compiled.js?v=20260907-14"></script>
+<!-- These logical names are rewritten to public/static/<name>.<contenthash>.js by
+     build/hash-assets.js, using public/asset-manifest.json as the single source of
+     truth, so the served URLs can be cached immutably. Do NOT add a ?v= query here:
+     the hash replaces it, and a hand-maintained version under immutable caching
+     would pin visitors to a stale bundle if it were ever forgotten. -->
+<script src="session-sync.js"></script>
+    <script src="app.compiled.js"></script>
 
 <script>
 /* Global error handler — shows what's breaking */
