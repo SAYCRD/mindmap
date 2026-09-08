@@ -22,7 +22,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const APP_JSX = path.join(__dirname, '..', '..', 'public', 'app.jsx');
-const SOURCE = fs.readFileSync(APP_JSX, 'utf8');
+const LANDING_JSX = path.join(__dirname, '..', '..', 'public', 'landing.jsx');
+
+// The application's source is landing.jsx + app.jsx, in that order — exactly the
+// two files build/compile.js concatenates into app.compiled.js. The landing
+// surface moved into its own file so it can ALSO compile into a standalone
+// homepage bundle for signed-out visitors; reading app.jsx alone would simply
+// stop finding BootGate and the other helpers that moved with it.
+const SOURCE = fs.readFileSync(LANDING_JSX, 'utf8') + '\n' + fs.readFileSync(APP_JSX, 'utf8');
 
 /* Extract `function NAME(...) { ... }` with balanced braces, skipping the
    parameter list so a destructured param can never be mistaken for the body. */
