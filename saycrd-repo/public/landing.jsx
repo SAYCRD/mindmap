@@ -900,7 +900,7 @@ function SaycrdShell(props) {
 @keyframes reportAurora{0%,100%{opacity:0.2;transform:translateY(0) scale(1)}50%{opacity:0.5;transform:translateY(-8%) scale(1.1)}}
 *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
 body{margin:0;background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.saycrd-app-shell{height:100vh;height:100dvh;min-height:100vh;min-height:100dvh;overflow:hidden;max-width:100vw}
+.saycrd-app-shell{height:100vh;height:100dvh;min-height:100vh;min-height:100dvh;overflow:hidden;overflow-x:hidden;max-width:100vw}
 textarea::placeholder{color:rgba(255,255,255,0.15)}
 .pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
 textarea{caret-color:#6BB8FF}

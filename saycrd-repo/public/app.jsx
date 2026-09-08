@@ -1447,7 +1447,7 @@ Continue
 <ProgressiveLoadingOverlay
 loading={step === 0 || step === 1}
 label={step===0?"Reading your words":step===1?"Finding what's underneath":"Your map"}
-sublabel={step===0?"Your words are being absorbed ��� the AI is matching patterns in what you wrote":(step===1?"Analyzing your words — finding patterns and connections":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
+sublabel={step===0?"Your words are being absorbed — the AI is matching patterns in what you wrote":(step===1?"Analyzing your words — finding patterns and connections":(revealData && revealData.themes ? "What the AI found in your words — themes, connections, and why" : "Themes, connections, and archetype are forming"))}
 >
 <div style={{ width: "100%", maxWidth: 560, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 0 }}>
 {revealData && revealData.themes && revealData.themes.length > 0 ? (
@@ -6485,7 +6485,7 @@ lineHeight:1.75, wordBreak:"break-word", overflowWrap:"break-word", letterSpacin
 </div>
 </div>
 
-<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize: isMobile ? 22 : 24, flexShrink:0 }}>���</div>
+<div style={{ textAlign:"center", color:"rgba(200,220,255,0.4)", fontSize: isMobile ? 22 : 24, flexShrink:0 }}>↓</div>
 
 <div style={{ flex:1, minWidth:0 }}>
 <div style={{ fontSize: isMobile ? 12 : 13, fontWeight:600, letterSpacing:"0.2em",
@@ -8357,7 +8357,7 @@ peLines.push(gapLines.join(" "));
 }
 _setLifeFieldGap(lifeFieldGap || null);
 if (pe.regression_context && pe.regression_context.length) peLines.push("Regressions (when themes/map values dropped — prior context): " + pe.regression_context.map(function(r){ return "S" + (r.sessionIndex + 1) + " " + r.type + " " + r.key + (r.priorContext ? " — prior: " + r.priorContext.slice(0, 60) : ""); }).join("; "));
-if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' ����� never state as fact.\n\n";
+if (peLines.length) patternEngineBlurb = "PATTERN ENGINE (use to deepen — weave into prose, do not list mechanically):\n" + peLines.join("\n") + "\n\nPATTERN CONFIDENCE: [high]=strong evidence, state directly. [medium]=good evidence, use 'the data suggests' or 'the record shows'. [low]=heuristic or sparse, use 'one possible reading' or 'the pattern may suggest' — never state as fact.\n\n";
 }
 }
 
@@ -8837,7 +8837,7 @@ reportExcerpt = "REPORT ONE-LINE: \"" + (_report.oneLineVerdict || "") + "\"\n";
 (_report.sections||[]).slice(0,2).forEach(function(sec){ reportExcerpt += "SECTION " + (sec.title||"") + ": " + (sec.body||"").slice(0,200) + "...\n"; });
 }
 var p = "Someone wrote notes on their field report. Their notes:\n\n\"" + _reportNotes.trim() + "\"\n\n"
-+ "EVIDENCE FROM SESSION (what the subject actually said �� use ONLY these when grounding):\n" + (userWords.length ? userWords.slice(0,12).join("\n") : "(none recorded)") + "\n\n"
++ "EVIDENCE FROM SESSION (what the subject actually said — use ONLY these when grounding):\n" + (userWords.length ? userWords.slice(0,12).join("\n") : "(none recorded)") + "\n\n"
 + "REPORT EXCERPT (what the report said — use to trace claims):\n" + (reportExcerpt || "(none)") + "\n\n"
 + "RULES: 1) GROUND every claim. If you say something came from the session, quote it: 'In the session you said: \"...\"' 2) If their note questions something in the report (e.g. 'I don\'t recall saying that'), either find the quote that supports it in EVIDENCE above, or say 'I don\'t have a direct quote from your session that supports that' — do NOT philosophize about memory or imaginal cells. 3) Never invent. Only use what's in their notes + EVIDENCE + REPORT. 4) If uncertain, say so. 5) Optional: add a brief 'sources' line listing what you drew from (e.g. 'From your note + map comment on X–Y').\n"
 + "JSON: {\"summary\":\"2-4 sentences, grounded\", \"sources\":\"optional one line\"}";
