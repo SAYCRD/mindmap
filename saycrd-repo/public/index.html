@@ -317,7 +317,9 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     .auth-back:hover{color:rgba(232,67,147,.9)}
     .auth-back:focus-visible{outline:2px solid rgba(232,67,147,.7);outline-offset:2px}
     .auth-overlay.is-visible .auth-card{transform:translateY(0);opacity:1}
-    .auth-logo{font-family:'Space Grotesk',sans-serif;font-size:1.9rem;letter-spacing:.25em;background:linear-gradient(90deg,#E84393,#B86BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;font-weight:700;text-indent:.25em;margin-bottom:.5rem}
+    .auth-logo-row{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem}
+ .auth-logo-mark{width:1.6rem;height:1.6rem;flex-shrink:0}
+ .auth-logo{font-family:'Space Grotesk',sans-serif;font-size:1.9rem;letter-spacing:.25em;background:linear-gradient(90deg,#E84393,#B86BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;font-weight:700;text-indent:.25em;margin-bottom:0}
     .auth-sub{font-family:'DM Sans',sans-serif;font-size:1rem;color:rgba(232,67,147,.6);margin-bottom:2.5rem;font-weight:400}
     .auth-input{display:block;width:100%;background:rgba(14,17,21,.9);border:1px solid rgba(244,241,234,.12);border-radius:12px;color:rgba(247,241,231,.95);padding:.85rem 1rem;font-family:'Space Grotesk',sans-serif;font-size:.95rem;margin-bottom:.8rem;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box}
     .auth-input:focus{border-color:rgba(232,67,147,.5);box-shadow:0 0 0 3px rgba(232,67,147,.12)}
@@ -412,7 +414,10 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
 <div class="auth-overlay" id="auth-overlay">
       <div class="auth-card">
         <button type="button" class="auth-close" id="auth-close" aria-label="Close and return to the page" onclick="window._closeAuthOverlay()">&times;</button>
-        <div class="auth-logo">BLINDSPOT</div>
+        <div class="auth-logo-row">
+          <img src="/images/blindspot-logo-mark.png" alt="" aria-hidden="true" class="auth-logo-mark" />
+          <div class="auth-logo">BLINDSPOT</div>
+        </div>
         <div class="auth-sub">clarity, not control</div>
         <div class="auth-sub" id="auth-require-account-msg" style="display:none;margin-top:-.4rem;margin-bottom:1.2rem;color:rgba(232,67,147,.85);font-size:.85rem;line-height:1.5">You&apos;ve used your 2 free sessions. Create an account to keep going.</div>
 
