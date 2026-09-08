@@ -61,6 +61,8 @@ const P = {
   index: path.join(PUBLIC_DIR, 'index.html'),
   landing: path.join(PUBLIC_DIR, 'landing.jsx'),
   shell: path.join(PUBLIC_DIR, 'landing-shell.jsx'),
+  landingBundle: path.join(PUBLIC_DIR, 'landing.compiled.js'),
+  appBundle: path.join(PUBLIC_DIR, 'app.compiled.js'),
 };
 
 const prerender = require(path.join(REPO, 'build', 'prerender.js'));
@@ -71,6 +73,8 @@ const src = {
   index: read(P.index),
   landing: read(P.landing),
   shell: read(P.shell),
+  landingBundle: read(P.landingBundle),
+  appBundle: read(P.appBundle),
 };
 
 // Copied from landing-split.test.js for the same reason it exists there: a
@@ -367,10 +371,18 @@ test('the homepage asks fonts.googleapis.com for its faces exactly once', () => 
   const inLoader = (injected.match(/fonts\.googleapis\.com/g) || []).length;
   assert.strictEqual(inLoader, 1,
     `loadFonts should build one stylesheet URL, found ${inLoader}`);
-  for (const [name, source] of [['landing.jsx', src.landing], ['landing-shell.jsx', src.shell]]) {
-    assert.doesNotMatch(stripComments(source), /fonts\.googleapis\.com/,
-      `${name} renders its own webfont <link> again: that is a second round trip ` +
-      'to fonts.googleapis.com once the bundle mounts, for faces index.html already requested');
+  // Asserted against the minified bundles, not the JSX sources. Only a bundle
+  // can actually issue the request, and terser has already stripped every
+  // comment from it. Grepping the sources instead relied on stripComments(),
+  // which is defeated by an apostrophe in JSX text -- "don't" opens a quote
+  // that never closes, so every real comment downstream of one is kept
+  // verbatim. That is why this failed while describing correct code: the only
+  // remaining mention of the host in landing.jsx is the comment recording that
+  // the <link> was REMOVED.
+  for (const [name, bundle] of [['landing.compiled.js', src.landingBundle], ['app.compiled.js', src.appBundle]]) {
+    assert.doesNotMatch(bundle, /fonts\.googleapis\.com/,
+      `${name} builds its own webfont URL: that is a second round trip to ` +
+      'fonts.googleapis.com once the bundle mounts, for faces index.html already requested');
   }
 });
 
