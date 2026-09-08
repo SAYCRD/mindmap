@@ -272,7 +272,7 @@
      (identical to the pre-existing design on phones), then grow smoothly as
      the viewport widens so the same "centered card" composition scales up
      instead of staying frozen at phone width on tablets/desktops. */
-  --saycrd-shell-w: clamp(420px, 214px + 43vw, 760px);
+  --saycrd-shell-w: clamp(min(420px, 100vw), 214px + 43vw, 760px);
   --saycrd-fs-hero: clamp(2rem, 1.72rem + 1.1vw, 2.75rem);
   --saycrd-fs-title: clamp(1.3rem, 1.16rem + 0.55vw, 1.65rem);
   --saycrd-fs-body: clamp(0.95rem, 0.92rem + 0.12vw, 1.05rem);
@@ -337,6 +337,22 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     .auth-hidden{display:none!important}
     @media (prefers-reduced-motion: reduce){
       .auth-overlay,.auth-card,.auth-btn,.auth-input,.auth-social{transition:none}
+      .auth-overlay.is-visible .auth-card{transform:none}
+    }
+
+    /* ═══ Mobile auth sheet ═══
+       Below 480px the centered floating card reads as a small box lost on a
+       big dark screen, and independently, backdrop-filter:blur combined with
+       position:fixed;inset:0 and a translateY entrance is a known trigger for
+       iOS Safari compositing glitches during viewport recalculation. Replace
+       the card with an edge-to-edge full-height sheet: no blur, no card
+       chrome, fade-only entrance, its own internal scroll (so a long
+       email+password+Google+legal form never needs the page behind it to
+       scroll — which is what was cutting off the logo at the top), and
+       safe-area padding top/bottom. Desktop (>480px) is untouched above. */
+    @media (max-width: 480px){
+      .auth-overlay{padding:0;background:rgb(6,9,16);backdrop-filter:none;-webkit-backdrop-filter:none;align-items:stretch;justify-content:stretch}
+      .auth-card{width:100%;height:100%;max-width:none;max-height:none;padding:calc(1.75rem + env(safe-area-inset-top,0px)) 1.5rem calc(1.75rem + env(safe-area-inset-bottom,0px));background:none;border:none;border-radius:0;box-shadow:none;transform:none;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:center}
       .auth-overlay.is-visible .auth-card{transform:none}
     }
 
