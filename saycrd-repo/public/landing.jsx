@@ -233,6 +233,7 @@ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
     Desktop keeps the original 7vw / 18px / 0.3em values untouched. */}
 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", maxWidth:1400, margin:"0 auto", padding: isMobile ? "0 20px" : "0 7vw" }}>
 <div style={{ display:"flex", alignItems:"center", gap:12, flex:1, minWidth:0 }}>
+<img src="/images/blindspot-logo-mark.png" alt="" aria-hidden="true" style={{ width: isMobile ? 22 : 26, height: isMobile ? 22 : 26, flexShrink:0 }} />
 <div style={{ fontFamily:SG, fontSize: isMobile ? 16 : 18, fontWeight:700, letterSpacing: isMobile ? "0.18em" : "0.3em",
 background:"linear-gradient(90deg, #E84393, #B86BFF)", WebkitBackgroundClip:"text",
 WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
