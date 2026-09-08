@@ -908,6 +908,13 @@ window._showAuthOverlay = function(onSuccess, opts) {
     if (bypassRow) bypassRow.style.display = requireAccount ? "none" : "";
     var msg = document.getElementById("auth-require-account-msg");
     if (msg) msg.style.display = requireAccount ? "block" : "none";
+    /* The complimentary-session offer ("Begin with 2 complimentary sessions")
+       describes what a NEW account gets, which is real but reads as a
+       contradiction directly under "You've used your 2 free sessions" — so
+       hide it on the hard wall and let the wall message alone explain what
+       creating an account does. */
+    var offer = document.getElementById("auth-offer");
+    if (offer) offer.style.display = requireAccount ? "none" : "";
     if (onSuccess) window._authSuccessCallback = onSuccess;
     setTimeout(function() {
       var first = document.getElementById("auth-email") || document.getElementById("auth-signup-email") || document.getElementById("auth-reset-email");
