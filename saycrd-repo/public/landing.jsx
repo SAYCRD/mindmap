@@ -32,7 +32,13 @@ function _canStartNewSession() { return _isRealAccount() || _guestSessionCount()
 
 const FD = "'DM Serif Display', Georgia, serif";
 
-const FB = "'DM Sans', sans-serif";
+/* The font stylesheet is no longer render-blocking (see index.html), so this
+   fallback is what the homepage actually paints in for the first moment. The
+   generic `sans-serif` alone resolves to a browser default that is noticeably
+   unlike DM Sans; naming the platform UI faces first keeps the swap subtle.
+   'DM Sans' still wins as soon as the sheet arrives, so nothing about the
+   finished design changes. */
+const FB = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
 function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
 
@@ -619,7 +625,7 @@ return React.createElement("line",{key:i,x1:(50+Math.cos(rad)*12)+"%",y1:65+Math
 <div style={{ padding:"0 22px 22px" }}>
 <h3 style={{ fontFamily:FB, fontSize:17, fontWeight:700, color:"#D6B26D", marginBottom:8 }}>Practice, not features</h3>
 <p style={{ fontFamily:FD, fontSize:15, fontStyle:"italic", color:"rgba(220,200,160,0.55)", lineHeight:1.65, margin:0 }}>
-A breath, a pause, a reflection ��� only when needed. The experience stays whole.
+A breath, a pause, a reflection — only when needed. The experience stays whole.
 </p>
 </div>
 </div>

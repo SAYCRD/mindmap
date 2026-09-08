@@ -578,32 +578,41 @@ test('the landing bundle contains no Supabase client', (t) => {
 // A static preload defeats the whole split: the browser would fetch the thing the
 // boot decision just decided not to run.
 function assertNoStaticAuthPreloads(html) {
-  const head = html.slice(0, html.indexOf('</head>'));
-  const preloads = [...head.matchAll(/<link\s+rel="preload"\s+href="([^"]+)"/g)].map((m) => m[1]);
+  const head = stripComments(html).replace(/<!--[\s\S]*?-->/g, '');
+  const preloads = [...head.slice(0, head.indexOf('</head>'))
+    .matchAll(/<link\s+rel="preload"\s+href="([^"]+)"/g)].map((m) => m[1]);
   const forbidden = preloads.filter((h) => /supabase|env-config|session-sync|auth-layer|app\.compiled/.test(h));
   if (forbidden.length) {
     throw new Error(`index.html statically preloads application/auth assets: ${forbidden.join(', ')}`);
   }
-  if (!preloads.some((h) => /react\.production/.test(h))) {
-    throw new Error('index.html no longer preloads React — the extractor found no preloads to check');
-  }
+  // This used to require a React preload to be present, as proof the extractor
+  // was finding anything at all. React is no longer preloaded — the homepage
+  // paints without it — so there is nothing legitimate left to preload
+  // statically, and the extractor is proven by the negative control instead.
   return preloads;
 }
 
-test('index.html statically preloads only React and ReactDOM', () => {
+test('index.html statically preloads nothing at all', () => {
   const preloads = assertNoStaticAuthPreloads(src.index);
-  assert.strictEqual(preloads.length, 2, `expected 2 static preloads, found ${preloads.length}: ${preloads.join(', ')}`);
+  // Every preload here is a request issued during head parse, before the
+  // prerendered homepage is on screen. The returning-visitor preloads are added
+  // from script, only when the boot decision has found a token.
+  assert.deepEqual(preloads, [],
+    `expected no static preloads, found ${preloads.length}: ${preloads.join(', ')}`);
 });
 
-test('no blocking script tag loads Supabase or the app bundle', () => {
-  // Scans the whole document: the React tags sit near the end of <body>, so a
-  // head-only scan would find nothing and pass without checking anything.
-  const srcs = [...src.index.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map((m) => m[1]);
-  assert.ok(srcs.length >= 2, `expected the React script tags to be present, found ${srcs.length}`);
-  assert.ok(srcs.some((s) => /react\.production/.test(s)), 'React is no longer loaded by a script tag');
-  for (const s of srcs) {
-    assert.doesNotMatch(s, /supabase|env-config|session-sync|auth-layer|app\.compiled|landing\.compiled/,
-      `${s} must be loaded by the boot decision, not by a blocking tag`);
+test('no script tag in the document loads a bundle, React included', () => {
+  // Scans the whole document, not just the head: the React tags used to sit near
+  // the end of <body>, so a head-only scan would find nothing and pass without
+  // checking anything.
+  const code = stripComments(src.index).replace(/<!--[\s\S]*?-->/g, '');
+  const srcs = [...code.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(srcs, [],
+    `every script is loaded by the boot decision now, but these have tags: ${srcs.join(', ')}`);
+  // The counterpart claim: they are all reachable through the loader.
+  for (const name of ['react.production.min.js', 'landing.compiled.js', 'app.compiled.js']) {
+    assert.ok(code.includes(`"${name}"`),
+      `${name} has no script tag and no loader reference, so nothing can load it`);
   }
 });
 
@@ -664,26 +673,40 @@ test('env-config.js is never content-hashed', () => {
    competing for a phone's radio and main thread immediately after the paint it
    was carefully ordered behind.
 
+   Then a narrower version survived: a rel=prefetch when the login overlay
+   opened. That is gone too. Opening login is intent to AUTHENTICATE, not intent
+   to start, and it still meant a 598KB request from a visitor who might only be
+   checking whether they already have an account.
+
    The homepage is now in the HTML and needs no application code at all, so the
    application is requested only when something tells us it is actually needed:
-   an explicit "start a session", an open login overlay, or a returning visitor
-   detected at boot. No timer, no paint observer, nothing speculative. */
+   an explicit "start a session", a login that actually succeeds, or a returning
+   visitor detected at boot. No timer, no paint observer, no prefetch. */
 function assertNoSpeculativeAppLoad(html) {
-  // The three legitimate call sites, by the API each uses.
+  // The legitimate call sites, by the API each uses.
   const start = /__SAYCRD_START_REQUESTED = true;\s*if \(window\.__saycrdLoadApp\) window\.__saycrdLoadApp\(\)/.test(html);
   if (!start) throw new Error('starting a session no longer loads the application');
-  if (!/__saycrdPrefetchApp\(\)/.test(html)) {
-    throw new Error('opening the login overlay no longer warms the application');
-  }
   if (!/__saycrdBootSignedIn/.test(html)) {
     throw new Error('the returning-visitor boot path is gone');
   }
-  // And the thing that must NOT come back: a scheduler deciding to fetch the app.
+  // And the things that must NOT come back: anything that fetches the app on a
+  // schedule, or on a signal weaker than a real click.
   if (/requestIdleCallback/.test(html)) {
     throw new Error('the application is being warmed on idle again, i.e. on every signed-out visit');
   }
   if (/getEntriesByName\("first-contentful-paint"\)/.test(html) || /type:\s*"paint"/.test(html)) {
     throw new Error('a paint observer is scheduling an app fetch again');
+  }
+  if (/rel = "prefetch"|rel="prefetch"/.test(html)) {
+    throw new Error('a speculative prefetch is back');
+  }
+  // The load event is where the landing bundle is fetched. If the application
+  // reaches that handler it becomes an unconditional 598KB download again, which
+  // is the original bug wearing a different trigger.
+  const at = html.indexOf('function loadInteractive()');
+  if (at === -1) throw new Error('the load-event handler is gone');
+  if (/__saycrdLoadApp/.test(html.slice(at, at + 600))) {
+    throw new Error('the application is being fetched on the load event of a signed-out visit');
   }
   return true;
 }
@@ -698,47 +721,42 @@ test('control: re-adding an idle warm fails the no-speculative-load test', () =>
   // test, and this repo has already been bitten by exactly that.
   const poisoned = mutate(
     stripComments(src.index),
-    /window\.__saycrdPrefetchApp = function \(\) \{/,
-    'window.__saycrdPrefetchApp = function () { requestIdleCallback(function(){});',
+    /function loadInteractive\(\) \{/,
+    'function loadInteractive() { requestIdleCallback(function(){});',
     'app load: re-added an idle warm'
   );
   assert.match(poisoned, /requestIdleCallback/, 'the mutation must actually have landed');
   assert.throws(() => assertNoSpeculativeAppLoad(poisoned), /warmed on idle again/);
 });
 
-test('control: removing the login warm fails the no-speculative-load test', () => {
+test('control: fetching the app on the load event fails the no-speculative-load test', () => {
   const poisoned = mutate(
     stripComments(src.index),
-    /__saycrdPrefetchApp\(\)/g,
-    'void 0',
-    'app load: dropped the login-overlay warm'
+    /function loadInteractive\(\) \{/,
+    'function loadInteractive() { window.__saycrdLoadApp();',
+    'app load: pulled the application into the load-event handler'
   );
-  assert.doesNotMatch(poisoned, /__saycrdPrefetchApp\(\)/, 'the mutation must actually have landed');
-  assert.throws(() => assertNoSpeculativeAppLoad(poisoned), /login overlay no longer warms/);
+  const at = poisoned.indexOf('function loadInteractive()');
+  assert.match(poisoned.slice(at, at + 200), /__saycrdLoadApp\(\)/,
+    'the mutation must actually have landed');
+  assert.throws(() => assertNoSpeculativeAppLoad(poisoned), /fetched on the load event/);
 });
 
-test('the login warm downloads the application without executing it', () => {
+test('opening the login overlay loads auth and nothing else', () => {
   const code = stripComments(src.index);
-  const at = code.indexOf('window.__saycrdPrefetchApp = function');
-  assert.ok(at > 0, 'the prefetch helper is gone');
-  const block = code.slice(at, at + 500);
-  assert.match(block, /l\.rel = "prefetch"/,
-    'the warm must stay rel=prefetch: preload would compete with the visible page');
-  assert.doesNotMatch(block, /l\.rel = "preload"/);
-  // Executing app.compiled.js from the overlay would unmount the landing behind
-  // the card the visitor is typing into. Only a <link> may be created here.
-  assert.doesNotMatch(block, /createElement\("script"\)/,
-    'the login warm must not execute the application, only fetch it');
+  const at = code.indexOf('window._showAuthOverlay = function');
+  assert.ok(at > 0, 'the auth overlay entry point is gone');
+  const block = code.slice(at, at + 700);
+  // This is the only place Supabase may be pulled in, and it must not drag the
+  // application along: executing app.compiled.js here would unmount the landing
+  // behind the card the visitor is typing into, and even fetching it is a 598KB
+  // request on a signal that is not "start".
+  assert.match(block, /if \(window\.__saycrdEnsureAuth\) window\.__saycrdEnsureAuth\(\);/,
+    'opening login must start the auth chain');
   assert.doesNotMatch(block, /__saycrdLoadApp\(\)/,
-    'the login warm must not run the application while the overlay is open');
-});
-
-test('the prefetch cannot fire twice or race a real load', () => {
-  const code = stripComments(src.index);
-  const at = code.indexOf('window.__saycrdPrefetchApp = function');
-  const block = code.slice(at, at + 500);
-  assert.match(block, /if \(prefetched \|\| appPromise\) return;\s*prefetched = true;/,
-    'the prefetch must latch and must stand down once a real load is already in flight');
+    'opening login must not run the application');
+  assert.doesNotMatch(block, /rel = "prefetch"/,
+    'opening login must not prefetch the application');
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -890,15 +908,18 @@ test('control: a Supabase client in the landing bundle fails the payload test', 
 });
 
 test('control: statically preloading the app bundle fails the preload test', () => {
-  // Prefix matched generically: the committed source preloads vendor/react…,
-  // the build rewrites it to static/react.<hash>…. A pattern pinned to either
-  // one no-ops in the other state and reports a broken control as a pass.
+  // Injected as a new tag rather than anchored to an existing preload: there are
+  // no static preloads left to anchor to now that React is fetched on demand, and
+  // a mutation with nothing to match silently no-ops and turns this control green
+  // while proving nothing.
   const poisoned = mutate(
     src.index,
-    /(<link rel="preload" href="[\w./-]*?react\.production[^"]*" as="script">)/,
-    '$1\n<link rel="preload" href="app.compiled.js" as="script">',
+    /<title>BLINDSPOT<\/title>/,
+    '<title>BLINDSPOT</title>\n<link rel="preload" href="app.compiled.js" as="script">',
     'preload: added app bundle'
   );
+  assert.match(poisoned, /<link rel="preload" href="app\.compiled\.js"/,
+    'the mutation must actually have landed');
   assert.throws(() => assertNoStaticAuthPreloads(poisoned), /statically preloads/);
 });
 

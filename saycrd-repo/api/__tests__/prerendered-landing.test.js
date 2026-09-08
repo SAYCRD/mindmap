@@ -244,17 +244,23 @@ test('the injected snapshot is opaque and unanimated', (t) => {
    ═══════════════════════════════════════════════════════════════════════ */
 
 function assertNothingBlocksTheSnapshot(html) {
-  const code = stripComments(html);
-  // Every remaining parser-blocking script tag with a src.
+  const code = stripComments(html).replace(/<!--[\s\S]*?-->/g, '');
+  // Every parser-blocking script tag with a src.
   const tags = code.match(/<script(?![^>]*\b(?:defer|async)\b)[^>]*\bsrc=[^>]*>/g) || [];
   if (tags.length) {
     throw new Error('a parser-blocking script would delay the snapshot paint: ' + tags.join(', '));
   }
-  if (!/<script defer src="[^"]*react\.production/.test(code)) {
-    throw new Error('React is not deferred');
+  // This used to require React to be present and `defer`. That was the weaker
+  // claim: defer does not block the parser, but it does issue the request during
+  // parse, so 168KB of framework still competed with the paint of markup the
+  // browser had already read. The requirement now is that React has no tag here
+  // AT ALL — deferred or otherwise — and is fetched on demand instead.
+  const anyReactTag = /<script[^>]*\bsrc="[^"]*react[^"]*"/i.test(code);
+  if (anyReactTag) {
+    throw new Error('React has a <script> tag again, so it is requested during parse rather than on demand');
   }
-  if (!/<script defer src="[^"]*react-dom\.production/.test(code)) {
-    throw new Error('ReactDOM is not deferred');
+  if (!/window\.__saycrdEnsureReact = function/.test(code)) {
+    throw new Error('React has no tag and no on-demand loader, so nothing can ever mount');
   }
   return tags.length;
 }
@@ -275,38 +281,127 @@ test('the snapshot markup carries no stylesheet of its own', (t) => {
     'the font link must be stripped from the snapshot');
 });
 
-test('the fonts the snapshot needs are already in the document head', () => {
-  // Why stripping the shell's link is safe rather than a regression: the head
-  // stylesheet already serves every family the homepage asks for. Lora is the
-  // only one the shell adds, and the homepage never uses it.
-  const head = src.index.slice(0, src.index.indexOf('</head>'));
-  for (const family of ['DM+Serif+Display', 'DM+Sans', 'Space+Grotesk']) {
-    assert.ok(head.includes(family),
-      `${family} is used by the snapshot but is not loaded in <head>, so it would render in a fallback face`);
+/* ── Nothing the first paint does not need is requested before it ──────────── */
+
+// Every subresource the head can ask for, as an actual tag rather than a bare
+// mention in prose. stripComments() first, so a comment describing what USED to
+// be here can never satisfy — or break — one of these.
+function headTags(html) {
+  // stripComments() handles JS comments only. HTML comments have to go too, and
+  // this is not hypothetical: the first version of this helper matched the string
+  // "<link rel="stylesheet">" inside the <head> comment that explains why there
+  // is no longer a stylesheet there, and reported the regression it was written
+  // to catch. A structural claim must never be able to read prose.
+  const code = stripComments(html).replace(/<!--[\s\S]*?-->/g, '');
+  const head = code.slice(0, code.indexOf('</head>'));
+  // <noscript> is excluded deliberately: its contents are inert for every
+  // visitor who runs JavaScript, which is who these assertions are about.
+  const live = head.replace(/<noscript>[\s\S]*?<\/noscript>/gi, '');
+  return {
+    scripts: (live.match(/<script[^>]*\ssrc="[^"]*"/gi) || []),
+    links: (live.match(/<link[^>]*>/gi) || []),
+  };
+}
+
+test('the head requests no script at all before the homepage paints', () => {
+  // The homepage is markup plus the critical CSS in this same head, so any
+  // external script here is delaying a paint that is already possible. React was
+  // the last holdout: 168KB, blocking, for content the browser had already
+  // parsed. `defer` was not good enough — it still issues the request.
+  const { scripts } = headTags(src.index);
+  assert.deepEqual(scripts, [],
+    'the head loads external scripts again: ' + scripts.join(', '));
+});
+
+test('the head has no font stylesheet and no preload of any kind', () => {
+  const { links } = headTags(src.index);
+  for (const tag of links) {
+    assert.doesNotMatch(tag, /rel="?stylesheet/i,
+      'a render-blocking stylesheet is back in the head: ' + tag);
+    // rel=preload and rel=preconnect both start network work during head parse,
+    // which is exactly what must not happen before the homepage is on screen.
+    assert.doesNotMatch(tag, /rel="?(preload|preconnect|prefetch)/i,
+      'a resource hint is back in the head, so the request starts before the paint: ' + tag);
+    assert.doesNotMatch(tag, /fonts\.(googleapis|gstatic)\.com/,
+      'Google Fonts is reachable from a live head tag again: ' + tag);
   }
 });
 
-test('the loader waits for React before inserting any bundle', () => {
+test('the preferred fonts are still loaded, just after the page is visible', () => {
   const code = stripComments(src.index);
-  assert.match(code, /function whenReactReady\(fn\)/, 'the React-ready gate is gone');
-  // Deferred scripts run before DOMContentLoaded, which is the only reason that
-  // event means "React exists". Without this wait a dynamically inserted bundle
-  // can execute first and take the page down with a ReferenceError.
-  assert.match(code, /addEventListener\("DOMContentLoaded", fn, \{ once: true \}\)/,
-    'the gate must wait on DOMContentLoaded, after which deferred scripts have executed');
-  assert.match(code, /if \(window\.React && window\.ReactDOM\) \{ fn\(\); return; \}/,
-    'the gate must short-circuit when React is already present');
-  assert.match(code, /whenReactReady\(function \(\) \{\s*window\.__saycrdLoadScript\("landing\.compiled\.js"\)/,
-    'the landing bundle must be inserted inside the React-ready gate');
+  // Deferring the fonts must not quietly drop them. Both routes have to exist:
+  // the load-event injection for a normal visitor, and the <noscript> copy for
+  // one who never reaches it.
+  assert.match(code, /l\.rel = "stylesheet";/,
+    'nothing appends the font stylesheet any more, so the design never gets its faces');
+  const injected = code.slice(code.indexOf('function loadFonts()'));
+  for (const family of ['DM+Serif+Display', 'DM+Sans', 'Space+Grotesk']) {
+    assert.ok(injected.includes(family),
+      `${family} is used by the homepage but is not in the deferred font request`);
+  }
+  assert.match(code, /loadFonts\);?\s*$|addEventListener\("load", loadFonts, \{ once: true \}\)/m,
+    'the font stylesheet must be appended on the load event, once the page is visible');
+  const noscript = (src.index.match(/<noscript>[\s\S]*?<\/noscript>/i) || [''])[0];
+  assert.match(noscript, /fonts\.googleapis\.com/,
+    'a visitor with JavaScript disabled never reaches loadFonts and would get no fonts at all');
 });
 
-test('a returning visitor still starts the auth chain immediately', () => {
+test('React is fetched on demand, and react-dom cannot execute before react', () => {
   const code = stripComments(src.index);
-  // The gate must order the app's EXECUTION without delaying the downloads that
-  // need no React — otherwise deferring React would slow the returning-visitor
-  // path this split was built to keep fast.
-  assert.match(code, /var auth = window\.__saycrdEnsureAuth\(\);\s*whenReactReady/,
-    'the auth chain must start before the React wait, not inside it');
+  assert.doesNotMatch(code, /<script[^>]*src="[^"]*react/i,
+    'React has a <script> tag again, so it is requested during parse');
+  assert.match(code, /window\.__saycrdEnsureReact = function \(\)/,
+    'the on-demand React loader is gone');
+  // Order is a correctness requirement, not a preference: react-dom reads the
+  // React global as it executes. insert() sets async=false, which is what makes
+  // a parallel download still execute in insertion order.
+  assert.match(code, /loadAll\(\["react\.production\.min\.js", "react-dom\.production\.min\.js"\]\)/,
+    'react and react-dom must be inserted together, in that order');
+  assert.match(code, /s\.async = false;/,
+    'without async=false the two React scripts could execute out of order');
+  // Both bundles now depend on that, so neither may insert React itself.
+  for (const fn of ['__saycrdLoadApp', '__saycrdLoadLanding']) {
+    const at = code.indexOf('window.' + fn + ' = function');
+    assert.ok(at !== -1, fn + ' is gone');
+    const body = code.slice(at, at + 400);
+    assert.match(body, /__saycrdEnsureReact\(\)/,
+      fn + ' must ensure React itself: nothing loads it up front any more, so a click ' +
+      'that arrives before the load event would run the bundle against an undefined React');
+  }
+});
+
+test('the signed-out path loads nothing until the load event', () => {
+  const code = stripComments(src.index);
+  assert.match(code, /window\.addEventListener\("load", loadInteractive, \{ once: true \}\)/,
+    'the interactive layer must wait for the load event, i.e. until after the homepage is visible');
+  assert.match(code, /if \(document\.readyState === "complete"\) loadInteractive\(\);/,
+    'a load event that already fired must still be handled, or the page never becomes interactive');
+  // What it loads matters as much as when: the landing bundle restores the legal
+  // pages and the session-aware label. The application is 598KB and stays behind
+  // a real click.
+  assert.match(code, /function loadInteractive\(\) \{\s*window\.__saycrdLoadLanding\(\)/,
+    'the load-event handler must fetch the landing bundle, not the application');
+  const handler = code.slice(code.indexOf('function loadInteractive()'));
+  assert.doesNotMatch(handler.slice(0, 600), /__saycrdLoadApp\(\)/,
+    'the application must not be pulled in on the load event of a signed-out visit');
+});
+
+test('a returning visitor still starts auth and React immediately', () => {
+  const code = stripComments(src.index);
+  // Deferring React must not slow the one path that genuinely needs it at boot.
+  // Both chains start synchronously and in parallel; only the app's EXECUTION is
+  // ordered behind them.
+  const at = code.indexOf('if (window.__saycrdBootSignedIn)');
+  assert.ok(at !== -1, 'the returning-visitor branch is gone');
+  const branch = code.slice(at, code.indexOf('return;', at));
+  assert.match(branch, /var auth = window\.__saycrdEnsureAuth\(\);/,
+    'the auth chain must start immediately for a returning visitor');
+  assert.match(branch, /var react = window\.__saycrdEnsureReact\(\);/,
+    'React must start immediately for a returning visitor, not on the load event');
+  assert.match(branch, /Promise\.all\(/,
+    'the app must execute once both auth and React have settled');
+  assert.doesNotMatch(branch, /addEventListener\("load"/,
+    'a returning visitor must not wait for the load event to reach their Dashboard');
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -324,8 +419,17 @@ function assertSnapshotIsGated(html) {
   if (!/saycrd-no-prerender/.test(code.slice(0, code.indexOf('</head>')))) {
     throw new Error('the opt-out is not applied in <head>, so the snapshot would paint before being hidden');
   }
-  if (!/localStorage\.getItem\("saycrd-local-sessions"\)/.test(code)) {
-    throw new Error('the returning-guest probe is gone, so a guest with sessions would see the wrong copy');
+  // The opt-out must be reachable for a token holder and for NOBODY else. An
+  // earlier version also hid it from a returning guest, to keep their "continue"
+  // label from updating — but that withheld the homepage from a signed-out
+  // visitor while a bundle downloaded, which is the whole problem. Asserted as
+  // the shape of the condition, not as "the identifier appears somewhere": a
+  // mention in a comment or an unrelated read must not satisfy this.
+  if (!/if \(signedIn\) \{\s*document\.documentElement\.className \+= " saycrd-no-prerender";/.test(code)) {
+    throw new Error('the snapshot opt-out is not gated on signedIn alone');
+  }
+  if (/saycrd-local-sessions/.test(code)) {
+    throw new Error('the guest-session probe is back, so a signed-out visitor is being shown a blank page while a bundle loads');
   }
   return true;
 }
@@ -440,15 +544,26 @@ test('the build fails rather than ship an empty homepage', () => {
    7. Negative controls — each claim above must be falsifiable
    ═══════════════════════════════════════════════════════════════════════ */
 
-test('control: an un-deferred React tag fails the blocking-script test', () => {
+test('control: putting React back in a script tag fails the blocking-script test', () => {
+  // Re-adds React the way it used to load — as a deferred tag, i.e. the version
+  // that PASSED the old assertion — so this proves the check now rejects the
+  // request being issued during parse, not merely the parser being blocked.
   const poisoned = mutate(
     src.index,
-    /<script defer src="([^"]*react\.production[^"]*)">/,
-    '<script src="$1">',
-    'blocking: removed defer from React'
+    /<div id="saycrd-prerender">/,
+    '<script defer src="vendor/react.production.min.js"></script><div id="saycrd-prerender">',
+    'blocking: put React back in the markup'
   );
-  assert.match(poisoned, /<script src="[^"]*react\.production/, 'the mutation must actually have landed');
-  assert.throws(() => assertNothingBlocksTheSnapshot(poisoned), /parser-blocking script/);
+  // Confirmed against the COMMENT-STRIPPED text, not the raw file. The first
+  // version of this control anchored on `<div id="root">` and landed inside the
+  // boot-decision comment that quotes that very string; the tag was present in
+  // the raw HTML, so a raw assert.match passed, but the assertion under test
+  // strips comments and correctly saw nothing. A mutation must be proven to have
+  // landed in LIVE code, which is the only thing the check can read.
+  const live = stripComments(poisoned).replace(/<!--[\s\S]*?-->/g, '');
+  assert.match(live, /<script defer src="vendor\/react\.production/,
+    'the mutation did not land in live code, so this control proves nothing');
+  assert.throws(() => assertNothingBlocksTheSnapshot(poisoned), /requested during parse/);
 });
 
 test('control: dropping the desktop media query fails the gating test', () => {
@@ -461,14 +576,23 @@ test('control: dropping the desktop media query fails the gating test', () => {
   assert.throws(() => assertSnapshotIsGated(poisoned), /above the mobile breakpoint/);
 });
 
-test('control: dropping the returning-guest probe fails the gating test', () => {
+test('control: re-adding a guest-session gate fails the gating test', () => {
+  // The inverse of the control this replaces. Hiding the snapshot from a
+  // returning guest used to be required; it is now forbidden, because it
+  // withholds the homepage from a signed-out visitor while a bundle downloads.
   const poisoned = mutate(
     src.index,
-    /localStorage\.getItem\("saycrd-local-sessions"\)/,
-    'null',
-    'gating: removed the guest-session probe'
+    /if \(signedIn\) \{\s*document\.documentElement\.className \+= " saycrd-no-prerender";/,
+    'if (signedIn || localStorage.getItem("saycrd-local-sessions")) {' +
+      ' document.documentElement.className += " saycrd-no-prerender";',
+    'gating: re-added the guest-session gate'
   );
-  assert.throws(() => assertSnapshotIsGated(poisoned), /returning-guest probe is gone/);
+  const live = stripComments(poisoned);
+  assert.match(live, /signedIn \|\| localStorage\.getItem\("saycrd-local-sessions"\)/,
+    'the mutation did not land in live code, so this control proves nothing');
+  // Trips the condition-shape tripwire first, which is the stricter of the two:
+  // it rejects ANY widening of the gate, not just this particular one.
+  assert.throws(() => assertSnapshotIsGated(poisoned), /not gated on signedIn alone/);
 });
 
 test('control: a desktop-width snapshot fails the visibility test', () => {

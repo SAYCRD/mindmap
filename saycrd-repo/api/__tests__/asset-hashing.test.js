@@ -117,12 +117,17 @@ function assertNoManualVersionQuery(html) {
 // The manifest is the single source of truth: every hashed reference in the HTML
 // must come from it, and every file it names must exist on disk.
 function assertManifestMatchesHtml(html, manifest, publicDir) {
+  // Collects hashed references from ANYWHERE in the HTML, not just from src/href
+  // attributes. Since React's <script> tags were removed, index.html has no
+  // static asset attributes left at all — every asset, React included, is
+  // resolved at runtime through window.__SAYCRD_ASSETS, where the hashed name
+  // appears as a JSON string rather than an attribute value. An attribute-only
+  // extractor now finds zero and reports "nothing was rewritten" on a correct
+  // build, which is precisely how this was caught.
   const refs = [];
-  const re = /(?:src|href)="([^"]+)"/g;
+  const re = new RegExp(build.STATIC_DIR + '/[A-Za-z0-9._-]+\\.[0-9a-f]{' + build.HASH_LENGTH + '}\\.js', 'g');
   let m;
-  while ((m = re.exec(html)) !== null) {
-    if (m[1].indexOf(build.STATIC_DIR + '/') === 0) refs.push(m[1]);
-  }
+  while ((m = re.exec(html)) !== null) refs.push(m[0]);
   const distinct = new Set(refs);
   if (distinct.size === 0) throw new Error('the HTML references no hashed assets, so nothing was rewritten');
 
@@ -413,18 +418,19 @@ test('negative control: a ?v= reference fails the no-manual-version test', () =>
   // state. A literal 'href="app.compiled.js"' silently no-ops after a build, and
   // a control whose mutation never landed proves nothing while still going green.
   //
-  // Anchored on React rather than on app.compiled.js: since the landing split the
-  // application bundle is INJECTED by the boot loader and no longer appears as an
-  // href/src attribute at all, so the old anchor stopped matching and the control
-  // went quietly green without mutating anything. React has to stay a static tag —
-  // nothing renders without it — which makes it the stable anchor here.
+  // Anchor history, because this control has now gone blind TWICE by being tied
+  // to whatever happened to be a static tag: first app.compiled.js (injected by
+  // the boot loader since the landing split), then React (no tag at all since the
+  // homepage became prerendered markup). There is no static asset attribute left
+  // in index.html to anchor on.
   //
-  // The directory is matched generically because the two states use DIFFERENT
-  // prefixes: the committed source says vendor/, the build rewrites it to static/.
-  // Hard-coding either one makes the mutation silently no-op in the other state.
+  // So the mutation is injected as a NEW attribute instead of by rewriting an
+  // existing one. That is exactly what the assertion under test guards against —
+  // a hand-written ?v= creeping back into the markup — and it cannot be
+  // invalidated by another asset losing its tag.
   const broken = committedHtml.replace(
-    /(href|src)="([\w./-]*?react\.production\.min(?:\.[0-9a-f]{16})?\.js)"/,
-    '$1="$2?v=20260907-14"');
+    /<div id="root">/,
+    '<script src="app.compiled.js?v=20260907-14"></script><div id="root">');
   assert.notStrictEqual(broken, committedHtml, 'the mutation did not land, so this control proves nothing');
   assert.throws(function () { assertNoManualVersionQuery(broken); }, /manual \?v= asset references remain/);
 });
