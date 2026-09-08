@@ -2,13 +2,15 @@
   "name": "saycrd",
   "private": true,
   "scripts": {
-    "build": "node build/env-config.js && node build/compile.js && node build/hash-assets.js",
+    "build": "node build/env-config.js && node build/compile.js && node build/prerender.js && node build/hash-assets.js",
     "build:unhashed": "node build/env-config.js && node build/compile.js",
     "test": "node --test api/__tests__/*.test.js"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@babel/preset-react": "^7.24.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "terser": "^5.51.2"
   },
   "dependencies": {

@@ -53,6 +53,20 @@ function LandingShell() {
      app.jsx uses in PHASES, so LegalPage receives exactly the prop it expects. */
   var [page, setPage] = useState("landing");
 
+  /* phaseIn fades this wrapper from opacity 0.6 to 1. On a phone that is the
+     LAST thing still standing between the visitor and a readable homepage:
+     LandingPhase already renders fully opaque on its first paint on mobile
+     (`revealed = isMobile || show`, no timers, no transitions), so the inner
+     content is ready and the outer wrapper dims all of it anyway. Measured on
+     production: the h1's own opacity was 1 while its ancestor sat at 0.6.
+
+     Plain `innerWidth`, matching LandingPhase's own breakpoint, and deliberately
+     NOT state with a resize listener: this is an entrance animation, so only its
+     value at mount can ever matter. Under the build-time prerender this
+     evaluates at the snapshot width, so the HTML ships with animation:none and
+     the homepage in it is opaque from the first frame. */
+  var isMobile = typeof window !== "undefined" && window.innerWidth < 480;
+
   useEffect(function () {
     function onAuthChange() {
       /* A guest bypass ("local-user") is NOT a login: it stays on the landing
@@ -85,7 +99,7 @@ function LandingShell() {
   return (
     <SaycrdShell background={SAYCRD_SHELL_BG}>
       <div style={{width:"100%",maxWidth:"100%",height:"100%",minHeight:0,background:LANDING_GRADIENTS[page],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
-        <div key={page} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
+        <div key={page} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:isMobile?"none":"phaseIn 0.25s ease-out"}}>
           {page === "landing"
             /* Kept mounted while app.compiled.js downloads. Swapping in a spinner
                here would show, then remove, a page the visitor is reading. */

@@ -32,7 +32,13 @@ function _canStartNewSession() { return _isRealAccount() || _guestSessionCount()
 
 const FD = "'DM Serif Display', Georgia, serif";
 
-const FB = "'DM Sans', sans-serif";
+/* The font stylesheet is no longer render-blocking (see index.html), so this
+   fallback is what the homepage actually paints in for the first moment. The
+   generic `sans-serif` alone resolves to a browser default that is noticeably
+   unlike DM Sans; naming the platform UI faces first keeps the swap subtle.
+   'DM Sans' still wins as soon as the sheet arrives, so nothing about the
+   finished design changes. */
+const FB = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
 function _sessionKey() { return "saycrd-" + getCurrentUid() + "-sessions"; }
 
@@ -210,7 +216,7 @@ WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
 </button>
 ) : (
-<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.9)", fontSize:13, fontWeight:600, fontFamily:FB, letterSpacing:"0.04em", cursor:"pointer" }}>
+<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.9)", fontSize:13, fontWeight:600, fontFamily:FB, letterSpacing:"0.04em", cursor:"pointer" }}>
 Log in / Sign up
 </button>
 )}
@@ -261,14 +267,14 @@ BLINDSPOT listens like a human, shapes what you say into a living visual, and re
 
 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center",
 opacity:revealed?1:0, transition:desktopReveal("opacity 1s ease 0.4s"), marginBottom:16 }}>
-<button onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
+<button data-saycrd-boot="start" onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
 letterSpacing:"0.05em", cursor:starting?"default":"pointer", opacity:starting?0.6:1,
 boxShadow:"0 12px 40px rgba(184,107,255,0.3)" }}>
 {starting ? "starting…" : (authUser ? (returning ? "continue your journey" : "start a session") : (returning ? "continue" : "start a session"))}
 </button>
-<button onClick={function(){ var el=document.getElementById("saycrd-why");
+<button data-saycrd-boot="concept" onClick={function(){ var el=document.getElementById("saycrd-why");
 if(el) el.scrollIntoView({behavior:"smooth"}); }}
 style={{ padding:"16px 28px", borderRadius:999, background:"transparent",
 border:"1px solid rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.5)",
@@ -279,7 +285,7 @@ see the concept
 
 {!authUser && (
 <div style={{ marginTop: 16, opacity: revealed ? 1 : 0, transition: desktopReveal("opacity 0.8s ease 0.5s") }}>
-<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
+<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
 Log in or create an account to save your sessions
 </button>
 </div>
@@ -619,7 +625,7 @@ return React.createElement("line",{key:i,x1:(50+Math.cos(rad)*12)+"%",y1:65+Math
 <div style={{ padding:"0 22px 22px" }}>
 <h3 style={{ fontFamily:FB, fontSize:17, fontWeight:700, color:"#D6B26D", marginBottom:8 }}>Practice, not features</h3>
 <p style={{ fontFamily:FD, fontSize:15, fontStyle:"italic", color:"rgba(220,200,160,0.55)", lineHeight:1.65, margin:0 }}>
-A breath, a pause, a reflection ��� only when needed. The experience stays whole.
+A breath, a pause, a reflection — only when needed. The experience stays whole.
 </p>
 </div>
 </div>
@@ -644,7 +650,7 @@ No account needed. Your session stays private. Just start.
 background:"transparent", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.4)",
 fontFamily:FB, fontSize:11, letterSpacing:"0.12em", cursor:"pointer",
 transition:"all 0.2s" }} title="Download your sessions and patterns as JSON">Download my data</button>
-<button onClick={guardedStart} style={{ padding:"18px 48px", borderRadius:999,
+<button data-saycrd-boot="start" onClick={guardedStart} style={{ padding:"18px 48px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:17, fontWeight:700,
 letterSpacing:"0.05em", cursor:"pointer",
@@ -808,13 +814,13 @@ textDecoration:"underline", textUnderlineOffset:3 }}>Terms</button>
  * silently resolved to nothing. A DOM comparison against the pre-split build
  * caught it, and api/__tests__/landing-split.test.js now pins the rule.
  *
- * Child order matters and matches the pre-split markup exactly: link, then the
- * page, then the styles.
+ * The font <link> this used to render first is gone: index.html requests every
+ * face in a single non-blocking stylesheet, so having it here too cost a second
+ * round trip to fonts.googleapis.com once the bundle mounted.
  */
 function SaycrdShell(props) {
   return (
 <div className="saycrd-app-shell" style={{width:"100%",background:props.background,display:"flex",justifyContent:"center",alignItems:"stretch"}}>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 {props.children}
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}

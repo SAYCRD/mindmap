@@ -55,6 +55,13 @@ const RUNTIME_LOADED = [
   'auth-layer.js',
   'landing.compiled.js',
   'app.compiled.js',
+  // React moved into this list when its <script> tags were removed from
+  // index.html. The homepage is prerendered, so React is no longer needed to
+  // paint it and is fetched on demand instead -- which means the HTML rewrite
+  // has no src="" attribute to reach and the loader must resolve it through the
+  // runtime map, exactly like the bundles above.
+  'react.production.min.js',
+  'react-dom.production.min.js',
 ];
 
 const ASSET_MAP_BEGIN = '/* SAYCRD_ASSET_MAP_BEGIN */';

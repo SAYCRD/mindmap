@@ -4,21 +4,43 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BLINDSPOT</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=Space+Grotesk:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
-<!-- Preload only what the FIRST paint actually needs. React and ReactDOM are
-     required to render anything at all, so they stay unconditional. The bundle
-     that renders on top of them is chosen by the boot decision immediately below
-     and preloaded from there, synchronously, so its download starts in parallel
-     with these two rather than after them.
+<!-- ── Fonts load AFTER the page is visible ──────────────────────────────────────
+     This was a render-blocking <link rel="stylesheet"> to fonts.googleapis.com,
+     preceded by two preconnects. A stylesheet in <head> blocks first paint on a
+     third-party origin: DNS, TCP, TLS and the CSS round trip all had to complete
+     before the browser would draw the homepage that is now sitting in the markup
+     below, ready to paint.
 
-     Deliberately no longer preloaded (or loaded) for a signed-out visitor: the
-     Supabase SDK, env-config.js, session-sync.js and the application bundle. None
-     of them are needed to read the homepage. env-config.js is served no-store, so
-     it always cost a full round trip that nothing on this page depended on. -->
-<link rel="preload" href="vendor/react.production.min.js" as="script">
-<link rel="preload" href="vendor/react-dom.production.min.js" as="script">
+     There is no <link> here at all now, not even rel=preload, because a preload
+     would issue the request during head parse -- which is exactly what must not
+     happen before the homepage is on screen. The stylesheet is appended from JS
+     on the load event instead (see the boot script at the end of <body>), by
+     which point the page is visible.
+
+     Nothing about the design changes: every font stack in landing.jsx names its
+     own fallback, so text paints immediately in Georgia or the platform UI sans
+     and swaps to DM Serif Display / DM Sans / Space Grotesk when the sheet
+     arrives -- the same swap the Google CSS already asked for with display=swap.
+
+     The <noscript> copy keeps the intended faces for a visitor with JavaScript
+     disabled, who never reaches the load handler. It is render-blocking in that
+     one case, which is the correct trade: without JS this is the only way to get
+     the fonts at all, and the homepage is fully readable regardless. -->
+<noscript><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"></noscript>
+<!-- Nothing is preloaded for a signed-out visitor, because nothing is needed to
+     paint the homepage: it is prerendered into the markup below and styled by the
+     critical CSS in this <head>.
+
+     React and ReactDOM used to be preloaded here unconditionally, "required to
+     render anything at all". That stopped being true when the homepage moved into
+     the HTML -- 168KB of framework the first paint never touches. They are now
+     requested on the load event (or on the first click that needs them),
+     alongside the landing bundle.
+
+     The application bundle, the Supabase SDK, env-config.js and session-sync.js
+     are still preloaded for a RETURNING visitor only, from the boot decision
+     immediately below, which is what keeps a token holder's route to the
+     Dashboard as fast as it is today. -->
 <!-- Written by build/hash-assets.js from public/asset-manifest.json. The scripts
      below are injected at runtime, so their hashed URLs cannot be rewritten as
      src="" attributes the way the static tags are; this map is how the loader
@@ -47,7 +69,21 @@
 ──────────────────────────────────────────────────────────────────────────── */
 (function () {
   var MAP = window.__SAYCRD_ASSETS || {};
-  function url(name) { return (MAP[name] && MAP[name].file) || name; }
+  /* Assets that live in /vendor but are requested at runtime by basename. The map
+     is populated by build/hash-assets.js and answers for all of them in a built
+     deployment; this is the fallback for the un-built committed source, where the
+     map is empty and a bare basename would resolve to the site root and 404.
+     React is in this list because its <script> tags were removed from the HTML,
+     so it is now loaded through insert() like the others. */
+  var VENDOR = {
+    "react.production.min.js": 1,
+    "react-dom.production.min.js": 1,
+    "supabase-js.2.114.0.min.js": 1
+  };
+  function url(name) {
+    if (MAP[name] && MAP[name].file) return MAP[name].file;
+    return VENDOR[name] ? "vendor/" + name : name;
+  }
   window.__saycrdAssetUrl = url;
 
   function hasPersistedToken() {
@@ -82,13 +118,40 @@
   var signedIn = mayBeSignedIn();
   window.__saycrdBootSignedIn = signedIn;
 
+  /* ── The prerendered homepage is hidden from exactly one visitor ────────────
+     <div id="root"> ships with a build-time render of the real LandingShell in
+     it (see build/prerender.js), so the homepage paints from markup with no
+     JavaScript, no framework and no network.
+
+     A visitor with a persisted token is not going to the homepage at all -- they
+     are going to their Dashboard -- so for them, and ONLY them, the snapshot is
+     suppressed. Painting it first and then replacing it with the Dashboard is
+     precisely the flash this work exists to remove.
+
+     Nothing else gates it. Every signed-out visitor gets the homepage from the
+     markup immediately, including a returning guest with saved sessions: their
+     hero button reads "continue" rather than "start a session", so that one
+     label updates when the landing bundle mounts. That is a deliberate trade --
+     the homepage is never withheld from them while a bundle downloads, which is
+     what used to make it feel broken. Their session data and continuation are
+     untouched.
+
+     Width is handled separately, in CSS: the snapshot is rendered below the
+     mobile breakpoint, and a media query hides it above it. */
+  if (signedIn) {
+    document.documentElement.className += " saycrd-no-prerender";
+  }
+
   function hint(rel, name) {
     var l = document.createElement("link");
     l.rel = rel; l.as = "script"; l.href = url(name);
     document.head.appendChild(l);
   }
-  hint("preload", signedIn ? "app.compiled.js" : "landing.compiled.js");
+  /* Only the returning visitor gets a preload. For a signed-out visitor there is
+     nothing worth preloading: the homepage is already in the markup, and the
+     landing bundle is deliberately not requested until the page is visible. */
   if (signedIn) {
+    hint("preload", "app.compiled.js");
     hint("preload", "supabase-js.2.114.0.min.js");
     hint("preload", "session-sync.js");
     hint("preload", "auth-layer.js");
@@ -136,16 +199,70 @@
     );
   };
 
+  var reactPromise = null;
+  /* React and ReactDOM, on demand. Their <script> tags are gone from the HTML:
+     the homepage is prerendered markup, so the framework is not part of getting
+     it on screen, and 168KB of blocking script in <head> was delaying the paint
+     of content the browser had already parsed.
+
+     Both are inserted in one synchronous pass, so they download in parallel;
+     insert() forces async=false, which is what makes them still EXECUTE in
+     order. That order matters -- react-dom reads the React global as it runs. */
+  window.__saycrdEnsureReact = function () {
+    if (window.React && window.ReactDOM) return Promise.resolve();
+    if (!reactPromise) {
+      reactPromise = loadAll(["react.production.min.js", "react-dom.production.min.js"]);
+    }
+    return reactPromise;
+  };
+
   var appPromise = null;
   /* Loads the application over whatever is currently mounted. Supabase is NOT
      pulled in here: a guest who continues without an account runs on
      localStorage, which is the same failsafe path the app already takes when
      Supabase is unreachable. Auth arrives only via __saycrdEnsureAuth(), i.e.
-     when a token exists at boot or the visitor opens the auth overlay. */
+     when a token exists at boot or the visitor opens the auth overlay.
+
+     React is ensured first now rather than assumed: nothing loads it up front
+     any more, so a click that reaches this before the load event would otherwise
+     execute the bundle against an undefined React. */
   window.__saycrdLoadApp = function () {
-    if (!appPromise) appPromise = insert("app.compiled.js");
+    if (!appPromise) {
+      appPromise = window.__saycrdEnsureReact().then(function () {
+        return insert("app.compiled.js");
+      });
+    }
     return appPromise;
   };
+
+  var landingPromise = null;
+  /* The interactive homepage, mounted over the prerendered snapshot. Needed for
+     the legal pages and for the session-aware hero label -- not for reading the
+     page, which is why this is never on the critical path. */
+  window.__saycrdLoadLanding = function () {
+    if (!landingPromise) {
+      /* All three go in one synchronous pass so they download in parallel and
+         still execute in order (insert forces async=false). Chaining this off
+         __saycrdEnsureReact() instead made the request for landing.compiled.js
+         wait until react-dom had finished downloading AND executing, turning
+         one round trip into three sequential ones. insert() dedupes by name, so
+         __saycrdEnsureReact() elsewhere still shares these same two fetches. */
+      landingPromise = loadAll([
+        "react.production.min.js",
+        "react-dom.production.min.js",
+        "landing.compiled.js"
+      ]);
+    }
+    return landingPromise;
+  };
+
+  /* There is deliberately no speculative prefetch of the application here.
+     Two earlier versions of this file had one -- a timer-based warm on every
+     signed-out visit, then a narrower warm when the login overlay opened -- and
+     both requested a 598KB bundle before the visitor had asked for anything. The
+     application is now requested on exactly three signals, all of them real
+     intent: "start a session", a successful login, or a persisted token found at
+     boot. Nothing else pulls it. */
 })();
 </script>
 <style>
@@ -222,6 +339,29 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
       .auth-overlay,.auth-card,.auth-btn,.auth-input,.auth-social{transition:none}
       .auth-overlay.is-visible .auth-card{transform:none}
     }
+
+    /* ── The prerendered homepage ───────────────────────────────────────────────
+       build/prerender.js renders the real LandingShell into #saycrd-prerender at
+       build time, so the homepage is readable markup before any JavaScript runs.
+       React removes it on its first render (createRoot clears its container), in
+       the same commit as its own first paint, so nothing is shown then withdrawn.
+
+       Shown only where the snapshot is actually correct:
+
+       - Below 480px only. The snapshot is rendered at phone width because that is
+         the state LandingPhase paints fully opaque on its first render, with no
+         timers and no transitions, which is what makes React's takeover
+         invisible. The SAME render at desktop width would emit the pre-fade state
+         — 15 elements at opacity:0 — so above the breakpoint there is nothing
+         worth showing, and desktop keeps its staggered fade exactly as it is.
+         480px matches LandingPhase's own `innerWidth < 480` breakpoint.
+
+       - Not for a returning visitor. .saycrd-no-prerender is set synchronously in
+         <head> for anyone with a token or saved sessions, whose homepage copy
+         differs from the snapshot's. See the boot script for why. */
+    #saycrd-prerender{display:block}
+    @media (min-width:480px){#saycrd-prerender{display:none}}
+    html.saycrd-no-prerender #saycrd-prerender{display:none}
 </style>
 
     <!-- The Supabase SDK is still vendored locally (see /vendor) rather than loaded from
@@ -419,8 +559,65 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
 
 
 
-<div id="root">
-</div>
+<!-- The markers below are filled in by build/prerender.js with a build-time
+     render of the real LandingShell — the same landing.jsx + landing-shell.jsx
+     that compile.js bundles, rendered through react-dom/server. In the committed
+     source they are empty, which is the pre-build state: the page then behaves
+     exactly as it did before this step, rendering entirely from React.
+
+     It lives INSIDE #root on purpose. ReactDOM.createRoot() clears its container
+     on the first render, so React's own paint is what removes the snapshot —
+     one commit, no gap in which the page is blank, and no teardown code to keep
+     in sync. -->
+<div id="root"><div id="saycrd-prerender"><!-- SAYCRD_PRERENDER_BEGIN --><!-- SAYCRD_PRERENDER_END --></div></div>
+<script>
+/* The snapshot is readable markup with no React behind it, so for a short window
+   the homepage is real but its buttons are not wired to anything. These are the
+   actions a visitor can plausibly reach in that window, delegated to the very
+   globals the React handlers call — so an early tap does the same thing early as
+   it would late, instead of being silently swallowed.
+
+   No teardown: React's first render removes the snapshot from the DOM entirely,
+   after which this listener cannot be reached and React's own handlers own these
+   buttons. The markers are data-saycrd-boot in landing.jsx, so the two paths are
+   attached to the same elements by construction. */
+(function () {
+  var pre = document.getElementById("saycrd-prerender");
+  if (!pre) return;
+
+  /* Exactly what LandingShell's _handOffToApp({startSession:true}) does. app.jsx
+     reads __SAYCRD_START_REQUESTED on mount and does not re-present the homepage
+     it was handed over from. The guest-session and credit checks are NOT
+     duplicated here: LandingPhase's own guardedStart() already falls through to
+     the handover whenever the app is not loaded yet, so the real check happens
+     once, in app.jsx's beginSessionOrGate(). */
+  function startSession() {
+    window.__SAYCRD_START_REQUESTED = true;
+    if (window.__saycrdLoadApp) window.__saycrdLoadApp();
+  }
+
+  pre.addEventListener("click", function (ev) {
+    var el = ev.target && ev.target.closest ? ev.target.closest("[data-saycrd-boot]") : null;
+    if (!el) return;
+    var action = el.getAttribute("data-saycrd-boot");
+    if (action !== "start" && action !== "login" && action !== "concept") return;
+    ev.preventDefault();
+    if (action === "start") {
+      startSession();
+    } else if (action === "login") {
+      /* Mirrors LandingPhase's own _showAuthOverlay(guardedStart): sign in, then
+         begin. The overlay is static markup with its own handlers, so it opens
+         and dismisses with no React and no application code. */
+      if (window._showAuthOverlay) window._showAuthOverlay(startSession);
+    } else {
+      /* Same in-page scroll as the React handler. The target is in the snapshot,
+         so this resolves without the application. */
+      var why = document.getElementById("saycrd-why");
+      if (why && why.scrollIntoView) why.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+})();
+</script>
 <script>
 /* Square Checkout redirects back here with ?checkout_return=1 — Square's
    hosted checkout is a full page reload, so any React state is gone by the
@@ -442,17 +639,23 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
   } catch (e) {}
 })();
 </script>
-<!-- React/ReactDOM are also vendored locally now (see /vendor), same reasoning as Supabase
-     above: cdnjs.cloudflare.com was a second extra origin these had to round-trip to before
-     app.compiled.js could even start running, on top of the app's own script below.
-     These two stay blocking: both boot paths render React immediately.
-     Their logical names are rewritten to public/static/<name>.<contenthash>.js by
-     build/hash-assets.js, using public/asset-manifest.json as the single source of
-     truth, so the served URLs can be cached immutably. Do NOT add a ?v= query here:
-     the hash replaces it, and a hand-maintained version under immutable caching
-     would pin visitors to a stale bundle if it were ever forgotten. -->
-<script src="vendor/react.production.min.js"></script>
-<script src="vendor/react-dom.production.min.js"></script>
+<!-- React and ReactDOM had <script> tags here. They are gone, not deferred.
+     They were blocking, then briefly `defer`, and both were wrong for the same
+     reason: the homepage is now prerendered into the markup above, so React has
+     no part in getting it on screen, and every byte of it fetched during head or
+     body parse competes with a paint that is already possible. defer still issues
+     the request immediately, which is what had to stop.
+
+     They are loaded through __saycrdEnsureReact() instead -- on the load event
+     for a signed-out visitor, immediately for a returning one, or on the first
+     click that needs a bundle. They keep their entries in build/hash-assets.js
+     and are resolved through window.__SAYCRD_ASSETS like the other runtime
+     scripts, so they are still served from immutable content-hashed URLs.
+
+     Still vendored locally (see /vendor), same reasoning as Supabase above:
+     cdnjs.cloudflare.com was a second origin to round-trip to before anything
+     could run. -->
+
 <!-- landing.jsx and app.jsx are pre-compiled to plain JS at deploy time (see
      build/compile.js) instead of being transpiled in-browser via Babel Standalone on
      every visit. That in-browser compile of ~11k lines of JSX was taking ~30s on phones
@@ -465,85 +668,82 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
 <script>
 (function () {
   if (window.__saycrdBootSignedIn) {
-    /* Same four scripts, same execution order as before this split, with
-       app.compiled.js last — so a returning visitor's boot path stays the one
-       the routing and flash repairs were built and verified against. All five
-       download in parallel; only their execution is ordered. */
-    window.__saycrdEnsureAuth().then(window.__saycrdLoadApp, window.__saycrdLoadApp);
+    /* A returning visitor is going to their Dashboard, so nothing here waits for
+       anything: the auth chain and React start immediately and in parallel, and
+       the application executes as soon as both are ready. Same four scripts and
+       same execution order as before, with app.compiled.js last, so this stays
+       the boot path the routing and flash repairs were verified against. */
+    var auth = window.__saycrdEnsureAuth();
+    var react = window.__saycrdEnsureReact();
+    Promise.all([
+      react,
+      auth.then(function (v) { return v; }, function () { return null; })
+    ]).then(window.__saycrdLoadApp, window.__saycrdLoadApp);
     return;
   }
 
-  window.__saycrdLoadScript("landing.compiled.js").then(function () {
-    /* Warm the application bundle once the homepage is painted and the main
-       thread is idle, so "start a session" does not pay for a cold download at
-       the moment of the click. rel=prefetch (not preload) keeps it at the
-       lowest priority, behind anything the visible page still wants. */
-    var warm = function () {
-      var l = document.createElement("link");
-      l.rel = "prefetch"; l.as = "script";
-      l.href = window.__saycrdAssetUrl("app.compiled.js");
-      document.head.appendChild(l);
-    };
-    /* Wait for the homepage to actually PAINT before warming anything.
-       requestIdleCallback alone is not enough: it runs the moment the landing
-       script finishes executing, which is before React has rendered, and the
-       browser is briefly idle in exactly that gap. Measured at 393px the warm
-       began at 674ms against a 700ms FCP — a 598KB download competing with the
-       paint it was supposed to follow.
+  /* ── Signed out: the homepage is already on screen ─────────────────────────
+     Nothing above this point requested React, ReactDOM, Supabase, the
+     application or a font stylesheet. The homepage came from the prerendered
+     markup and the critical CSS in <head>, so the visitor can read it before any
+     of this runs.
 
-       Nested rAFs are not enough either, for a reason specific to this page: the
-       homepage FADES in, so its first committed frames are still transparent and
-       first-contentful-paint lands later than the first frame. Measured at 724px
-       that version warmed at 470ms against a 500ms FCP — after the frame, still
-       ahead of the paint.
+     The interactive layer is fetched once the markup is parsed, NOT on the load
+     event. The load event waits for every image on the page, so gating on it
+     chained the fonts and the whole interactive layer behind image downloads --
+     measured on a phone viewport, nothing was even requested until 8.1s, which
+     was the load event, not the network. DOMContentLoaded carries the only
+     guarantee this code actually needs (the snapshot is in the DOM) and owes
+     nothing to images. This script tag already sits at the end of <body>, so in
+     practice that has just happened.
 
-       So this waits on the browser's own first-contentful-paint entry, which is
-       precisely the event we must not compete with, and only then waits for idle.
-       Every wait is bounded — buffered entries cover a paint that already
-       happened, a 2500ms backstop covers a page that never reports one, and idle
-       carries its own 3000ms timeout — so the warm cannot be postponed forever
-       and a cold first click stays impossible. */
-    var warmScheduled = false;
-    var afterPaint = function () {
-      if (warmScheduled) return;
-      warmScheduled = true;
-      if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 3000 });
-      else setTimeout(warm, 1500);
-    };
+     Still not a paint observer or an idle callback: an earlier version of this
+     file used those and got the ordering wrong in both directions. Nothing
+     fetched here is required for the paint, so it does not need to thread that
+     needle -- these are async subresources and the parsed homepage paints
+     without them.
 
-    var alreadyPainted = false;
-    try {
-      alreadyPainted = performance.getEntriesByName("first-contentful-paint").length > 0;
-    } catch (e) {}
+     What arrives here is the landing bundle, not the application: the legal
+     pages and the session-aware hero label need React, reading the page does
+     not. The application is still only requested on a real click. */
+  function loadInteractive() {
+    window.__saycrdLoadLanding().then(null, function (e) {
+      /* The snapshot stays on screen, so a failure here leaves the visitor with a
+         readable homepage rather than a blank page -- which is why this no longer
+         falls back to downloading the whole application. The buttons keep working
+         through the boot bridge next to the snapshot. */
+      console.error("[SAYCRD] landing bundle failed to load; the prerendered homepage stays:", e);
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", loadInteractive, { once: true });
+  } else {
+    loadInteractive();
+  }
 
-    if (alreadyPainted) {
-      afterPaint();
-    } else if (window.PerformanceObserver) {
-      try {
-        var po = new PerformanceObserver(function (list) {
-          var entries = list.getEntries();
-          for (var i = 0; i < entries.length; i++) {
-            if (entries[i].name === "first-contentful-paint") {
-              po.disconnect();
-              afterPaint();
-              return;
-            }
-          }
-        });
-        po.observe({ type: "paint", buffered: true });
-      } catch (e) {
-        afterPaint();
-      }
-      setTimeout(afterPaint, 2500);
-    } else {
-      setTimeout(afterPaint, 1500);
-    }
-  }, function (e) {
-    /* For a signed-out visitor the homepage IS the page, so there is nothing to
-       degrade to but the full application, which still renders it. */
-    console.error("[SAYCRD] landing bundle failed to load, falling back to the app:", e);
-    window.__saycrdLoadApp();
-  });
+  /* The preferred faces. Requested immediately, but deliberately never render
+     blocking: a stylesheet in <head> normally holds up the first paint, which is
+     why this used to be pushed all the way out to the load event. media="print"
+     gets it fetched at full priority without blocking rendering, then it is
+     switched to "all" once it has arrived. Text stays readable from the system
+     stack in the critical CSS throughout (display=swap), so nothing is hidden
+     while these download -- the faces just swap in when ready.
+
+     One request covers every face the page uses. SaycrdShell rendered a second
+     <link> of its own with an overlapping family list, which cost an extra round
+     trip to fonts.googleapis.com after the bundle mounted; Lora and Space
+     Grotesk 300 are folded in here and that link is gone. */
+  function loadFonts() {
+    if (document.getElementById("saycrd-fonts")) return;
+    var l = document.createElement("link");
+    l.id = "saycrd-fonts";
+    l.rel = "stylesheet";
+    l.media = "print";
+    l.onload = function () { l.media = "all"; };
+    l.href = "https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap";
+    document.head.appendChild(l);
+  }
+  loadFonts();
 })();
 </script>
 
@@ -575,6 +775,12 @@ window._showAuthOverlay = function(onSuccess, opts) {
      Supabase dependency — so the overlay must appear instantly whether or not
      this ever resolves. The form handlers await __saycrdSb() individually. */
   if (window.__saycrdEnsureAuth) window.__saycrdEnsureAuth();
+  /* This is the ONLY thing that loads Supabase. A visitor who never opens login
+     never requests the SDK, env-config.js or session sync at all.
+
+     No application prefetch here. Opening login is intent to authenticate, not
+     intent to start, and the application is a 598KB download; it is fetched when
+     login actually succeeds, or when "start a session" is clicked. */
   var overlay = document.getElementById("auth-overlay");
   if (overlay) {
     /* The visitor is deliberately authenticating. app.jsx reads this to tell a

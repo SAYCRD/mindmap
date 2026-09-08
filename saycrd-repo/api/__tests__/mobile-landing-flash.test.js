@@ -383,13 +383,29 @@ test('the two bundle references agree and are not hand-versioned', () => {
   assert.strictEqual(attrRefs, null,
     'the app bundle is back as a static tag; a signed-out visitor would download it again');
 
-  assert.match(htmlCode, /function url\(name\)\s*\{\s*return \(MAP\[name\] && MAP\[name\]\.file\) \|\| name;/,
+  // One resolver, still. Its body gained a /vendor fallback when React stopped
+  // having a <script> tag and started being requested by basename like the other
+  // runtime assets, so this is asserted as "the map is consulted first" rather
+  // than as the exact former one-liner.
+  assert.match(htmlCode, /function url\(name\)\s*\{\s*if \(MAP\[name\] && MAP\[name\]\.file\) return MAP\[name\]\.file;/,
     'the single asset-map resolver is gone, so the preload and the insert can now disagree');
-  for (const call of [/hint\("preload", signedIn \? "app\.compiled\.js" : "landing\.compiled\.js"\)/,
-                      /insert\("app\.compiled\.js"\)/]) {
+  // The signed-out preload is deliberately gone: the homepage is prerendered, so
+  // there is nothing to preload for a visitor without a token. What must remain
+  // is that every call site names the bundle LOGICALLY and lets url() resolve it.
+  // The landing bundle moved from insert("landing.compiled.js") into the same
+  // loadAll() as React so the three download in parallel, so it is named as a
+  // loadAll entry now rather than a direct insert() argument. loadAll feeds
+  // insert(), which is what consults url() -- so the property under test (the
+  // name is LOGICAL, and the asset map resolves it) is unchanged. Matching the
+  // old literal here would fail against correct source.
+  for (const call of [/hint\("preload", "app\.compiled\.js"\)/,
+                      /insert\("app\.compiled\.js"\)/,
+                      /"landing\.compiled\.js"/]) {
     assert.match(htmlCode, call,
       'the preload and the script insert must both name the bundle logically and let url() resolve it');
   }
+  assert.doesNotMatch(htmlCode, /hint\("preload", signedIn \?/,
+    'a signed-out visitor is being made to preload a bundle again');
   // No CALL SITE may hardcode a hashed filename: that is the modern equivalent
   // of a hand-bumped ?v= and would go stale silently. Scoped to the code after
   // the asset map, because the map itself is precisely where the generated
