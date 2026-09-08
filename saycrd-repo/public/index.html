@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BLINDSPOT</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/favicon.png">
 <!-- ── Fonts load AFTER the page is visible ──────────────────────────────────────
      This was a render-blocking <link rel="stylesheet"> to fonts.googleapis.com,
      preceded by two preconnects. A stylesheet in <head> blocks first paint on a
@@ -482,25 +484,22 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
               if(!em||!pw){err.textContent='Enter email and password';btn.disabled=false;return;}
               if(pw.length<6){err.textContent='Password must be at least 6 characters';btn.disabled=false;return;}
               try{
-                var sb=await window.__saycrdSb();if(!sb||!sb.auth){err.textContent='Database connecting... try Continue without account below';btn.disabled=false;return;}
-                var r=await sb.auth.signUp({email:em,password:pw});
-                if(r.error){
-                  var msg=r.error.message||'Signup failed';
-                  if(msg.toLowerCase().indexOf('already registered')!==-1){
-                    msg='This email is already registered. Try signing in instead.';
-                    err.style.color='rgba(232,67,147,.7)';
-                  }
+                /* Signup + the confirmation email are handled server-side
+                   (api/auth-signup.js) so the email comes from Resend
+                   (understand@blindspotup.com) instead of Supabase's own
+                   mailer. This never returns a session — email confirmation
+                   is required on this project either way. */
+                var resp=await fetch('/api/auth-signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw,redirectTo:window.location.origin})});
+                var r=await resp.json().catch(function(){return{};});
+                if(!resp.ok){
+                  var msg='Signup failed';
+                  if(r.error==='already_registered'){msg='This email is already registered. Try signing in instead.';err.style.color='rgba(232,67,147,.7)';}
+                  else if(r.error==='invalid_email'){msg='Enter a valid email address.';}
+                  else if(r.error==='invalid_password'){msg='Password must be at least 6 characters.';}
+                  else if(r.error==='rate_limited'){msg='Too many attempts. Try again later.';}
                   err.textContent=msg;btn.disabled=false;return;
                 }
-                /* Check if email confirmation is required */
-                if(r.data.user&&!r.data.user.confirmed_at&&!r.data.session){
-                  err.style.color='rgba(107,184,255,.7)';err.textContent='Check your email for a confirmation link, then come back and sign in.';btn.disabled=false;return;
-                }
-                /* Auto-confirm is on — user is logged in */
-                currentUser=r.data.user;window.currentUser=currentUser;
-                sb.auth.getSession().then(function(s){if(s.data.session)window._saycrdToken=s.data.session.access_token;});
-                if(window._authResolve)window._authResolve();
-                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';window._authSuccessCallback=null;},400);
+                err.style.color='rgba(107,184,255,.7)';err.textContent='Check your email for a confirmation link, then come back and sign in.';btn.disabled=false;
               }catch(e){err.textContent=e.message||'Signup failed';btn.disabled=false;}
             })();
           ">Begin</button>
@@ -518,9 +517,13 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
               var em=document.getElementById('auth-reset-email').value.trim();
               if(!em){err.textContent='Enter your email';btn.disabled=false;return;}
               try{
-                var sb=await window.__saycrdSb();if(!sb||!sb.auth){err.textContent='Database offline';btn.disabled=false;return;}
-                var r=await sb.auth.resetPasswordForEmail(em,{redirectTo:window.location.origin});
-                if(r.error){err.textContent=r.error.message;btn.disabled=false;return;}
+                /* The reset email is sent server-side (api/auth-reset.js)
+                   via Resend (understand@blindspotup.com) instead of
+                   Supabase's own mailer. The endpoint always reports
+                   success, whether or not the email is registered, so this
+                   can't be used to enumerate accounts. */
+                var resp=await fetch('/api/auth-reset',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,redirectTo:window.location.origin})});
+                if(!resp.ok){err.textContent='Reset failed. Try again.';btn.disabled=false;return;}
                 err.style.color='rgba(107,184,255,.7)';err.textContent='Reset link sent \u2014 check your email.';btn.disabled=false;
               }catch(e){err.textContent=e.message||'Reset failed';btn.disabled=false;}
             })();
