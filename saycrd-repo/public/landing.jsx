@@ -796,3 +796,89 @@ textDecoration:"underline", textUnderlineOffset:3 }}>Terms</button>
 </div>
 );
 }
+
+/* ── Shared app chrome ───────────────────────────────────────────────────────
+ * The outer frame every page renders inside: the shell wrapper, the webfont
+ * stylesheet and the global @keyframes.
+ *
+ * This lives here, in the file compiled into BOTH bundles, so the standalone
+ * homepage and the full application share ONE definition. It was briefly
+ * duplicated into landing-shell.jsx instead, and the copy immediately drifted:
+ * it omitted the keyframes below, so every animation on the landing page
+ * silently resolved to nothing. A DOM comparison against the pre-split build
+ * caught it, and api/__tests__/landing-split.test.js now pins the rule.
+ *
+ * Child order matters and matches the pre-split markup exactly: link, then the
+ * page, then the styles.
+ */
+function SaycrdShell(props) {
+  return (
+<div className="saycrd-app-shell" style={{width:"100%",background:props.background,display:"flex",justifyContent:"center",alignItems:"stretch"}}>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+{props.children}
+<style>{`
+@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes phaseIn{from{opacity:0.6}to{opacity:1}}
+@keyframes morphIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+@keyframes riseUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideDown{from{opacity:0;max-height:0}to{opacity:1;max-height:200px}}
+@keyframes pulse{0%,100%{opacity:0.7}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes growWidth{from{width:0%}}
+@keyframes floatParticle{0%,100%{transform:translateY(0) translateX(0)}33%{transform:translateY(-10px) translateX(5px)}66%{transform:translateY(5px) translateX(-7px)}}
+@keyframes fieldFloat{0%,100%{transform:translateY(0) translateX(0)}33%{transform:translateY(-12px) translateX(6px)}66%{transform:translateY(6px) translateX(-8px)}}
+@keyframes floatWord{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes connBlink{0%,100%{opacity:0.65;filter:brightness(1)}50%{opacity:1;filter:brightness(1.4)}}
+@keyframes ringPulse{0%,100%{opacity:0.3;transform:scale(1)}50%{opacity:0.7;transform:scale(1.15)}}
+@keyframes nodeBreathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+@keyframes flowLine{0%{stroke-dashoffset:0}100%{stroke-dashoffset:24}}
+@keyframes shaftPulse { 0%,100%{opacity:0.7;transform:skewX(-8deg) scaleX(1)} 50%{opacity:1.4;transform:skewX(-5deg) scaleX(1.3)} }
+@keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:0.7}50%{transform:translate(-50%,-50%) scale(1.15);opacity:1}}
+@keyframes drawerIn{from{opacity:0;transform:translate(-50%,24px) scale(0.95)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes drawerInSheet{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sweep{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+@keyframes tapeEq{0%,100%{transform:scaleY(0.35)}50%{transform:scaleY(1)}}
+@keyframes navGlimmer{0%,100%{opacity:0.92;box-shadow:0 0 12px rgba(255,255,255,0.03)}50%{opacity:1;box-shadow:0 0 18px rgba(255,255,255,0.08)}}
+@keyframes fallIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes themeReveal{0%{opacity:0;transform:translateY(6px) scale(0.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes connectionReveal{0%{stroke-dashoffset:300}100%{stroke-dashoffset:0}}
+@keyframes mapTitleReveal{0%{opacity:0;transform:scale(0.97);filter:blur(2px)}100%{opacity:1;transform:scale(1);filter:blur(0)}}
+@keyframes revealFadeOut{0%{opacity:1}15%{opacity:1}100%{opacity:0}}
+@keyframes reportRibbon{0%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}50%{transform:translateX(10%) skewX(-8deg);opacity:0.35}100%{transform:translateX(-20%) skewX(-12deg);opacity:0.15}}
+@keyframes reportStreamBar{0%,100%{transform:scaleX(0.4);-webkit-transform:scaleX(0.4)}50%{transform:scaleX(0.95);-webkit-transform:scaleX(0.95)}}
+@-webkit-keyframes reportStreamBar{0%,100%{transform:scaleX(0.4);-webkit-transform:scaleX(0.4)}50%{transform:scaleX(0.95);-webkit-transform:scaleX(0.95)}}
+@keyframes reportAurora{0%,100%{opacity:0.2;transform:translateY(0) scale(1)}50%{opacity:0.5;transform:translateY(-8%) scale(1.1)}}
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{margin:0;background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.saycrd-app-shell{height:100vh;height:100dvh;min-height:100vh;min-height:100dvh;overflow:hidden;max-width:100vw}
+textarea::placeholder{color:rgba(255,255,255,0.15)}
+.pour-input::placeholder{color:rgba(255,255,255,0.28);font-style:italic}
+textarea{caret-color:#6BB8FF}
+button:active{transform:scale(0.97)}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+@media (prefers-reduced-motion: reduce){
+*:not(.saycrd-loading-indicator){animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+}
+/* Touch devices have no hover state, so the tap-to-react sentences in HighlightableText
+   are invisible as interactive until this gives them a permanent, subtle dotted underline
+   affordance (skipped once feedback is set, since that already shows its own colored border). */
+@media (hover: none){
+.hl-sentence[data-dark="true"][data-fb="false"]{border-bottom:1px dotted rgba(255,255,255,0.28)!important}
+.hl-sentence[data-dark="false"][data-fb="false"]{border-bottom:1px dotted rgba(0,0,0,0.28)!important}
+}
+.saycrd-loading-indicator{will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:translateZ(0);-webkit-transform:translateZ(0);animation-play-state:running!important;-webkit-animation-play-state:running!important}
+@media (max-width:640px){
+.saycrd-landing-grid{grid-template-columns:repeat(2,1fr)!important}
+}
+@media (max-width:420px){
+.saycrd-landing-grid{grid-template-columns:1fr!important}
+}
+`}</style>
+</div>
+  );
+}
+
+// The shell's default background. app.jsx overrides it on the map phase only.
+var SAYCRD_SHELL_BG = "linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)";

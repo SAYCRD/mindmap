@@ -175,6 +175,12 @@ function makeFixture(overrides) {
     '<link rel="preload" href="app.compiled.js" as="script">',
     '<link rel="preload" href="env-config.js" as="script">',
     '<!-- prose mentioning app.compiled.js must not be rewritten -->',
+    // Scripts injected at runtime cannot be rewritten as src="" attributes, so
+    // the build writes their hashed names into this map instead. hash-assets
+    // requires the markers to be present: without them the boot loader would
+    // resolve every runtime script to its unhashed name and silently lose the
+    // caching this whole stage exists to enable.
+    '<script>/* SAYCRD_ASSET_MAP_BEGIN */window.__SAYCRD_ASSETS = {};/* SAYCRD_ASSET_MAP_END */</script>',
     '</head><body>',
     '<script src="vendor/react.production.min.js"></script>',
     '<script src="env-config.js"></script>',
@@ -187,8 +193,18 @@ function makeFixture(overrides) {
 
 const FIXTURE_ASSETS = ['vendor/react.production.min.js', 'session-sync.js', 'app.compiled.js'];
 
+// The subset of the fixture's assets that the boot loader injects at runtime, and
+// which therefore have to appear in the asset map. Declared explicitly rather
+// than defaulted to the real RUNTIME_LOADED list, which names bundles this
+// miniature public/ does not contain.
+const FIXTURE_RUNTIME_ASSETS = ['session-sync.js', 'app.compiled.js'];
+
 function runFixtureBuild(dir) {
-  return build.hashAssets({ publicDir: dir, assets: FIXTURE_ASSETS });
+  return build.hashAssets({
+    publicDir: dir,
+    assets: FIXTURE_ASSETS,
+    runtimeAssets: FIXTURE_RUNTIME_ASSETS,
+  });
 }
 
 /* ───────────────────────── required tests ───────────────────────── */
@@ -396,8 +412,14 @@ test('negative control: a ?v= reference fails the no-manual-version test', () =>
   // index.html is in its committed (plain-name) state or the post-build (hashed)
   // state. A literal 'href="app.compiled.js"' silently no-ops after a build, and
   // a control whose mutation never landed proves nothing while still going green.
+  //
+  // Anchored on React rather than on app.compiled.js: since the landing split the
+  // application bundle is INJECTED by the boot loader and no longer appears as an
+  // href/src attribute at all, so the old anchor stopped matching and the control
+  // went quietly green without mutating anything. React has to stay a static tag —
+  // nothing renders without it — which makes it the stable anchor here.
   const broken = committedHtml.replace(
-    /(href|src)="((?:static\/)?app\.compiled(?:\.[0-9a-f]{16})?\.js)"/,
+    /(href|src)="((?:static\/)?react\.production\.min(?:\.[0-9a-f]{16})?\.js)"/,
     '$1="$2?v=20260907-14"');
   assert.notStrictEqual(broken, committedHtml, 'the mutation did not land, so this control proves nothing');
   assert.throws(function () { assertNoManualVersionQuery(broken); }, /manual \?v= asset references remain/);

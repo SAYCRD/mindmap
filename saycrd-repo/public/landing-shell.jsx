@@ -73,14 +73,17 @@ function LandingShell() {
     return function () { window.removeEventListener("saycrd-auth-change", onAuthChange); };
   }, []);
 
-  /* Mirrors the app shell's own wrapper so the homepage is laid out and painted
-     identically in both bundles: same outer gradient, same full-bleed width,
-     same safe-area padding, same scroll container. Diverging here is what would
-     let the design drift between a signed-out first visit and the app's copy of
-     the same screen. */
+  /* SaycrdShell is the SHARED chrome from landing.jsx — the same component
+     app.jsx renders — so the outer gradient, the webfont stylesheet and the
+     global @keyframes are one definition rather than a copy. The inner wrappers
+     mirror the app's: same full-bleed width, same safe-area padding, same
+     scroll container, so the homepage is laid out identically in both bundles.
+
+     This block used to inline its own copy of the shell, and the copy silently
+     lost the @keyframes — every landing animation resolved to nothing. Render
+     shared chrome here; do not re-inline it. */
   return (
-    <div className="saycrd-app-shell" style={{width:"100%",background:"linear-gradient(160deg, #0A0A2E 0%, #1A1A4B 40%, #2D1B6B 100%)",display:"flex",justifyContent:"center",alignItems:"stretch"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+    <SaycrdShell background={SAYCRD_SHELL_BG}>
       <div style={{width:"100%",maxWidth:"100%",height:"100%",minHeight:0,background:LANDING_GRADIENTS[page],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
         <div key={page} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:"phaseIn 0.25s ease-out"}}>
           {page === "landing"
@@ -93,7 +96,7 @@ function LandingShell() {
             : <LegalPage page={page} onBack={function () { setPage("landing"); }} />}
         </div>
       </div>
-    </div>
+    </SaycrdShell>
   );
 }
 

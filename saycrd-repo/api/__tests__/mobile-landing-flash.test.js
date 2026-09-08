@@ -45,8 +45,14 @@ const APP_JSX = path.join(__dirname, '..', '..', 'public', 'app.jsx');
 const INDEX_HTML = path.join(__dirname, '..', '..', 'public', 'index.html');
 const COMPILED = path.join(__dirname, '..', '..', 'public', 'app.compiled.js');
 
+// The Supabase bootstrap that used to be inline in index.html now lives in
+// auth-layer.js, loaded on demand so the signed-out homepage never fetches it.
+// Sign-out moved with it, so the assertions about sign-out have to follow.
+const AUTH_LAYER = path.join(__dirname, '..', '..', 'public', 'auth-layer.js');
+
 const appSrc = fs.readFileSync(APP_JSX, 'utf8');
 const htmlSrc = fs.readFileSync(INDEX_HTML, 'utf8');
+const authLayerSrc = fs.readFileSync(AUTH_LAYER, 'utf8');
 
 /* Remove // and block comments plus JSX comments, so a structural claim can
    never be satisfied by prose. Deliberately conservative: it also strips the
@@ -59,6 +65,7 @@ function stripComments(src) {
 }
 const appCode = stripComments(appSrc);
 const htmlCode = stripComments(htmlSrc);
+const authLayerCode = stripComments(authLayerSrc);
 
 /* Brace-matching extractor. An extractor anchored on "the first { after the
    name" is the recurring bug in this suite: for a destructured parameter list
@@ -275,11 +282,19 @@ test('_showAuthOverlay marks the login as user-initiated', () => {
 });
 
 test('signing out clears the user-initiated flag', () => {
+  // Asserted against auth-layer.js: the sign-out handler moved there verbatim
+  // when the Supabase bootstrap was lifted out of index.html, so that the
+  // signed-out homepage no longer downloads any of it. The claim is unchanged —
+  // the flag must be cleared BEFORE the event is dispatched.
   assert.match(
-    htmlCode,
-    /window\.currentUser\s*=\s*null;\s*window\._authUserInitiated\s*=\s*false;\s*window\.dispatchEvent/,
+    authLayerCode,
+    /window\.currentUser\s*=\s*null;[\s\S]{0,200}?window\._authUserInitiated\s*=\s*false;\s*window\.dispatchEvent/,
     'sign-out must clear _authUserInitiated before dispatching, or the next background event looks like a login'
   );
+  // The flag is still SET in index.html (the overlay lives there), so the two
+  // halves must not have drifted onto the same file or been dropped.
+  assert.match(htmlCode, /window\._authUserInitiated\s*=\s*true/,
+    'the overlay no longer records a user-initiated login');
 });
 
 test('_closeAuthOverlay hides the overlay and clears both pieces of auth state', () => {
@@ -359,11 +374,45 @@ test('the two bundle references agree and are not hand-versioned', () => {
     htmlCode.match(/(?:src|href)="[^"]*\?v=[^"]*"/g), null,
     'a manual ?v= cache-buster is back; under immutable caching a forgotten bump serves a stale bundle forever');
 
-  // Capture the URL, not the whole attribute: the preload uses href= and the
-  // script tag uses src=, so comparing the raw matches would always differ.
-  const refs = Array.from(
-    htmlCode.matchAll(/(?:src|href)="((?:static\/)?app\.compiled(?:\.[0-9a-f]{16})?\.js)"/g),
-    (m) => m[1]);
-  assert.strictEqual(refs.length, 2, 'expected exactly 2 references to app.compiled.js (the preload and the script tag)');
-  assert.strictEqual(refs[0], refs[1], 'the preload and the script tag disagree, so one of them serves a stale bundle');
+  // The landing split removed the app bundle's static tags entirely: it is now
+  // preloaded AND inserted by the boot loader, so there is no pair of attributes
+  // left to compare. Counting attribute references here would find zero and pass
+  // while checking nothing, so the claim is re-expressed as what now makes the
+  // two agree — both resolve the same logical name through one asset-map lookup.
+  const attrRefs = htmlCode.match(/(?:src|href)="(?:static\/)?app\.compiled(?:\.[0-9a-f]{16})?\.js"/g);
+  assert.strictEqual(attrRefs, null,
+    'the app bundle is back as a static tag; a signed-out visitor would download it again');
+
+  assert.match(htmlCode, /function url\(name\)\s*\{\s*return \(MAP\[name\] && MAP\[name\]\.file\) \|\| name;/,
+    'the single asset-map resolver is gone, so the preload and the insert can now disagree');
+  for (const call of [/hint\("preload", signedIn \? "app\.compiled\.js" : "landing\.compiled\.js"\)/,
+                      /insert\("app\.compiled\.js"\)/]) {
+    assert.match(htmlCode, call,
+      'the preload and the script insert must both name the bundle logically and let url() resolve it');
+  }
+  // No CALL SITE may hardcode a hashed filename: that is the modern equivalent
+  // of a hand-bumped ?v= and would go stale silently. Scoped to the code after
+  // the asset map, because the map itself is precisely where the generated
+  // hashed name is SUPPOSED to appear — asserting over the whole file would
+  // flag the build's own output and fail against correct source.
+  // Anchored on the map's ASSIGNMENT, not on its comment markers: htmlCode has
+  // already had comments stripped, so slicing at SAYCRD_ASSET_MAP_END finds
+  // nothing. The guard below is what caught that.
+  const mapAt = htmlCode.indexOf('window.__SAYCRD_ASSETS');
+  assert.ok(mapAt > 0, 'the asset map is gone from index.html');
+  const loaderCode = htmlCode.slice(htmlCode.indexOf('</script>', mapAt));
+  assert.ok(loaderCode.length > 500, 'failed to isolate the loader — this check would prove nothing');
+  assert.ok(!loaderCode.includes('window.__SAYCRD_ASSETS ='),
+    'the slice still contains the map, so a generated hashed name would be mistaken for a hardcoded one');
+  // Only the boot script's own JS is in scope. Static src="" tags carry hashed
+  // names legitimately — build/hash-assets.js rewrites them from the manifest —
+  // so the check is scoped to the <script> that contains the loader, and the
+  // guard below proves that scoping did not silently select an empty string.
+  const bootStart = loaderCode.indexOf('(function () {');
+  const bootEnd = loaderCode.indexOf('</script>', bootStart);
+  assert.ok(bootStart > 0 && bootEnd > bootStart, 'could not isolate the boot script');
+  const bootScript = loaderCode.slice(bootStart, bootEnd);
+  assert.match(bootScript, /__saycrdLoadApp/, 'the isolated slice is not the boot script');
+  assert.doesNotMatch(bootScript, /"(?:static\/)?[^"]*\.[0-9a-f]{16}\.js"/,
+    'a hashed filename is hardcoded in the loader instead of resolved from the map');
 });

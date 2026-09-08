@@ -36,8 +36,15 @@ const path = require('node:path');
 
 const PUBLIC = path.join(__dirname, '..', '..', 'public');
 const APP_JSX = path.join(PUBLIC, 'app.jsx');
+const LANDING_JSX = path.join(PUBLIC, 'landing.jsx');
 const COMPILED = path.join(PUBLIC, 'app.compiled.js');
-const SOURCE = fs.readFileSync(APP_JSX, 'utf8');
+
+// The application's source is landing.jsx + app.jsx, in that order — exactly the
+// two files build/compile.js concatenates into app.compiled.js. The landing
+// surface moved into its own file so it can ALSO compile into a standalone
+// homepage bundle for signed-out visitors; reading app.jsx alone would simply
+// stop finding LandingPhase and everything that moved with it.
+const SOURCE = fs.readFileSync(LANDING_JSX, 'utf8') + '\n' + fs.readFileSync(APP_JSX, 'utf8');
 
 function extractFunction(src, name) {
   const decl = new RegExp('function\\s+' + name + '\\s*\\(', 'g');

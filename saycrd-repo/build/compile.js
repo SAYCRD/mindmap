@@ -51,6 +51,14 @@ const LANDING = path.join(PUBLIC, "landing.jsx");
 const LANDING_SHELL = path.join(PUBLIC, "landing-shell.jsx");
 const APP = path.join(PUBLIC, "app.jsx");
 
+// Sources always come from public/; only the DESTINATION is overridable. The
+// rollback path below deletes a bundle, so the test that proves it works has to
+// be able to run it somewhere other than public/ — otherwise verifying rollback
+// would mean destroying the real build.
+const OUT_DIR = process.env.SAYCRD_OUT_DIR
+  ? path.resolve(process.env.SAYCRD_OUT_DIR)
+  : PUBLIC;
+
 // One eager bundle containing everything, for rollback: emits no landing bundle,
 // so index.html's loader finds nothing to split to and boots the app directly.
 const SINGLE_BUNDLE = process.env.SAYCRD_SINGLE_BUNDLE === "1";
@@ -108,7 +116,8 @@ async function buildBundle(bundle) {
   // colliding at global scope. "use strict" is deliberately NOT added: the source
   // was written and shipped as sloppy-mode script code.
   const wrapped = banner + "(function(){\n" + finalCode + "\n})();\n";
-  fs.writeFileSync(path.join(PUBLIC, bundle.out), wrapped);
+    fs.mkdirSync(OUT_DIR, { recursive: true });
+    fs.writeFileSync(path.join(OUT_DIR, bundle.out), wrapped);
 
   return { out: bundle.out, names: names, raw: result.code.length, min: finalCode.length, total: wrapped.length };
 }
@@ -120,11 +129,11 @@ async function main() {
   if (SINGLE_BUNDLE) {
     // Leaving a stale landing bundle behind would let index.html's loader keep
     // serving the split path from a rollback build.
-    const stale = path.join(PUBLIC, "landing.compiled.js");
-    if (fs.existsSync(stale)) {
-      fs.unlinkSync(stale);
-      console.log("[build] SAYCRD_SINGLE_BUNDLE=1 — removed public/landing.compiled.js");
-    }
+      const stale = path.join(OUT_DIR, "landing.compiled.js");
+      if (fs.existsSync(stale)) {
+        fs.unlinkSync(stale);
+        console.log("[build] SAYCRD_SINGLE_BUNDLE=1 — removed " + stale);
+      }
   }
 
   for (const r of results) {

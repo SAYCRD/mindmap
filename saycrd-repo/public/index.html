@@ -25,7 +25,7 @@
      resolves a logical name to the immutable file actually deployed. Inline
      because it changes with every build, and index.html is the one asset already
      served must-revalidate. -->
-<script>/* SAYCRD_ASSET_MAP_BEGIN */window.__SAYCRD_ASSETS = {"supabase-js.2.114.0.min.js":{"file":"static/supabase-js.2.114.0.min.0c05587928580a03.js"},"session-sync.js":{"file":"static/session-sync.ef371b7b468e3227.js"},"auth-layer.js":{"file":"static/auth-layer.1ca7f2058bf578db.js"},"landing.compiled.js":{"file":"static/landing.compiled.0e8288d9ac676559.js"},"app.compiled.js":{"file":"static/app.compiled.b50bad3d52730a93.js"}};/* SAYCRD_ASSET_MAP_END */</script>
+<script>/* SAYCRD_ASSET_MAP_BEGIN */window.__SAYCRD_ASSETS = {"supabase-js.2.114.0.min.js":{"file":"static/supabase-js.2.114.0.min.0c05587928580a03.js"},"session-sync.js":{"file":"static/session-sync.ef371b7b468e3227.js"},"auth-layer.js":{"file":"static/auth-layer.1ca7f2058bf578db.js"},"landing.compiled.js":{"file":"static/landing.compiled.780ac5950fb5ac40.js"},"app.compiled.js":{"file":"static/app.compiled.5cc65d35bad7c7a5.js"}};/* SAYCRD_ASSET_MAP_END */</script>
 <script>
 /* ── Boot decision ────────────────────────────────────────────────────────────
    Picks ONE of two paths before a single byte of either is requested.
@@ -41,9 +41,9 @@
    The probe is a synchronous localStorage read, so it costs no network and adds
    nothing to first paint. It matches Supabase's token key by PATTERN rather than
    by a ref derived from SUPABASE_URL — deliberately the same rule as
-   _hasPersistedAuthToken() in app.jsx, so the boot decision and the app's own
-   boot gate can never disagree about which path a visitor belongs to. That
-   agreement is pinned to a shared fixture set by api/__tests__/landing-split.test.js.
+   _authMayBeSignedIn() in app.jsx, so the boot decision and the app's own boot
+   gate can never disagree about which path a visitor belongs to. That agreement
+   is pinned to a shared fixture set by api/__tests__/landing-split.test.js.
 ──────────────────────────────────────────────────────────────────────────── */
 (function () {
   var MAP = window.__SAYCRD_ASSETS || {};
@@ -63,7 +63,23 @@
     return false;
   }
 
-  var signedIn = hasPersistedToken();
+  /* Mirrors _authMayBeSignedIn() in app.jsx — the probe that arms the app's OWN
+     boot gate — rather than only _hasPersistedAuthToken(), so the two can never
+     disagree about who is a returning visitor.
+
+     The fragment case is the one easily missed: a magic-link or password-recovery
+     callback arrives as #access_token=... with nothing in localStorage yet. Judged
+     on storage alone that reads as signed out, and the visitor would be shown the
+     public homepage for as long as the app took to load and route them off it —
+     the same "painted the wrong page first" flash this split exists to remove. */
+  function mayBeSignedIn() {
+    try {
+      if (location.hash && location.hash.indexOf("access_token") !== -1) return true;
+    } catch (e) {}
+    return hasPersistedToken();
+  }
+
+  var signedIn = mayBeSignedIn();
   window.__saycrdBootSignedIn = signedIn;
 
   function hint(rel, name) {
@@ -468,8 +484,25 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
       l.href = window.__saycrdAssetUrl("app.compiled.js");
       document.head.appendChild(l);
     };
-    if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 3000 });
-    else setTimeout(warm, 1500);
+    /* Wait for the homepage to actually PAINT before warming anything.
+       requestIdleCallback alone is not enough: this runs the moment the landing
+       script finishes executing, which is before React has rendered, and the
+       browser is briefly idle in exactly that gap. Measured at 393px, the warm
+       fetch started at 674ms against an FCP of 700ms — a 598KB download
+       competing with the paint it was supposed to follow.
+
+       Two nested rAFs put this after the frame that contains the first paint,
+       and only then do we wait for idle. The 3000ms timeout still bounds it, so
+       a permanently busy thread cannot postpone the warm forever. */
+    var afterPaint = function () {
+      if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 3000 });
+      else setTimeout(warm, 1500);
+    };
+    if (window.requestAnimationFrame) {
+      requestAnimationFrame(function () { requestAnimationFrame(afterPaint); });
+    } else {
+      setTimeout(afterPaint, 1500);
+    }
   }, function (e) {
     /* For a signed-out visitor the homepage IS the page, so there is nothing to
        degrade to but the full application, which still renders it. */

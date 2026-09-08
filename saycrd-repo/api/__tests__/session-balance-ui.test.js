@@ -23,8 +23,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import babel from "@babel/core";
 
-const APP_JSX = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "public", "app.jsx");
-const SOURCE = fs.readFileSync(APP_JSX, "utf8");
+const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "public");
+const APP_JSX = path.join(PUBLIC, "app.jsx");
+const LANDING_JSX = path.join(PUBLIC, "landing.jsx");
+
+// The application's source is landing.jsx + app.jsx, in that order — exactly the
+// two files build/compile.js concatenates into app.compiled.js. The landing
+// surface moved into its own file so it can ALSO compile into a standalone
+// homepage bundle for signed-out visitors; reading app.jsx alone would simply
+// stop finding the shared helpers (_isRealAccount and friends) that moved with
+// it. The "\n" join matters: extractFunction below anchors on a leading newline.
+const SOURCE = fs.readFileSync(LANDING_JSX, "utf8") + "\n" + fs.readFileSync(APP_JSX, "utf8");
 
 // Pulls one top-level `function NAME(...) { ... }` out of app.jsx by matching
 // delimiters, rather than by a regex over the body. Delimiter matching
@@ -38,6 +47,8 @@ const SOURCE = fs.readFileSync(APP_JSX, "utf8");
 // yields a 44-character "function" whose body is silently dropped.
 function extractFunction(source, name) {
   const start = source.indexOf("\nfunction " + name + "(");
+  // Message deliberately still says "app.jsx": a control test below asserts on
+  // that wording, and SOURCE is the application's source either way.
   if (start === -1) throw new Error("extractFunction: '" + name + "' not found in app.jsx");
 
   // Walks `source` from `i`, skipping strings and comments, and returns the
