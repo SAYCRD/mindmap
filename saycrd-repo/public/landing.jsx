@@ -814,13 +814,13 @@ textDecoration:"underline", textUnderlineOffset:3 }}>Terms</button>
  * silently resolved to nothing. A DOM comparison against the pre-split build
  * caught it, and api/__tests__/landing-split.test.js now pins the rule.
  *
- * Child order matters and matches the pre-split markup exactly: link, then the
- * page, then the styles.
+ * The font <link> this used to render first is gone: index.html requests every
+ * face in a single non-blocking stylesheet, so having it here too cost a second
+ * round trip to fonts.googleapis.com once the bundle mounted.
  */
 function SaycrdShell(props) {
   return (
 <div className="saycrd-app-shell" style={{width:"100%",background:props.background,display:"flex",justifyContent:"center",alignItems:"stretch"}}>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 {props.children}
 <style>{`
 @keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
