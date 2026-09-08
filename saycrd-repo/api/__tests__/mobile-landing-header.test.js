@@ -337,88 +337,33 @@ test('desktop header values are preserved verbatim', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Mobile renders complete and opaque on the first paint
+// The landing is fully opaque on the first paint at every width
 //
-// This section replaces the earlier "compressed fade on mobile" guards. That
-// intent is superseded: a phone now shows the finished page immediately, with
-// no opacity:0 start state, no timer and no state gate. Desktop is unchanged,
-// and the desktop half of every assertion below is what pins that.
+// The prerendered HTML is shown on desktop too. A staggered fade that starts
+// at opacity:0 would make that snapshot invisible above 480px, which is the
+// "blank, then the whole page at once" stall. There is no reveal state, no
+// timer, and no opacity gate left.
 // ---------------------------------------------------------------------------
 
-test('revealed is true on mobile even when the show state never arrives', () => {
-  // The whole point: a phone must not depend on `show` at all.
-  assert.strictEqual(evalRevealed({ isMobile: true, show: false }), true,
-    'mobile content is hidden while show is false — the timer still gates the page');
-  assert.strictEqual(evalRevealed({ isMobile: true, show: true }), true);
+test('LandingPhase has no reveal state and no reveal timer', () => {
+  assert.ok(!/var \[show, setShow\]/.test(LANDING),
+    'the show state is back, so first paint can start hidden');
+  assert.ok(!/setShow\(true\)/.test(LANDING),
+    'a reveal timeout is still armed');
+  assert.ok(!/var revealed\s*=/.test(LANDING),
+    'a revealed flag is back, so content can still be gated on a timer');
+  assert.ok(!/function desktopReveal/.test(LANDING),
+    'desktopReveal is back, so some widths still fade the page in');
 });
 
-test('revealed still follows show on desktop, so the fade survives', () => {
-  assert.strictEqual(evalRevealed({ isMobile: false, show: false }), false,
-    'desktop no longer starts hidden — the staggered reveal has been lost');
-  assert.strictEqual(evalRevealed({ isMobile: false, show: true }), true);
+test('no opacity gate on the landing can hide content', () => {
+  assert.deepStrictEqual(opacityGates(), [],
+    'an opacity:0 start state would hide the prerendered homepage');
 });
 
-test('the show state seeds itself from the breakpoint, so mobile is opaque on first render', () => {
-  const m = LANDING.match(/var \[show, setShow\] = useState\(([^)]*)\)/);
-  assert.ok(m, 'the show state is no longer a plain useState — update this test');
-  assert.strictEqual(m[1].trim(), 'initialMobile',
-    'show no longer seeds from the breakpoint: first paint on a phone would be opacity:0');
-  // And the seed must be computed before it is used, not after.
-  assert.ok(
-    LANDING.indexOf('var initialMobile') < LANDING.indexOf('useState(initialMobile)'),
-    'initialMobile is used before it is defined'
-  );
-});
-
-test('no reveal timer is armed on mobile', () => {
-  const body = revealEffectBody();
-  assert.ok(/if \(isMobile\) return;/.test(body),
-    'the reveal effect does not bail out on mobile: a timer still runs');
-  // The bail-out has to come before the timer, or it does nothing.
-  assert.ok(body.indexOf('if (isMobile) return;') < body.indexOf('setTimeout'),
-    'the mobile bail-out sits after setTimeout, so the timer is still armed');
-  // Desktop keeps its deliberate beat.
-  assert.ok(/setTimeout\(function\(\) \{ setShow\(true\); \}, 100\)/.test(body),
-    'the desktop 100ms beat was changed or removed');
-  assert.ok(/clearTimeout\(t\)/.test(body), 'the reveal timeout is never cleared');
-  // The effect must re-run if the breakpoint changes, or a desktop->mobile
-  // resize would leave the page waiting on a timer that already fired.
-  assert.ok(/\}, \[isMobile\]\)/.test(body), 'the reveal effect no longer tracks isMobile');
-});
-
-test('every timed transition on the landing is disabled on mobile and verbatim on desktop', () => {
-  const args = desktopRevealArgs();
-  assert.ok(args.length >= 4, 'expected at least 4 desktopReveal() sites, found ' + args.length);
-  for (const t of args) {
-    assert.strictEqual(evalDesktopReveal(true, t), 'none',
-      'transition is still applied on mobile: ' + t);
-    assert.strictEqual(evalDesktopReveal(false, t), t,
-      'desktop transition was altered: ' + t);
-    // Desktop values must still carry real timing.
-    assert.ok(transitionMs(t) > 0, 'desktop transition lost its timing: ' + t);
-  }
-});
-
-test('no opacity gate on the landing can hide content on a phone', () => {
-  const gates = opacityGates();
-  assert.ok(gates.length >= 4, 'expected at least 4 opacity gates, found ' + gates.length);
-  for (const cond of gates) {
-    assert.strictEqual(cond, 'revealed',
-      'an opacity gate is driven by `' + cond + '` instead of `revealed`, so it can still hide content on mobile');
-    assert.strictEqual(evalRevealed({ isMobile: true, show: false }), true);
-  }
-});
-
-test('no transform offset is applied on mobile', () => {
-  // translateY offsets are only reachable through the falsy branch of
-  // `revealed`, which mobile can never take.
-  const re = /transform:\s*revealed\s*\?\s*"translateY\(0\)"\s*:\s*"(translateY\([^"]*\))"/g;
-  const offsets = [];
-  let m;
-  while ((m = re.exec(LANDING)) !== null) offsets.push(m[1]);
-  assert.ok(offsets.length >= 2, 'expected at least 2 transform sites, found ' + offsets.length);
-  // Desktop offsets are preserved exactly as they were.
-  assert.deepStrictEqual(offsets, ['translateY(24px)', 'translateY(16px)']);
+test('no transform offset is applied on first paint', () => {
+  assert.ok(!/translateY\(24px\)/.test(LANDING) && !/translateY\(16px\)/.test(LANDING),
+    'a translateY offset is back, so the hero still starts off-screen');
 });
 
 test('the landing has no scroll-driven or observer-driven reveal', () => {
@@ -454,12 +399,15 @@ test('the compiled bundle carries the debug gate and the mobile breakpoint', () 
   // cannot be asserted on — only string literals survive. The compressed
   // mobile transitions from the previous design are such literals, and they
   // are unique to it, so their absence is what proves this shipped.
-  for (const gone of ['opacity 0.35s ease', '0.45s cubic-bezier', 'opacity 0.4s ease 0.18s']) {
+  for (const gone of [
+    'opacity 0.35s ease',
+    '0.45s cubic-bezier',
+    'opacity 0.4s ease 0.18s',
+    'all 1s cubic-bezier(.25,.46,.45,.94) 0.1s',
+    'opacity 1s ease 0.4s',
+  ]) {
     assert.ok(!compiled.includes(gone),
-      'compiled bundle still carries a mobile reveal transition: ' + gone);
-  }
-  for (const kept of ['all 1s cubic-bezier(.25,.46,.45,.94) 0.1s', 'opacity 1s ease 0.4s']) {
-    assert.ok(compiled.includes(kept), 'compiled bundle lost a desktop transition: ' + kept);
+      'compiled bundle still carries a reveal transition: ' + gone);
   }
 });
 

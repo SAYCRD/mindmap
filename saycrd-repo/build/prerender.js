@@ -38,20 +38,17 @@
 // wrong for someone is worse than no snapshot: it paints, then changes under
 // them. LandingPhase's copy depends on THREE runtime facts --
 //
-//   window.innerWidth < 480   ("initialMobile": drives the whole reveal state)
+//   window.innerWidth < 480   (nav gutter and the desktop-only "begin" button)
 //   a persisted Supabase token ("Log in / Sign up" vs. the signed-in nav)
 //   localStorage saycrd-local-sessions ("start a session" vs. "continue")
 //
 // -- so this renders exactly one combination: a PHONE-WIDTH, FRESH GUEST. That is
-// the case that was measured as broken, and index.html hides the snapshot for
-// every other visitor (a desktop media query and a synchronous storage probe in
-// the boot script), falling back to precisely today's behaviour. Rendering at
-// phone width is also what makes the snapshot safe to show: LandingPhase's mobile
-// path is already fully opaque on its first render with no timers and no
-// transitions (`revealed = isMobile || show`), so React's takeover is visually
-// identical to the markup it replaces. At desktop width the same render would
-// emit the pre-fade state -- 15 elements at opacity:0 -- i.e. an invisible
-// homepage, which is why the desktop snapshot is not used at all.
+// the case that was measured as broken. index.html still hides the snapshot from
+// a token holder (they are going to the Dashboard). It is shown at every other
+// width: the landing is fully opaque on first paint, so a phone-width snapshot
+// is readable on a desktop instead of waiting for React. Rendering at phone
+// width also keeps the desktop-only "begin" nav button out of the markup, which
+// is what used to overlap "Log in / Sign up" at 320px.
 //
 // ── The <style> block stays; the font <link> is dropped ───────────────────────
 // SaycrdShell renders two things besides the page: a Google Fonts <link>, and a
@@ -309,20 +306,15 @@ function verify(html) {
     }
   }
 
-  // The reason the snapshot is rendered at phone width, and the single check that
-  // proves the markup is actually VISIBLE rather than merely present.
-  //
-  // Counted on element style attributes only. The <style> block legitimately
-  // contains ten `from{opacity:0}` keyframe declarations -- they are animation
-  // definitions, not hidden elements -- and counting those made this fire on a
-  // perfectly good snapshot. Measured: at phone width the markup has 0 hidden
-  // elements, and the same render at 1280px has exactly 5 (the eyebrow, h1, lede,
-  // button row and login link -- LandingPhase's staggered desktop fade).
+  // Proves the markup is actually VISIBLE rather than merely present. Counted
+  // on element style attributes only: the <style> block legitimately contains
+  // `from{opacity:0}` keyframe declarations, and counting those made this fire
+  // on a perfectly good snapshot. The landing is opaque at every width now, so
+  // a hidden element here is a regression, not a desktop fade.
   const hidden = (html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '').match(/opacity:0(?![.\d])/g) || []).length;
   if (hidden > 0) {
     throw new Error(
-      '[prerender] ' + hidden + ' element(s) rendered at opacity:0 -- this is the desktop pre-reveal state. ' +
-      'The snapshot must be rendered below the 480px mobile breakpoint so it is opaque on first paint.'
+      '[prerender] ' + hidden + ' element(s) rendered at opacity:0 -- the snapshot would be in the HTML but invisible.'
     );
   }
 
