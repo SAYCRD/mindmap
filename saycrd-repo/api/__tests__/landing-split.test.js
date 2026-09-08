@@ -647,103 +647,98 @@ test('env-config.js is never content-hashed', () => {
   assert.match(bootScript(), /"env-config\.js"/, 'the auth chain must still load env-config.js by its unhashed name');
 });
 
-// The app bundle is warmed on the signed-out path so the first click is not a
-// cold 598KB download. That warm must never compete with the homepage's own
-// paint — measured at 393px it began at 674ms against a 700ms FCP, because
-// requestIdleCallback fires in the idle gap BEFORE React has rendered.
-//
-// Nested requestAnimationFrames were the first attempt and were NOT enough: the
-// homepage fades in, so its first committed frames are still transparent and
-// first-contentful-paint lands after the first frame. Measured at 724px that
-// version warmed at 470ms against a 500ms FCP. The gate is therefore the
-// browser's own first-contentful-paint entry, which is the event the warm must
-// not compete with — asserted here so nobody "simplifies" it back to a frame
-// callback, which looks equivalent and is not.
-function assertWarmWaitsForPaint(html) {
-  const at = html.indexOf('var warm = function');
-  if (at === -1) throw new Error('the app-bundle warm is gone from index.html');
-  const block = html.slice(at, at + 2600);
-  if (!/first-contentful-paint/.test(block)) {
-    throw new Error('the warm is not gated on the first-contentful-paint entry');
+/* ── The application is requested on a signal, never on a timer ──────────────
+   This REPLACES the timer-based warm and the five tests that pinned it. Those
+   tests were not wrong when written; the requirement reversed under them, and a
+   suite that still asserted the old one would have kept a dead design alive.
+   Recording what they encoded, because the reasoning still matters:
+
+     the warm was gated on the browser's own first-contentful-paint entry, then
+     idle, then bounded by an already-painted check, a 2500ms backstop and a
+     run-once latch — because requestIdleCallback fires before React renders, and
+     nested rAFs land before FCP on a page that fades in.
+
+   That sequencing was correct and verified, and it is still not enough, because
+   the premise was wrong: it warmed on EVERY signed-out visit. A 598KB download
+   nobody asked for, on the one page a visitor is most likely to read and leave,
+   competing for a phone's radio and main thread immediately after the paint it
+   was carefully ordered behind.
+
+   The homepage is now in the HTML and needs no application code at all, so the
+   application is requested only when something tells us it is actually needed:
+   an explicit "start a session", an open login overlay, or a returning visitor
+   detected at boot. No timer, no paint observer, nothing speculative. */
+function assertNoSpeculativeAppLoad(html) {
+  // The three legitimate call sites, by the API each uses.
+  const start = /__SAYCRD_START_REQUESTED = true;\s*if \(window\.__saycrdLoadApp\) window\.__saycrdLoadApp\(\)/.test(html);
+  if (!start) throw new Error('starting a session no longer loads the application');
+  if (!/__saycrdPrefetchApp\(\)/.test(html)) {
+    throw new Error('opening the login overlay no longer warms the application');
   }
-  if (!/observe\(\{\s*type:\s*"paint"/.test(block)) {
-    throw new Error('the warm does not observe the paint timeline');
+  if (!/__saycrdBootSignedIn/.test(html)) {
+    throw new Error('the returning-visitor boot path is gone');
   }
-  const idleAt = block.indexOf('requestIdleCallback');
-  if (idleAt === -1) throw new Error('the warm no longer waits for idle');
-  // The idle wait must be INSIDE the post-paint callback, not racing it.
-  if (!/afterPaint = function \(\) \{[\s\S]{0,120}?if \(window\.requestIdleCallback\)/.test(block)) {
-    throw new Error('the idle wait is not nested inside the post-paint callback');
+  // And the thing that must NOT come back: a scheduler deciding to fetch the app.
+  if (/requestIdleCallback/.test(html)) {
+    throw new Error('the application is being warmed on idle again, i.e. on every signed-out visit');
   }
-  return { paintAt: block.indexOf('first-contentful-paint'), idleAt };
+  if (/getEntriesByName\("first-contentful-paint"\)/.test(html) || /type:\s*"paint"/.test(html)) {
+    throw new Error('a paint observer is scheduling an app fetch again');
+  }
+  return true;
 }
 
-test('the app-bundle warm waits for the homepage to paint', () => {
-  assertWarmWaitsForPaint(stripComments(src.index));
+test('the application is never fetched speculatively on a signed-out visit', () => {
+  assertNoSpeculativeAppLoad(stripComments(src.index));
 });
 
-// A gate with no escape hatch is worse than no gate: a browser that never
-// reports FCP (or reported it before this code ran) would leave the app bundle
-// un-warmed, making the first click the cold download this warm exists to
-// prevent. Both directions must be covered.
-test('the paint gate is bounded in both directions', () => {
-  const code = stripComments(src.index);
-  const at = code.indexOf('var warm = function');
-  const block = code.slice(at, at + 2600);
-
-  assert.match(block, /getEntriesByName\("first-contentful-paint"\)\.length > 0/,
-    'a paint that already happened must warm immediately, not wait for an event that will never fire again');
-  assert.match(block, /buffered:\s*true/,
-    'the observer must ask for buffered entries so an already-dispatched paint still resolves');
-  assert.match(block, /setTimeout\(afterPaint, \d+\)/,
-    'a page that never reports FCP must still warm via a timeout backstop');
-
-  // `warmScheduled` appearing somewhere is not the property that matters — the
-  // latch only works if it actually GUARDS the body. Two controls proved a bare
-  // presence check blind: short-circuiting the already-painted branch, and
-  // deleting the early return, both left the suite green.
-  assert.match(block, /if \(warmScheduled\) return;\s*warmScheduled = true;/,
-    'the warm must early-return on the latch and then set it, or the backstop and the paint gate both warm');
-  assert.match(block, /if \(alreadyPainted\) \{\s*afterPaint\(\);/,
-    'the already-painted branch must call afterPaint, or a paint that preceded this code never warms');
-  assert.doesNotMatch(block, /if \(false\)/,
-    'a disabled branch means one of the three warm paths is dead code');
+test('control: re-adding an idle warm fails the no-speculative-load test', () => {
+  // Mutates by pattern, and the assertion below confirms the mutation actually
+  // landed — a control that silently no-ops is indistinguishable from a blind
+  // test, and this repo has already been bitten by exactly that.
+  const poisoned = mutate(
+    stripComments(src.index),
+    /window\.__saycrdPrefetchApp = function \(\) \{/,
+    'window.__saycrdPrefetchApp = function () { requestIdleCallback(function(){});',
+    'app load: re-added an idle warm'
+  );
+  assert.match(poisoned, /requestIdleCallback/, 'the mutation must actually have landed');
+  assert.throws(() => assertNoSpeculativeAppLoad(poisoned), /warmed on idle again/);
 });
 
-test('the warm is a low-priority prefetch, not a preload', () => {
+test('control: removing the login warm fails the no-speculative-load test', () => {
+  const poisoned = mutate(
+    stripComments(src.index),
+    /__saycrdPrefetchApp\(\)/g,
+    'void 0',
+    'app load: dropped the login-overlay warm'
+  );
+  assert.doesNotMatch(poisoned, /__saycrdPrefetchApp\(\)/, 'the mutation must actually have landed');
+  assert.throws(() => assertNoSpeculativeAppLoad(poisoned), /login overlay no longer warms/);
+});
+
+test('the login warm downloads the application without executing it', () => {
   const code = stripComments(src.index);
-  const at = code.indexOf('var warm = function');
-  assert.ok(at > 0, 'the warm is gone');
-  const block = code.slice(at, at + 400);
+  const at = code.indexOf('window.__saycrdPrefetchApp = function');
+  assert.ok(at > 0, 'the prefetch helper is gone');
+  const block = code.slice(at, at + 500);
   assert.match(block, /l\.rel = "prefetch"/,
     'the warm must stay rel=prefetch: preload would compete with the visible page');
   assert.doesNotMatch(block, /l\.rel = "preload"/);
+  // Executing app.compiled.js from the overlay would unmount the landing behind
+  // the card the visitor is typing into. Only a <link> may be created here.
+  assert.doesNotMatch(block, /createElement\("script"\)/,
+    'the login warm must not execute the application, only fetch it');
+  assert.doesNotMatch(block, /__saycrdLoadApp\(\)/,
+    'the login warm must not run the application while the overlay is open');
 });
 
-test('control: warming without waiting for paint fails the ordering test', () => {
-  // Mutates the paint entry NAME rather than a surrounding statement: that is
-  // the single thing the gate is built on, so this cannot silently no-op the
-  // way a control keyed to an incidental line can.
-  const poisoned = mutate(
-    stripComments(src.index),
-    /first-contentful-paint/g,
-    'load',
-    'warm: dropped the FCP gate'
-  );
-  assert.throws(() => assertWarmWaitsForPaint(poisoned), /first-contentful-paint entry/);
-});
-
-test('control: an unbounded paint gate fails the bounds test', () => {
-  const poisoned = mutate(
-    stripComments(src.index),
-    /setTimeout\(afterPaint, 2500\);/,
-    '',
-    'warm: removed the never-painted backstop'
-  );
-  const at = poisoned.indexOf('var warm = function');
-  const block = poisoned.slice(at, at + 2600);
-  assert.doesNotMatch(block, /setTimeout\(afterPaint, 2500\)/,
-    'the mutation must actually have removed the backstop');
+test('the prefetch cannot fire twice or race a real load', () => {
+  const code = stripComments(src.index);
+  const at = code.indexOf('window.__saycrdPrefetchApp = function');
+  const block = code.slice(at, at + 500);
+  assert.match(block, /if \(prefetched \|\| appPromise\) return;\s*prefetched = true;/,
+    'the prefetch must latch and must stand down once a real load is already in flight');
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════

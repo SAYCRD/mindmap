@@ -210,7 +210,7 @@ WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
 </button>
 ) : (
-<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.9)", fontSize:13, fontWeight:600, fontFamily:FB, letterSpacing:"0.04em", cursor:"pointer" }}>
+<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.9)", fontSize:13, fontWeight:600, fontFamily:FB, letterSpacing:"0.04em", cursor:"pointer" }}>
 Log in / Sign up
 </button>
 )}
@@ -261,14 +261,14 @@ BLINDSPOT listens like a human, shapes what you say into a living visual, and re
 
 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center",
 opacity:revealed?1:0, transition:desktopReveal("opacity 1s ease 0.4s"), marginBottom:16 }}>
-<button onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
+<button data-saycrd-boot="start" onClick={guardedStart} disabled={starting} style={{ padding:"16px 36px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:16, fontWeight:700,
 letterSpacing:"0.05em", cursor:starting?"default":"pointer", opacity:starting?0.6:1,
 boxShadow:"0 12px 40px rgba(184,107,255,0.3)" }}>
 {starting ? "starting…" : (authUser ? (returning ? "continue your journey" : "start a session") : (returning ? "continue" : "start a session"))}
 </button>
-<button onClick={function(){ var el=document.getElementById("saycrd-why");
+<button data-saycrd-boot="concept" onClick={function(){ var el=document.getElementById("saycrd-why");
 if(el) el.scrollIntoView({behavior:"smooth"}); }}
 style={{ padding:"16px 28px", borderRadius:999, background:"transparent",
 border:"1px solid rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.5)",
@@ -279,7 +279,7 @@ see the concept
 
 {!authUser && (
 <div style={{ marginTop: 16, opacity: revealed ? 1 : 0, transition: desktopReveal("opacity 0.8s ease 0.5s") }}>
-<button onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
+<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
 Log in or create an account to save your sessions
 </button>
 </div>
@@ -644,7 +644,7 @@ No account needed. Your session stays private. Just start.
 background:"transparent", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.4)",
 fontFamily:FB, fontSize:11, letterSpacing:"0.12em", cursor:"pointer",
 transition:"all 0.2s" }} title="Download your sessions and patterns as JSON">Download my data</button>
-<button onClick={guardedStart} style={{ padding:"18px 48px", borderRadius:999,
+<button data-saycrd-boot="start" onClick={guardedStart} style={{ padding:"18px 48px", borderRadius:999,
 background:"linear-gradient(135deg, #E84393, #B86BFF)", border:"none",
 color:"#fff", fontFamily:FB, fontSize:17, fontWeight:700,
 letterSpacing:"0.05em", cursor:"pointer",
