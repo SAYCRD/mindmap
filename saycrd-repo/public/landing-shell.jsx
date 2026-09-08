@@ -51,7 +51,10 @@ function _handOffToApp(opts) {
 function LandingShell() {
   /* "landing" | "privacy" | "terms" | "disclaimer-info" — the same page names
      app.jsx uses in PHASES, so LegalPage receives exactly the prop it expects. */
-  var [page, setPage] = useState("landing");
+  var legalBoot = typeof window !== "undefined" ? window.__SAYCRD_LEGAL_PAGE : "";
+  var [page, setPage] = useState(
+    legalBoot === "privacy" || legalBoot === "terms" || legalBoot === "disclaimer-info" ? legalBoot : "landing"
+  );
 
   /* phaseIn fades this wrapper from opacity 0.6 to 1. On a phone that is the
      LAST thing still standing between the visitor and a readable homepage:
@@ -98,8 +101,8 @@ function LandingShell() {
      shared chrome here; do not re-inline it. */
   return (
     <SaycrdShell background={SAYCRD_SHELL_BG}>
-      <div style={{width:"100%",maxWidth:"100%",height:"100%",minHeight:0,background:LANDING_GRADIENTS[page],position:"relative",display:"flex",flexDirection:"column",overflow:"hidden",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
-        <div key={page} style={{width:"100%",flex:1,minHeight:0,overflow:"auto",overflowX:"hidden",WebkitOverflowScrolling:"touch",animation:isMobile?"none":"phaseIn 0.25s ease-out"}}>
+      <div style={{width:"100%",maxWidth:"100%",height:"auto",minHeight:"100dvh",background:LANDING_GRADIENTS[page],position:"relative",display:"flex",flexDirection:"column",overflow:"visible",transition:"background 0.8s ease",paddingBottom:"env(safe-area-inset-bottom, 0px)"}}>
+        <div key={page} style={{width:"100%",overflow:"visible",overflowX:"hidden",animation:isMobile?"none":"phaseIn 0.25s ease-out"}}>
           {page === "landing"
             /* Kept mounted while app.compiled.js downloads. Swapping in a spinner
                here would show, then remove, a page the visitor is reading. */

@@ -429,33 +429,58 @@ test('React is fetched on demand, and react-dom cannot execute before react', ()
     'the landing bundle is chained behind React again, so it is not even requested until react-dom has executed');
 });
 
-test('the signed-out path loads nothing until the markup is parsed', () => {
-  const code = stripComments(src.index);
-  // This test used to REQUIRE the load event. That turned out to be the single
-  // biggest delay on mobile: the load event does not fire until every image on
-  // the page has finished, so the fonts and the entire interactive layer sat
-  // behind image downloads the first screen never needed. Measured at 393px,
-  // the first subresource request started at 8166ms -- exactly loadEventEnd.
-  //
-  // DOMContentLoaded carries the only guarantee this code actually needs (the
-  // snapshot is in the DOM) and owes nothing to images. The script tag is at
-  // the end of <body>, so in practice it has already happened.
-  assert.match(code, /document\.addEventListener\("DOMContentLoaded", loadInteractive, \{ once: true \}\)/,
-    'the interactive layer must arm on DOMContentLoaded');
-  assert.match(code, /if \(document\.readyState === "loading"\) \{/,
-    'a document that is already parsed must still be handled, or the page never becomes interactive');
-  // The regression this file exists to prevent, in the direction that actually
-  // costs seconds.
-  assert.doesNotMatch(code, /addEventListener\("load", loadInteractive/,
-    'the interactive layer is gated on the load event again, which waits for every image on the page');
-  // What it loads matters as much as when: the landing bundle restores the legal
-  // pages and the session-aware label. The application is 598KB and stays behind
-  // a real click.
-  assert.match(code, /function loadInteractive\(\) \{\s*window\.__saycrdLoadLanding\(\)/,
-    'the load-event handler must fetch the landing bundle, not the application');
+function assertReactStaysOffTheSnapshot(html) {
+  const code = stripComments(html);
+  // Desktop and unbuilt source still need the bundle, because the snapshot is
+  // display:none above 480px and empty in committed source. A phone with a
+  // painted snapshot must not fetch it: createRoot() would wipe the markup
+  // and the visitor would wait ~1s for React to put the same page back.
+  if (!/snapshotPainted = !!\(snap && snap\.querySelector\("\.saycrd-app-shell"\)\)/.test(code)) {
+    throw new Error('the painted-snapshot probe is gone, so a phone cannot keep the HTML');
+  }
+  if (!/matchMedia\("\(min-width: 480px\)"\)/.test(code)) {
+    throw new Error('the desktop hide is no longer what decides whether React auto-loads');
+  }
+  if (!/if \(!snapshotPainted \|\| snapshotHidden\) \{/.test(code)) {
+    throw new Error('the landing bundle is no longer gated on the snapshot being unpainted or hidden');
+  }
+  if (!/document\.addEventListener\("DOMContentLoaded", loadInteractive, \{ once: true \}\)/.test(code)) {
+    throw new Error('desktop / empty-snapshot still needs DOMContentLoaded to become interactive');
+  }
+  if (!/if \(document\.readyState === "loading"\) \{/.test(code)) {
+    throw new Error('a document that is already parsed must still be handled, or the page never becomes interactive');
+  }
+  if (/addEventListener\("load", loadInteractive/.test(code)) {
+    throw new Error('the interactive layer is gated on the load event again, which waits for every image on the page');
+  }
+  if (!/function loadInteractive\(\) \{\s*window\.__saycrdLoadLanding\(\)/.test(code)) {
+    throw new Error('loadInteractive must fetch the landing bundle, not the application');
+  }
   const handler = code.slice(code.indexOf('function loadInteractive()'));
-  assert.doesNotMatch(handler.slice(0, 600), /__saycrdLoadApp\(\)/,
-    'the application must not be pulled in on the load event of a signed-out visit');
+  if (/__saycrdLoadApp\(\)/.test(handler.slice(0, 600))) {
+    throw new Error('the application must not be pulled in by loadInteractive');
+  }
+  return true;
+}
+
+test('the signed-out path does not fetch React over a painted mobile snapshot', () => {
+  assertReactStaysOffTheSnapshot(src.index);
+});
+
+test('the bridge loads the landing bundle for a legal click', () => {
+  const bridge = stripComments(src.index);
+  const shell = stripComments(src.shell);
+  const landing = stripComments(src.landing);
+  assert.match(landing, /data-saycrd-boot="legal"/,
+    'legal footer buttons must be marked for the pre-React bridge');
+  assert.match(bridge, /action === "legal"/,
+    'the bridge must handle a legal click, or Privacy/Terms do nothing until React mounts');
+  assert.match(bridge, /window\.__SAYCRD_LEGAL_PAGE = page/,
+    'the bridge must record which legal page so the shell can open it on first paint');
+  assert.match(bridge, /window\.__saycrdLoadLanding\(\)/,
+    'a legal click is the signal that actually fetches the landing bundle on a phone');
+  assert.match(shell, /window\.__SAYCRD_LEGAL_PAGE/,
+    'LandingShell must read the boot flag, or the first React paint is the homepage again');
 });
 
 test('a returning visitor still starts auth and React immediately', () => {
@@ -665,6 +690,19 @@ test('control: re-adding a guest-session gate fails the gating test', () => {
   // Trips the condition-shape tripwire first, which is the stricter of the two:
   // it rejects ANY widening of the gate, not just this particular one.
   assert.throws(() => assertSnapshotIsGated(poisoned), /not gated on signedIn alone/);
+});
+
+test('control: fetching React over a painted snapshot fails the stay-off test', () => {
+  const poisoned = mutate(
+    src.index,
+    /if \(!snapshotPainted \|\| snapshotHidden\) \{/,
+    'if (true) {',
+    'react: auto-load landing bundle even when the snapshot is already on screen'
+  );
+  const live = stripComments(poisoned);
+  assert.match(live, /if \(true\) \{/,
+    'the mutation did not land in live code, so this control proves nothing');
+  assert.throws(() => assertReactStaysOffTheSnapshot(poisoned), /no longer gated on the snapshot/);
 });
 
 test('control: a desktop-width snapshot fails the visibility test', () => {
