@@ -205,7 +205,7 @@ function guardedStart() {
 }
 
 return (
-<div style={{ width:"100%", height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch",
+<div style={{ width:"100%", height:"100%", overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch",
 background:"#0A0914" }}>
 
 <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, overflow:"hidden" }}>
@@ -766,7 +766,7 @@ body:[
 };
 var c = CONTENT[page] || CONTENT.privacy;
 return (
-<div style={{ width:"100%", height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch",
+<div style={{ width:"100%", height:"100%", overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch",
 background:"#0A0914" }}>
 <div style={{ maxWidth:680, margin:"0 auto", padding:"calc(64px + env(safe-area-inset-top, 0px)) 7vw 80px" }}>
 <button onClick={onBack} style={{ marginBottom:40, padding:"8px 18px", borderRadius:999,
