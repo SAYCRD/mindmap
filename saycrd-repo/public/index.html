@@ -4,8 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>BLINDSPOT</title>
-<link rel="icon" type="image/png" href="/favicon.png">
-<link rel="apple-touch-icon" href="/favicon.png">
+<!-- favicon.ico is the legacy fallback browsers request at the domain root by
+     convention, regardless of the link tags below -- without it some browser
+     UI (bookmarks, history, some tab renderers) falls back to a blank icon. -->
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/favicon.png" sizes="192x192">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
 <!-- ── Fonts load AFTER the page is visible ──────────────────────────────────────
      This was a render-blocking <link rel="stylesheet"> to fonts.googleapis.com,
      preceded by two preconnects. A stylesheet in <head> blocks first paint on a
@@ -716,7 +720,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     return;
   }
 
-  /* ── Signed out: the homepage is already on screen ─────────────────────────
+  /* ── Signed out: the homepage is already on screen ────────────────────────��
      Nothing above this point requested React, ReactDOM, Supabase, the
      application or a font stylesheet. The homepage came from the prerendered
      markup and the critical CSS in <head>, so the visitor can read it before any
