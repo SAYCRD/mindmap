@@ -70,6 +70,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const babel = require('@babel/core');
+const presetReact = require('@babel/preset-react');
 const React = require('react');
 const ReactDOMServer = require('react-dom/server');
 
@@ -134,8 +135,11 @@ function compile(source) {
     );
   }
   const result = babel.transform(stripped, {
-    filename: 'prerender-landing.jsx',
-    presets: [['@babel/preset-react', { development: false }]],
+    filename: path.join(__dirname, 'prerender-landing.jsx'),
+    // Pass the module, not the name: Babel's name lookup walks from
+    // process.cwd(), so a preview server started outside saycrd-repo would
+    // fail to find the preset and serve the empty source HTML instead.
+    presets: [[presetReact, { development: false }]],
     compact: false,
     babelrc: false,
     configFile: false,

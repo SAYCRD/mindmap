@@ -162,6 +162,21 @@ test('the render produces the complete homepage copy', () => {
     `only ${text.length} characters of copy; expected at least ${prerender.MIN_TEXT_CHARS}`);
 });
 
+test('prerender still works when cwd is not this package', () => {
+  // The v0 preview server starts at the sandbox root, not saycrd-repo.
+  // Babel's preset *name* lookup walks from process.cwd(), so a string
+  // '@babel/preset-react' failed there and the preview served empty HTML.
+  const prev = process.cwd();
+  process.chdir(require('os').tmpdir());
+  try {
+    const html = prerender.render(PUBLIC_DIR);
+    assert.ok(html.includes('The space between your inner world'),
+      'prerender threw or produced no homepage when cwd was outside the package');
+  } finally {
+    process.chdir(prev);
+  }
+});
+
 test('index.html carries the snapshot markers in both build states', () => {
   assert.ok(src.index.includes(prerender.PRERENDER_BEGIN), 'the opening marker is gone');
   assert.ok(src.index.includes(prerender.PRERENDER_END), 'the closing marker is gone');

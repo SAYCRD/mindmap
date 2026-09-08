@@ -15,11 +15,73 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "saycrd-repo", "public");
 const apiDir = path.join(__dirname, "saycrd-repo", "api");
+
+// The committed index.html has empty prerender markers. Production fills them
+// at deploy (`npm run build` → build/prerender.js). This preview serves the
+// source files as-is, so without this the homepage does not exist until React
+// downloads — the 1–2s blue bar, then the whole page at once. Inject the same
+// snapshot in memory (never write it back to index.html).
+let prerenderMod = null;
+try {
+  const requireSaycrd = createRequire(
+    path.join(__dirname, "saycrd-repo", "build", "prerender.js")
+  );
+  prerenderMod = requireSaycrd("./prerender.js");
+} catch (err) {
+  console.error("[v0] could not load prerender module:", err);
+}
+
+const indexCache = { key: "", html: null };
+
+function sourceMtimeKey() {
+  return ["index.html", "landing.jsx", "landing-shell.jsx"]
+    .map(function (name) {
+      try {
+        return String(fs.statSync(path.join(publicDir, name)).mtimeMs);
+      } catch {
+        return "0";
+      }
+    })
+    .join(":");
+}
+
+function getIndexHtml() {
+  const key = sourceMtimeKey();
+  if (indexCache.html && indexCache.key === key) return indexCache.html;
+
+  const raw = fs.readFileSync(path.join(publicDir, "index.html"), "utf8");
+  let html = raw;
+  if (prerenderMod) {
+    const begin = prerenderMod.PRERENDER_BEGIN;
+    const end = prerenderMod.PRERENDER_END;
+    const start = raw.indexOf(begin);
+    const stop = raw.indexOf(end);
+    const between =
+      start >= 0 && stop > start ? raw.slice(start + begin.length, stop) : "";
+    if (!between.includes("saycrd-app-shell")) {
+      const snapshot = prerenderMod.unescapeStyleBlocks(
+        prerenderMod.render(publicDir).replace(prerenderMod.FONT_LINK_RE, "")
+      );
+      prerenderMod.verify(snapshot);
+      html = prerenderMod.injectSnapshot(raw, snapshot);
+      console.log(
+        "[v0] injected prerendered homepage into preview HTML:",
+        html.length,
+        "bytes"
+      );
+    }
+  }
+
+  indexCache.key = key;
+  indexCache.html = Buffer.from(html, "utf8");
+  return indexCache.html;
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -121,6 +183,20 @@ function handleStatic(req, res, pathname) {
   const contentType = MIME[ext] || "application/octet-stream";
 
   try {
+    if (path.basename(filePath) === "index.html") {
+      try {
+        const content = getIndexHtml();
+        res.setHeader("Content-Type", contentType);
+        res.statusCode = 200;
+        res.end(content);
+        return;
+      } catch (err) {
+        console.error(
+          "[v0] prerender inject failed; serving empty source HTML:",
+          err
+        );
+      }
+    }
     const content = fs.readFileSync(filePath);
     res.setHeader("Content-Type", contentType);
     res.statusCode = 200;
@@ -161,6 +237,11 @@ const server = http.createServer(async (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
+try {
+  getIndexHtml();
+} catch (err) {
+  console.error("[v0] startup prerender failed:", err);
+}
 server.listen(port, () => {
   console.log(`[v0] Dev server (mirrors Vercel "saycrd-repo" root) running on port ${port}`);
 });
