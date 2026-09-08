@@ -431,8 +431,15 @@ test('both bundles ship the shared chrome', (t) => {
     const code = read(p);
     assert.match(code, /@keyframes slideIn/, `${name}.compiled.js is missing the global keyframes`);
     assert.match(code, /saycrd-app-shell/, `${name}.compiled.js is missing the shell wrapper`);
-    assert.match(code, /fonts\.googleapis\.com/, `${name}.compiled.js is missing the webfont stylesheet`);
   }
+  // The webfont stylesheet used to be asserted here too, on the grounds that it
+  // was part of the shared chrome. It is not chrome -- it is a network request,
+  // and having the landing bundle render its own <link> meant a signed-out visit
+  // hit fonts.googleapis.com twice: once from index.html and again once the
+  // bundle mounted. index.html now owns the single request for every face, so
+  // the landing bundle deliberately no longer carries one. The guard that keeps
+  // the duplicate from returning lives in prerendered-landing.test.js, which
+  // asserts against the SOURCE and so cannot be fooled by minification.
 });
 
 // A copy of the gradient map has to exist in the landing bundle, so its values
@@ -761,7 +768,7 @@ test('opening the login overlay loads auth and nothing else', () => {
 
 /* ═══════════════════════════════════════════════════════════════════════════
    5. Handover — the app takes over without double-mounting
-   ═══════════════════════════════════════════════════════════════════════ */
+   ═��═════════════════════════════════════════════════════════════════════ */
 
 test('the landing hands over by loading the app bundle', () => {
   const shell = stripComments(src.shell);

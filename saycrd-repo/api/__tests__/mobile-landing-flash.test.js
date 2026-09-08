@@ -392,9 +392,15 @@ test('the two bundle references agree and are not hand-versioned', () => {
   // The signed-out preload is deliberately gone: the homepage is prerendered, so
   // there is nothing to preload for a visitor without a token. What must remain
   // is that every call site names the bundle LOGICALLY and lets url() resolve it.
+  // The landing bundle moved from insert("landing.compiled.js") into the same
+  // loadAll() as React so the three download in parallel, so it is named as a
+  // loadAll entry now rather than a direct insert() argument. loadAll feeds
+  // insert(), which is what consults url() -- so the property under test (the
+  // name is LOGICAL, and the asset map resolves it) is unchanged. Matching the
+  // old literal here would fail against correct source.
   for (const call of [/hint\("preload", "app\.compiled\.js"\)/,
                       /insert\("app\.compiled\.js"\)/,
-                      /insert\("landing\.compiled\.js"\)/]) {
+                      /"landing\.compiled\.js"/]) {
     assert.match(htmlCode, call,
       'the preload and the script insert must both name the bundle logically and let url() resolve it');
   }

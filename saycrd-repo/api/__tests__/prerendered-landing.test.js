@@ -327,23 +327,51 @@ test('the head has no font stylesheet and no preload of any kind', () => {
   }
 });
 
-test('the preferred fonts are still loaded, just after the page is visible', () => {
+test('the preferred fonts are requested immediately but never block the paint', () => {
   const code = stripComments(src.index);
-  // Deferring the fonts must not quietly drop them. Both routes have to exist:
-  // the load-event injection for a normal visitor, and the <noscript> copy for
-  // one who never reaches it.
+  // This used to assert the fonts were appended ON THE LOAD EVENT. That was the
+  // bug, not the design: the load event waits for every image on the page, so
+  // gating here meant the faces were not even requested until 8.1s on a phone
+  // viewport. The requirement was only ever "must not block the first paint",
+  // and media="print" satisfies that without deferring the request at all.
   assert.match(code, /l\.rel = "stylesheet";/,
     'nothing appends the font stylesheet any more, so the design never gets its faces');
   const injected = code.slice(code.indexOf('function loadFonts()'));
-  for (const family of ['DM+Serif+Display', 'DM+Sans', 'Space+Grotesk']) {
+  for (const family of ['DM+Serif+Display', 'DM+Sans', 'Space+Grotesk', 'Lora']) {
     assert.ok(injected.includes(family),
-      `${family} is used by the homepage but is not in the deferred font request`);
+      `${family} is used by the homepage but is not in the font request`);
   }
-  assert.match(code, /loadFonts\);?\s*$|addEventListener\("load", loadFonts, \{ once: true \}\)/m,
-    'the font stylesheet must be appended on the load event, once the page is visible');
+  // Non-blocking is the whole point, and it takes both halves: media="print"
+  // keeps it out of the render path, and the onload switch is what actually
+  // applies the faces. Without the second line the fonts would download and
+  // then never be used.
+  assert.match(injected, /l\.media = "print";/,
+    'the font stylesheet is render-blocking again, so it delays the first paint');
+  assert.match(injected, /l\.onload = function \(\) \{ l\.media = "all"; \};/,
+    'nothing promotes the stylesheet to media="all", so the faces never apply');
+  // And it must NOT be pushed behind the load event again.
+  assert.doesNotMatch(code, /addEventListener\("load", loadFonts/,
+    'the fonts are gated on the load event again, which waits for every image on the page');
   const noscript = (src.index.match(/<noscript>[\s\S]*?<\/noscript>/i) || [''])[0];
   assert.match(noscript, /fonts\.googleapis\.com/,
     'a visitor with JavaScript disabled never reaches loadFonts and would get no fonts at all');
+});
+
+test('the homepage asks fonts.googleapis.com for its faces exactly once', () => {
+  // SaycrdShell rendered a second <link> with an overlapping family list, so a
+  // signed-out visit made two requests to fonts.googleapis.com -- the second
+  // only after the bundle had mounted. Every face now comes from the single
+  // request in loadFonts, and this is what stops the duplicate coming back.
+  const code = stripComments(src.index);
+  const injected = code.slice(code.indexOf('function loadFonts()'));
+  const inLoader = (injected.match(/fonts\.googleapis\.com/g) || []).length;
+  assert.strictEqual(inLoader, 1,
+    `loadFonts should build one stylesheet URL, found ${inLoader}`);
+  for (const [name, source] of [['landing.jsx', src.landing], ['landing-shell.jsx', src.shell]]) {
+    assert.doesNotMatch(stripComments(source), /fonts\.googleapis\.com/,
+      `${name} renders its own webfont <link> again: that is a second round trip ` +
+      'to fonts.googleapis.com once the bundle mounts, for faces index.html already requested');
+  }
 });
 
 test('React is fetched on demand, and react-dom cannot execute before react', () => {
@@ -359,23 +387,55 @@ test('React is fetched on demand, and react-dom cannot execute before react', ()
     'react and react-dom must be inserted together, in that order');
   assert.match(code, /s\.async = false;/,
     'without async=false the two React scripts could execute out of order');
-  // Both bundles now depend on that, so neither may insert React itself.
-  for (const fn of ['__saycrdLoadApp', '__saycrdLoadLanding']) {
-    const at = code.indexOf('window.' + fn + ' = function');
-    assert.ok(at !== -1, fn + ' is gone');
-    const body = code.slice(at, at + 400);
-    assert.match(body, /__saycrdEnsureReact\(\)/,
-      fn + ' must ensure React itself: nothing loads it up front any more, so a click ' +
-      'that arrives before the load event would run the bundle against an undefined React');
-  }
+  // Each bundle loader must guarantee React is there before its bundle runs,
+  // because nothing loads React up front any more. There are two legitimate
+  // ways to do that and the difference is a measured latency, not a style:
+  //
+  //   app     - chains off __saycrdEnsureReact(). Costs an extra round trip,
+  //             which is acceptable behind a click.
+  //   landing - names React in its OWN loadAll, so all three download in
+  //             parallel. Chaining it instead meant landing.compiled.js was not
+  //             requested until react-dom had finished downloading AND
+  //             executing: three sequential round trips on the signed-out path,
+  //             which is the one that has to be fast.
+  //
+  // insert() dedupes by name and sets async=false, so the parallel form still
+  // shares the same two React fetches and still executes them in order.
+  const appAt = code.indexOf('window.__saycrdLoadApp = function');
+  assert.ok(appAt !== -1, '__saycrdLoadApp is gone');
+  assert.match(code.slice(appAt, appAt + 400), /__saycrdEnsureReact\(\)/,
+    '__saycrdLoadApp must ensure React itself, or a click would run the app against an undefined React');
+
+  const landingAt = code.indexOf('window.__saycrdLoadLanding = function');
+  assert.ok(landingAt !== -1, '__saycrdLoadLanding is gone');
+  const landingBody = code.slice(landingAt, landingAt + 500);
+  assert.match(landingBody,
+    /loadAll\(\[\s*"react\.production\.min\.js",\s*"react-dom\.production\.min\.js",\s*"landing\.compiled\.js"\s*\]\)/,
+    'the landing bundle must be requested in the SAME loadAll as React, in that order: ' +
+    'chaining it behind __saycrdEnsureReact() serialises three round trips on the signed-out path');
+  assert.doesNotMatch(landingBody, /__saycrdEnsureReact\(\)\.then/,
+    'the landing bundle is chained behind React again, so it is not even requested until react-dom has executed');
 });
 
-test('the signed-out path loads nothing until the load event', () => {
+test('the signed-out path loads nothing until the markup is parsed', () => {
   const code = stripComments(src.index);
-  assert.match(code, /window\.addEventListener\("load", loadInteractive, \{ once: true \}\)/,
-    'the interactive layer must wait for the load event, i.e. until after the homepage is visible');
-  assert.match(code, /if \(document\.readyState === "complete"\) loadInteractive\(\);/,
-    'a load event that already fired must still be handled, or the page never becomes interactive');
+  // This test used to REQUIRE the load event. That turned out to be the single
+  // biggest delay on mobile: the load event does not fire until every image on
+  // the page has finished, so the fonts and the entire interactive layer sat
+  // behind image downloads the first screen never needed. Measured at 393px,
+  // the first subresource request started at 8166ms -- exactly loadEventEnd.
+  //
+  // DOMContentLoaded carries the only guarantee this code actually needs (the
+  // snapshot is in the DOM) and owes nothing to images. The script tag is at
+  // the end of <body>, so in practice it has already happened.
+  assert.match(code, /document\.addEventListener\("DOMContentLoaded", loadInteractive, \{ once: true \}\)/,
+    'the interactive layer must arm on DOMContentLoaded');
+  assert.match(code, /if \(document\.readyState === "loading"\) \{/,
+    'a document that is already parsed must still be handled, or the page never becomes interactive');
+  // The regression this file exists to prevent, in the direction that actually
+  // costs seconds.
+  assert.doesNotMatch(code, /addEventListener\("load", loadInteractive/,
+    'the interactive layer is gated on the load event again, which waits for every image on the page');
   // What it loads matters as much as when: the landing bundle restores the legal
   // pages and the session-aware label. The application is 598KB and stays behind
   // a real click.
