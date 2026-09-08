@@ -660,7 +660,8 @@ test('env-config.js is never content-hashed', () => {
         `${injected} is injected by name at runtime, so it must be resolvable in the map`);
     }
   }
-  assert.match(bootScript(), /"env-config\.js"/, 'the auth chain must still load env-config.js by its unhashed name');
+  assert.match(stripComments(src.index), /loadAll\(\["env-config\.js"/,
+    'the auth chain must still load env-config.js by its unhashed name');
 });
 
 /* ── The application is requested on a signal, never on a timer ──────────────

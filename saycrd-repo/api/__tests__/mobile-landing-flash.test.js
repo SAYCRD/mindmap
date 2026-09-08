@@ -420,13 +420,17 @@ test('the two bundle references agree and are not hand-versioned', () => {
   assert.ok(loaderCode.length > 500, 'failed to isolate the loader — this check would prove nothing');
   assert.ok(!loaderCode.includes('window.__SAYCRD_ASSETS ='),
     'the slice still contains the map, so a generated hashed name would be mistaken for a hardcoded one');
-  // Only the boot script's own JS is in scope. Static src="" tags carry hashed
+  // Only the loader script's own JS is in scope. Static src="" tags carry hashed
   // names legitimately — build/hash-assets.js rewrites them from the manifest —
-  // so the check is scoped to the <script> that contains the loader, and the
-  // guard below proves that scoping did not silently select an empty string.
-  const bootStart = loaderCode.indexOf('(function () {');
-  const bootEnd = loaderCode.indexOf('</script>', bootStart);
-  assert.ok(bootStart > 0 && bootEnd > bootStart, 'could not isolate the boot script');
+  // so the check is scoped to the <script> that contains __saycrdLoadApp, not
+  // the first IIFE after the map (that is now the tiny signed-in probe in
+  // <head>, which loads nothing). The guard below proves that scoping did not
+  // silently select an empty string.
+  const loadAppAt = loaderCode.indexOf('window.__saycrdLoadApp = function');
+  assert.ok(loadAppAt > 0, 'the isolated slice is not the boot script');
+  const bootStart = loaderCode.lastIndexOf('(function () {', loadAppAt);
+  const bootEnd = loaderCode.indexOf('</script>', loadAppAt);
+  assert.ok(bootStart >= 0 && bootEnd > bootStart, 'could not isolate the boot script');
   const bootScript = loaderCode.slice(bootStart, bootEnd);
   assert.match(bootScript, /__saycrdLoadApp/, 'the isolated slice is not the boot script');
   assert.doesNotMatch(bootScript, /"(?:static\/)?[^"]*\.[0-9a-f]{16}\.js"/,

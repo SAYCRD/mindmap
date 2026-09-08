@@ -273,6 +273,47 @@ test('no script blocks the parser ahead of the snapshot', () => {
   assertNothingBlocksTheSnapshot(src.index);
 });
 
+function assertHeadDoesNotRunLoaders(html) {
+  const code = stripComments(html).replace(/<!--[\s\S]*?-->/g, '');
+  const headEnd = code.indexOf('</head>');
+  if (headEnd === -1) throw new Error('</head> is gone');
+  const head = code.slice(0, headEnd);
+  const afterRoot = code.slice(code.indexOf('id="root"'));
+  if (afterRoot.length < 200) {
+    throw new Error('failed to isolate the body after #root — this check would prove nothing');
+  }
+  // The signed-in probe MUST stay in head so a token holder never paints the
+  // homepage. The loaders must not: they are parser-blocking, and 10KB of them
+  // in <head> is the blank-then-everything paint on a phone.
+  if (!/__saycrdBootSignedIn/.test(head)) {
+    throw new Error('the signed-in probe left <head>, so a returning visitor would paint the homepage first');
+  }
+  if (/window\.__saycrdLoadApp\s*=/.test(head)) {
+    throw new Error('__saycrdLoadApp is back in <head>, so the parser cannot see the homepage until the loaders have run');
+  }
+  if (/function insert\s*\(\s*name\s*\)/.test(head)) {
+    throw new Error('insert() is back in <head>, so bundle-loading JS is parser-blocking again');
+  }
+  if (!/window\.__saycrdLoadApp\s*=/.test(afterRoot)) {
+    throw new Error('__saycrdLoadApp is gone from after the snapshot, so a later click cannot load the app');
+  }
+  return true;
+}
+
+test('bundle loaders run after the snapshot, not in <head>', () => {
+  assertHeadDoesNotRunLoaders(src.index);
+});
+
+test('control: putting LoadApp back in <head> fails the head-loader test', () => {
+  const poisoned = mutate(
+    src.index,
+    /window\.__saycrdBootSignedIn = signedIn;/,
+    'window.__saycrdBootSignedIn = signedIn; window.__saycrdLoadApp = function () {};',
+    'head loaders: re-added LoadApp next to the signed-in probe'
+  );
+  assert.throws(() => assertHeadDoesNotRunLoaders(poisoned), /__saycrdLoadApp is back in <head>/);
+});
+
 test('the snapshot markup carries no stylesheet of its own', (t) => {
   const snap = snapshotFromIndex(src.index);
   if (!snap) return t.skip('index.html is in its committed source state');
@@ -571,12 +612,13 @@ test('every bridged action exists in the landing source', () => {
 test('the bridge starts a session exactly the way the shell does', () => {
   const bridge = stripComments(src.index);
   const shell = stripComments(src.shell);
-  // Both must set the same flag and call the same loader, so an early tap and a
-  // late tap do the same thing. app.jsx reads __SAYCRD_START_REQUESTED on mount
-  // to avoid re-presenting the homepage it was handed over from.
+  // Both must set the same flag and call the same loader, so continuing from
+  // the signup card does the same thing as a late tap. app.jsx reads
+  // __SAYCRD_START_REQUESTED on mount to avoid re-presenting the homepage it
+  // was handed over from.
   assert.match(shell, /__SAYCRD_START_REQUESTED = true/, 'the shell no longer records the start intent');
   assert.match(bridge, /window\.__SAYCRD_START_REQUESTED = true;\s*if \(window\.__saycrdLoadApp\) window\.__saycrdLoadApp\(\);/,
-    'the bridge must record the same intent and load the app, or an early tap is swallowed');
+    'the continuation must record the same intent and load the app, or Continue without an account is swallowed');
   // The guest/credit check is deliberately NOT duplicated here.
   assert.doesNotMatch(bridge.slice(bridge.indexOf('function startSession')), /_canStartNewSession|_consumeSessionCredit/,
     'the bridge must not re-implement the entitlement check: it belongs in app.jsx beginSessionOrGate() only');
@@ -586,6 +628,21 @@ test('the bridge opens the real login overlay', () => {
   const bridge = stripComments(src.index);
   assert.match(bridge, /if \(window\._showAuthOverlay\) window\._showAuthOverlay\(startSession\)/,
     'the bridge must open the overlay with the same "sign in, then begin" continuation LandingPhase uses');
+});
+
+test('a homepage start tap opens signup and does not fetch the application', () => {
+  const bridge = stripComments(src.index);
+  const startAt = bridge.indexOf('if (action === "start"');
+  assert.ok(startAt > 0, 'the start action is gone from the bridge');
+  const legalAt = bridge.indexOf('else if (action === "legal")', startAt);
+  assert.ok(legalAt > startAt, 'the legal branch is gone, so the start-handler slice would be unbounded');
+  const untilLegal = bridge.slice(startAt, legalAt);
+  assert.match(untilLegal, /openAuthThenStart\(\)/,
+    'start must open the static signup card, not load 598KB of application');
+  assert.doesNotMatch(untilLegal, /__saycrdLoadApp/,
+    'start is fetching the application again before the visitor has chosen to continue');
+  assert.match(bridge, /action === "start" \|\| action === "login"/,
+    'start and login share the signup card; splitting them reintroduces a path that skips it');
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
