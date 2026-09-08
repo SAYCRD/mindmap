@@ -864,11 +864,6 @@ window.__saycrdSessionTiers = function() {
   }
   return window.__saycrdTiersPromise;
 };
-/* Matches the paywall's own formatting, minus the cents on whole dollars. */
-window.__saycrdMoney = function(cents) {
-  var d = cents / 100;
-  return "$" + (d % 1 === 0 ? String(d) : d.toFixed(2));
-};
 window.__saycrdPricingSentence = function(tiers) {
   if (!tiers || !tiers.length) return null;
   var usable = [];
@@ -879,17 +874,18 @@ window.__saycrdPricingSentence = function(tiers) {
     usable.push({ cents: c, count: n });
   }
   if (!usable.length) return null;
-  /* Cheapest way in, plus the best value per session if that is a different
-     pack. Derived rather than named, so an admin adding or repricing a tier
-     changes this sentence without a code change. */
-  var entry = usable[0], best = usable[0];
+  /* One number, no range and no pack breakdown: the best per-session rate in
+     the catalogue, to the dollar. Rounded UP, never down, so the copy can never
+     advertise a session as cheaper than it can actually be bought. Today the
+     5-pack is the best rate ($39 / 5 = $7.80) and this reads "$8 a session".
+     Still derived rather than written down, so an admin repricing a tier
+     updates the copy on its own. */
+  var bestRate = usable[0].cents / usable[0].count;
   for (var j = 1; j < usable.length; j++) {
-    if (usable[j].cents < entry.cents) entry = usable[j];
-    if (usable[j].cents / usable[j].count < best.cents / best.count) best = usable[j];
+    var rate = usable[j].cents / usable[j].count;
+    if (rate < bestRate) bestRate = rate;
   }
-  var s = "After those, sessions from " + window.__saycrdMoney(entry.cents);
-  if (best !== entry) s += " — " + best.count + " for " + window.__saycrdMoney(best.cents);
-  return s + ".";
+  return "$" + Math.ceil(bestRate / 100) + " a session after that.";
 };
 window.__saycrdPricingText = function() {
   return window.__saycrdSessionTiers().then(function(tiers){
