@@ -7,21 +7,131 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=Space+Grotesk:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
-<!-- These 4 scripts are still loaded as plain blocking <script> tags below (in this
-     exact order, since app.compiled.js assumes React/ReactDOM/supabase are already
-     defined) — that ordering can't change without risking breakage. What CAN change
-     safely is WHEN each download starts: without these hints, the browser only begins
-     fetching react.production.min.js once it finishes executing supabase-js, only
-     begins fetching react-dom once react finishes, and so on — four separate
-     download-then-run round trips stacked serially. Preloading tells the browser to
-     start ALL FOUR downloads immediately and in parallel, so by the time the parser
-     reaches each blocking <script> tag the bytes are already in flight (often already
-     cached), leaving only parse+execute time as the real serial cost. -->
-<link rel="preload" href="vendor/supabase-js.2.114.0.min.js" as="script">
-<link rel="preload" href="vendor/react.production.min.js" as="script">
-<link rel="preload" href="vendor/react-dom.production.min.js" as="script">
-<link rel="preload" href="app.compiled.js" as="script">
-<link rel="preload" href="env-config.js" as="script">
+<!-- Preload only what the FIRST paint actually needs. React and ReactDOM are
+     required to render anything at all, so they stay unconditional. The bundle
+     that renders on top of them is chosen by the boot decision immediately below
+     and preloaded from there, synchronously, so its download starts in parallel
+     with these two rather than after them.
+
+     Deliberately no longer preloaded (or loaded) for a signed-out visitor: the
+     Supabase SDK, env-config.js, session-sync.js and the application bundle. None
+     of them are needed to read the homepage. env-config.js is served no-store, so
+     it always cost a full round trip that nothing on this page depended on. -->
+<link rel="preload" href="static/react.production.min.4b4969fa4ef35943.js" as="script">
+<link rel="preload" href="static/react-dom.production.min.21758ed084cd0e37.js" as="script">
+<!-- Written by build/hash-assets.js from public/asset-manifest.json. The scripts
+     below are injected at runtime, so their hashed URLs cannot be rewritten as
+     src="" attributes the way the static tags are; this map is how the loader
+     resolves a logical name to the immutable file actually deployed. Inline
+     because it changes with every build, and index.html is the one asset already
+     served must-revalidate. -->
+<script>/* SAYCRD_ASSET_MAP_BEGIN */window.__SAYCRD_ASSETS = {"supabase-js.2.114.0.min.js":{"file":"static/supabase-js.2.114.0.min.0c05587928580a03.js"},"session-sync.js":{"file":"static/session-sync.ef371b7b468e3227.js"},"auth-layer.js":{"file":"static/auth-layer.1ca7f2058bf578db.js"},"landing.compiled.js":{"file":"static/landing.compiled.0e8288d9ac676559.js"},"app.compiled.js":{"file":"static/app.compiled.b50bad3d52730a93.js"}};/* SAYCRD_ASSET_MAP_END */</script>
+<script>
+/* ── Boot decision ────────────────────────────────────────────────────────────
+   Picks ONE of two paths before a single byte of either is requested.
+
+   No persisted session  ->  landing.compiled.js only. The public homepage, with
+                             no Supabase SDK, no env-config.js, no session sync
+                             and no application bundle.
+   Persisted session     ->  the application, in exactly the order it loaded
+                             before this split. The landing bundle is never
+                             requested, so a returning visitor still gets their
+                             Dashboard without the homepage painting first.
+
+   The probe is a synchronous localStorage read, so it costs no network and adds
+   nothing to first paint. It matches Supabase's token key by PATTERN rather than
+   by a ref derived from SUPABASE_URL — deliberately the same rule as
+   _hasPersistedAuthToken() in app.jsx, so the boot decision and the app's own
+   boot gate can never disagree about which path a visitor belongs to. That
+   agreement is pinned to a shared fixture set by api/__tests__/landing-split.test.js.
+──────────────────────────────────────────────────────────────────────────── */
+(function () {
+  var MAP = window.__SAYCRD_ASSETS || {};
+  function url(name) { return (MAP[name] && MAP[name].file) || name; }
+  window.__saycrdAssetUrl = url;
+
+  function hasPersistedToken() {
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || k.indexOf("sb-") !== 0) continue;
+        if (k.indexOf("-auth-token") === -1) continue;
+        if (k.indexOf("code-verifier") !== -1) continue; /* PKCE scratch value, not a session */
+        if (localStorage.getItem(k)) return true;
+      }
+    } catch (e) { /* storage unavailable (private mode, blocked): treat as signed out */ }
+    return false;
+  }
+
+  var signedIn = hasPersistedToken();
+  window.__saycrdBootSignedIn = signedIn;
+
+  function hint(rel, name) {
+    var l = document.createElement("link");
+    l.rel = rel; l.as = "script"; l.href = url(name);
+    document.head.appendChild(l);
+  }
+  hint("preload", signedIn ? "app.compiled.js" : "landing.compiled.js");
+  if (signedIn) {
+    hint("preload", "supabase-js.2.114.0.min.js");
+    hint("preload", "session-sync.js");
+    hint("preload", "auth-layer.js");
+  }
+
+  /* One element per script, one promise per script: concurrent callers share a
+     single request instead of racing to insert a second copy. */
+  var pending = {};
+  function insert(name) {
+    if (pending[name]) return pending[name];
+    pending[name] = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = url(name);
+      /* Dynamically inserted scripts default to async. Forcing async=false is
+         what guarantees a batch inserted together still EXECUTES in insertion
+         order while downloading in parallel — the ordering auth-layer.js and
+         app.compiled.js depend on, without paying for it serially. */
+      s.async = false;
+      s.onload = function () { resolve(name); };
+      s.onerror = function () { reject(new Error("failed to load " + name)); };
+      document.head.appendChild(s);
+    });
+    return pending[name];
+  }
+  /* Inserts every name in one synchronous pass, so all downloads start together. */
+  function loadAll(names) { return Promise.all(names.map(insert)); }
+  window.__saycrdLoadScript = insert;
+
+  var authPromise = null;
+  /* env-config -> SDK -> session sync -> auth layer. auth-layer.js builds the
+     Supabase client from env-config's values and wires window._sessionSync from
+     window.SessionSync, so it has to execute last of the four. */
+  window.__saycrdEnsureAuth = function () {
+    if (!authPromise) {
+      authPromise = loadAll(["env-config.js", "supabase-js.2.114.0.min.js", "session-sync.js", "auth-layer.js"]);
+    }
+    return authPromise;
+  };
+  /* The auth overlay's inline handlers await this instead of reading
+     window.sbClient directly, which is null until the SDK has executed. */
+  window.__saycrdSb = function () {
+    return window.__saycrdEnsureAuth().then(
+      function () { return window.sbClient || null; },
+      function () { return null; }
+    );
+  };
+
+  var appPromise = null;
+  /* Loads the application over whatever is currently mounted. Supabase is NOT
+     pulled in here: a guest who continues without an account runs on
+     localStorage, which is the same failsafe path the app already takes when
+     Supabase is unreachable. Auth arrives only via __saycrdEnsureAuth(), i.e.
+     when a token exists at boot or the visitor opens the auth overlay. */
+  window.__saycrdLoadApp = function () {
+    if (!appPromise) appPromise = insert("app.compiled.js");
+    return appPromise;
+  };
+})();
+</script>
 <style>
 :root{
   /* ═══ Fluid layout tokens ═══
@@ -98,10 +208,12 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
     }
 </style>
 
-    <!-- Vendored locally (see /vendor) instead of loaded from cdn.jsdelivr.net: on mobile
-         networks each extra external origin costs a fresh DNS lookup + TLS handshake before
-         its bytes even start downloading, which is real, compounding latency on cellular. -->
-    <script src="vendor/supabase-js.2.114.0.min.js"></script>
+    <!-- The Supabase SDK is still vendored locally (see /vendor) rather than loaded from
+         cdn.jsdelivr.net, for the same reason as before: on mobile networks each extra
+         external origin costs a fresh DNS lookup + TLS handshake before its bytes even
+         start downloading. It is no longer a blocking <script> here, though — nothing on
+         the signed-out homepage authenticates, so it is fetched by __saycrdEnsureAuth()
+         when a session token exists at boot or the visitor opens the auth overlay. -->
     <script>
     /* Toggles a password <input> between masked and plain text so a user
        can verify what they actually typed — defined globally, before the
@@ -142,7 +254,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
               var pw=document.getElementById('auth-password').value;
               if(!em||!pw){err.textContent='Enter email and password';btn.disabled=false;return;}
               try{
-                var sb=window.sbClient;if(!sb||!sb.auth){err.textContent='Database connecting... try again or use Continue without account';btn.disabled=false;return;}
+                var sb=await window.__saycrdSb();if(!sb||!sb.auth){err.textContent='Database connecting... try again or use Continue without account';btn.disabled=false;return;}
                 var r=await sb.auth.signInWithPassword({email:em,password:pw});
                 if(r.error){
                   var msg=r.error.message||'Login failed';
@@ -164,7 +276,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
           <div class="auth-error" id="auth-error"></div>
           <div class="auth-divider">or</div>
           <button class="auth-social" id="auth-google" onclick="
-            var sb=window.sbClient;if(sb&&sb.auth)sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin}});
+              window.__saycrdSb().then(function(sb){if(sb&&sb.auth)sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin}});});
           ">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
             Continue with Google
@@ -188,7 +300,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
               if(!em||!pw){err.textContent='Enter email and password';btn.disabled=false;return;}
               if(pw.length<6){err.textContent='Password must be at least 6 characters';btn.disabled=false;return;}
               try{
-                var sb=window.sbClient;if(!sb||!sb.auth){err.textContent='Database connecting... try Continue without account below';btn.disabled=false;return;}
+                var sb=await window.__saycrdSb();if(!sb||!sb.auth){err.textContent='Database connecting... try Continue without account below';btn.disabled=false;return;}
                 var r=await sb.auth.signUp({email:em,password:pw});
                 if(r.error){
                   var msg=r.error.message||'Signup failed';
@@ -224,7 +336,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
               var em=document.getElementById('auth-reset-email').value.trim();
               if(!em){err.textContent='Enter your email';btn.disabled=false;return;}
               try{
-                var sb=window.sbClient;if(!sb||!sb.auth){err.textContent='Database offline';btn.disabled=false;return;}
+                var sb=await window.__saycrdSb();if(!sb||!sb.auth){err.textContent='Database offline';btn.disabled=false;return;}
                 var r=await sb.auth.resetPasswordForEmail(em,{redirectTo:window.location.origin});
                 if(r.error){err.textContent=r.error.message;btn.disabled=false;return;}
                 err.style.color='rgba(107,184,255,.7)';err.textContent='Reset link sent \u2014 check your email.';btn.disabled=false;
@@ -255,7 +367,7 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
               if(!pw||pw.length<6){err.textContent='Password must be at least 6 characters';btn.disabled=false;return;}
               if(pw!==pw2){err.textContent='Passwords do not match';btn.disabled=false;return;}
               try{
-                var sb=window.sbClient;if(!sb||!sb.auth){err.textContent='Database offline — try again shortly';btn.disabled=false;return;}
+                var sb=await window.__saycrdSb();if(!sb||!sb.auth){err.textContent='Database offline — try again shortly';btn.disabled=false;return;}
                 var r=await sb.auth.updateUser({password:pw});
                 if(r.error){err.textContent=r.error.message||'Could not update password';btn.disabled=false;return;}
                 window._passwordRecoveryPending=false;
@@ -316,25 +428,56 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
 </script>
 <!-- React/ReactDOM are also vendored locally now (see /vendor), same reasoning as Supabase
      above: cdnjs.cloudflare.com was a second extra origin these had to round-trip to before
-     app.compiled.js could even start running, on top of the app's own script below. -->
-<script src="vendor/react.production.min.js"></script>
-<script src="vendor/react-dom.production.min.js"></script>
-<!-- app.jsx is pre-compiled to plain JS at deploy time (see build/compile.js) instead
-     of being transpiled in-browser via Babel Standalone on every visit. That in-browser
-     compile of ~11k lines of JSX was taking ~30s on phones with nothing rendered but
-     the background, since React can't draw anything until the transpile finishes. -->
-<!-- Generated per deployment by build/env-config.js from environment variables.
-     Must load before the configuration block below reads window.SAYCRD_ENV_CONFIG,
-     so it is a blocking script rather than a fetch: the Supabase client is created
-     synchronously further down and several call sites depend on it existing. -->
-<script src="env-config.js"></script>
-<!-- These logical names are rewritten to public/static/<name>.<contenthash>.js by
+     app.compiled.js could even start running, on top of the app's own script below.
+     These two stay blocking: both boot paths render React immediately.
+     Their logical names are rewritten to public/static/<name>.<contenthash>.js by
      build/hash-assets.js, using public/asset-manifest.json as the single source of
      truth, so the served URLs can be cached immutably. Do NOT add a ?v= query here:
      the hash replaces it, and a hand-maintained version under immutable caching
      would pin visitors to a stale bundle if it were ever forgotten. -->
-<script src="session-sync.js"></script>
-    <script src="app.compiled.js"></script>
+<script src="static/react.production.min.4b4969fa4ef35943.js"></script>
+<script src="static/react-dom.production.min.21758ed084cd0e37.js"></script>
+<!-- landing.jsx and app.jsx are pre-compiled to plain JS at deploy time (see
+     build/compile.js) instead of being transpiled in-browser via Babel Standalone on
+     every visit. That in-browser compile of ~11k lines of JSX was taking ~30s on phones
+     with nothing rendered but the background, since React can't draw anything until the
+     transpile finishes.
+
+     Which bundle loads here was decided synchronously in <head>, before either was
+     requested. This runs after <div id="root"> above so both bundles can mount into it
+     immediately, exactly as the old blocking app.compiled.js tag did. -->
+<script>
+(function () {
+  if (window.__saycrdBootSignedIn) {
+    /* Same four scripts, same execution order as before this split, with
+       app.compiled.js last — so a returning visitor's boot path stays the one
+       the routing and flash repairs were built and verified against. All five
+       download in parallel; only their execution is ordered. */
+    window.__saycrdEnsureAuth().then(window.__saycrdLoadApp, window.__saycrdLoadApp);
+    return;
+  }
+
+  window.__saycrdLoadScript("landing.compiled.js").then(function () {
+    /* Warm the application bundle once the homepage is painted and the main
+       thread is idle, so "start a session" does not pay for a cold download at
+       the moment of the click. rel=prefetch (not preload) keeps it at the
+       lowest priority, behind anything the visible page still wants. */
+    var warm = function () {
+      var l = document.createElement("link");
+      l.rel = "prefetch"; l.as = "script";
+      l.href = window.__saycrdAssetUrl("app.compiled.js");
+      document.head.appendChild(l);
+    };
+    if (window.requestIdleCallback) window.requestIdleCallback(warm, { timeout: 3000 });
+    else setTimeout(warm, 1500);
+  }, function (e) {
+    /* For a signed-out visitor the homepage IS the page, so there is nothing to
+       degrade to but the full application, which still renders it. */
+    console.error("[SAYCRD] landing bundle failed to load, falling back to the app:", e);
+    window.__saycrdLoadApp();
+  });
+})();
+</script>
 
 <script>
 /* Global error handler — shows what's breaking */
@@ -352,391 +495,18 @@ window.onerror = function(msg, url, line, col, err) {
   } catch(e) {}
 };
 
-/* ====================================================================
-   SAYCRD — Configuration
-
-   The Supabase values are NOT hardcoded here. This file is one static asset
-   shared by every deployment, so a literal project URL in it pointed Preview
-   deployments at the production database — while the API half of the app reads
-   process.env and could be pointed elsewhere, which would hand a staging API
-   production-issued JWTs it cannot verify.
-
-   They now come from env-config.js, generated per deployment by
-   build/env-config.js from environment variables. That build step refuses to
-   emit anything but a browser-safe anon/publishable key, refuses to build
-   Preview against production, and refuses to build Production against
-   anything else.
-   ==================================================================== */
-const SAYCRD_ENV = window.SAYCRD_ENV_CONFIG || null;
-const SAYCRD_CONFIG = {
-  SUPABASE_URL: (SAYCRD_ENV && SAYCRD_ENV.SUPABASE_URL) || "",
-  SUPABASE_ANON_KEY: (SAYCRD_ENV && SAYCRD_ENV.SUPABASE_ANON_KEY) || "",
-  API_ENDPOINT: "/api/claude",
-};
-
-/* ====================================================================
-   Supabase Client + Auth
-   ==================================================================== */
-var sbClient = null;
-window.sbClient = null;
-var supabaseAvailable = false;
-try {
-  // Fail closed. With no browser configuration there is no authentication, so
-  // do not build a client against empty values and appear half-working: leave
-  // supabaseAvailable false so the app uses local-only storage, exactly as it
-  // already does whenever Supabase is unreachable.
-  if (!SAYCRD_CONFIG.SUPABASE_URL || !SAYCRD_CONFIG.SUPABASE_ANON_KEY) {
-    throw new Error("env-config.js missing or incomplete — no browser Supabase configuration");
-  }
-  sbClient = window.supabase.createClient(
-    SAYCRD_CONFIG.SUPABASE_URL,
-    SAYCRD_CONFIG.SUPABASE_ANON_KEY
-  );
-  window.sbClient = sbClient;
-  supabaseAvailable = true;
-  console.log("Supabase client initialized");
-} catch(sbInitErr) {
-  console.warn("Supabase unavailable:", sbInitErr.message || sbInitErr);
-}
-
-var currentUser = null;
-window.currentUser = null;
-
-/* ── Storage Adapter (drop-in replacement for window.storage) ── */
-/* Saves to Supabase if authenticated + available, otherwise localStorage */
-/* AUTH GATE: storage ops wait for auth to resolve before executing */
-var _authReady = null;
-var _authResolve = null;
-_authReady = new Promise(function(resolve) { _authResolve = resolve; });
-window._authResolve = _authResolve;
-/* Timeout: if auth doesn't resolve in 5s, proceed with whatever we have */
-setTimeout(function() { _authResolve(); }, 5000);
-
-function _storageMode() {
-  if (currentUser && supabaseAvailable && currentUser.id !== "local-user") return "supabase";
-  return "local";
-}
-function _localGet(key) {
-  var uid = (currentUser && currentUser.id) || "local-user";
-  var v = localStorage.getItem("saycrd-" + uid + "-" + key);
-  if (v === null) return null;
-  return { key: key, value: v };
-}
-function _localSet(key, value) {
-  var uid = (currentUser && currentUser.id) || "local-user";
-  localStorage.setItem("saycrd-" + uid + "-" + key, value);
-  return { key: key, value: value };
-}
-function _localDelete(key) {
-  var uid = (currentUser && currentUser.id) || "local-user";
-  localStorage.removeItem("saycrd-" + uid + "-" + key);
-  return { key: key, deleted: true };
-}
-function _localList(prefix) {
-  var uid = (currentUser && currentUser.id) || "local-user";
-  var pfx = "saycrd-" + uid + "-";
-  var keys = [];
-  for (var i = 0; i < localStorage.length; i++) {
-    var k = localStorage.key(i);
-    if (k && k.indexOf(pfx) === 0) {
-      var clean = k.slice(pfx.length);
-      if (!prefix || clean.indexOf(prefix) === 0) keys.push(clean);
-    }
-  }
-  return { keys: keys };
-}
-
-/* ── Sync local data up to Supabase (runs once after auth) ── */
-async function _syncLocalToSupabase() {
-  if (_storageMode() !== "supabase") return;
-  var uid = currentUser.id;
-  var pfx = "saycrd-" + uid + "-";
-  var synced = 0;
-  for (var i = 0; i < localStorage.length; i++) {
-    var k = localStorage.key(i);
-    if (k && k.indexOf(pfx) === 0) {
-      var cleanKey = k.slice(pfx.length);
-      var val = localStorage.getItem(k);
-      if (!val) continue;
-      try {
-        /* Check if supabase already has this key */
-        var { data } = await sbClient.from("user_data").select("key").eq("user_id", uid).eq("key", cleanKey).limit(1);
-        if (!data || data.length === 0) {
-          /* Supabase doesn't have it — push local up */
-          var parsed; try { parsed = JSON.parse(val); } catch(e) { parsed = val; }
-          await sbClient.from("user_data").upsert({ user_id: uid, key: cleanKey, value: parsed }, { onConflict: "user_id,key" });
-          synced++;
-        }
-      } catch(e) { /* skip silently */ }
-    }
-  }
-  if (synced > 0) console.log("Synced " + synced + " local keys to Supabase");
-}
-
-/* ── Migrate pre-auth "Continue without account" localStorage into the real  */
-/* signed-in uid ── */
-/* Only the explicit "Continue without account" bypass ("local-user") gets    */
-/* carried over into a newly created/logged-in real account, so someone who  */
-/* deliberately continued as a guest keeps continuity if they later sign up. */
-/* Plain anonymous browsing ("local" — no bypass, no account) never migrates: */
-/* real accounts are meant to start online with a clean slate, never         */
-/* inheriting whatever guest history happens to be sitting in that browser.  */
-function _migrateLegacyLocalKeys(uid) {
-  if (!uid || uid === "local-user" || uid === "local") return;
-  var legacyUids = ["local-user"];
-  var localUserPfx = "saycrd-local-user-";
-  var newPfx = "saycrd-" + uid + "-";
-  var migrated = 0;
-  legacyUids.forEach(function(legacyUid) {
-    var legacyPfx = "saycrd-" + legacyUid + "-";
-    var keys = [];
-    for (var i = 0; i < localStorage.length; i++) {
-      var k = localStorage.key(i);
-      if (!k || k.indexOf(legacyPfx) !== 0) continue;
-      /* "saycrd-local-" is a prefix of "saycrd-local-user-" — when scanning
-         the shorter "local" uid, skip keys that actually belong to the more
-         specific "local-user" uid (already migrated in the prior pass). */
-      if (legacyUid === "local" && k.indexOf(localUserPfx) === 0) continue;
-      keys.push(k);
-    }
-    keys.forEach(function(k) {
-      var cleanKey = k.slice(legacyPfx.length);
-      var newKey = newPfx + cleanKey;
-      var legacyVal = localStorage.getItem(k);
-      if (!legacyVal) return;
-      if (cleanKey === "sessions") {
-        /* Merge by the session's own date timestamp — the same dedup key
-           _hydrateFromServer uses — so re-running this on a later sign-in
-           can't duplicate sessions. */
-        var existing = [];
-        try { existing = JSON.parse(localStorage.getItem(newKey) || "[]"); } catch(e) {}
-        if (!Array.isArray(existing)) existing = [];
-        var legacySessions = [];
-        try { legacySessions = JSON.parse(legacyVal || "[]"); } catch(e) {}
-        if (!Array.isArray(legacySessions) || legacySessions.length === 0) return;
-        var seen = {};
-        existing.forEach(function(s) { if (s && s.date) seen[s.date] = true; });
-        var added = 0;
-        legacySessions.forEach(function(s) {
-          if (!s || !s.date || seen[s.date]) return;
-          seen[s.date] = true;
-          existing.push(s);
-          added++;
-        });
-        if (added > 0) {
-          existing.sort(function(a, b) { return a.date < b.date ? -1 : 1; });
-          localStorage.setItem(newKey, JSON.stringify(existing));
-          migrated += added;
-        }
-      } else if (localStorage.getItem(newKey) === null) {
-        /* Non-session key: only copy if the real account doesn't already have it. */
-        localStorage.setItem(newKey, legacyVal);
-        migrated++;
-      }
-      /* Leave the old anonymous-uid key in place — harmless leftover,
-         avoids data loss if migration partially fails. Just stop reading
-         from it going forward (loadSessions()/_sessionKey() already key
-         off getCurrentUid(), which resolves to the real uid post-migration). */
-    });
-  });
-  if (migrated > 0) console.log("[SAYCRD] Migrated " + migrated + " item(s) from anonymous storage into account " + uid);
-}
-
-/* ── Hydrate localStorage from Supabase (runs after auth on new/different device) ── */
-/* Fetches sessions from server and merges with local.                                */
-async function _hydrateFromServer() {
-  if (!currentUser || !supabaseAvailable || currentUser.id === "local-user") return;
-  var uid = currentUser.id;
-  try {
-    var { data, error } = await sbClient
-      .from("user_data")
-      .select("value, updated_at")
-      .eq("user_id", uid)
-      .eq("key", "sessions")
-      .limit(1);
-    if (error || !data || data.length === 0) return;
-    var serverSessions = Array.isArray(data[0].value) ? data[0].value : JSON.parse(data[0].value || "[]");
-    if (!Array.isArray(serverSessions) || serverSessions.length === 0) return;
-
-    var localKey = "saycrd-" + uid + "-sessions";
-    var localSessions = [];
-    try { localSessions = JSON.parse(localStorage.getItem(localKey) || "[]"); } catch(e) {}
-
-    // Merge by date string. This used to concat server-then-local and keep
-    // whichever copy of a shared date appeared FIRST — i.e. the server's.
-    // This function runs on every SIGNED_IN event, which supabase-js also
-    // fires on a plain page reload/relaunch (not just a fresh sign-in on a
-    // new device) whenever it restores a persisted session. So on ANY
-    // reload, if the local copy has a just-generated field report (or
-    // sentence-feedback edit) that hasn't finished its own async push to
-    // Supabase yet — very easy on mobile, where the app gets backgrounded
-    // or relaunched moments after finishing a session — the server's older,
-    // report-less copy of that same date SILENTLY OVERWROTE the local one.
-    // The cached report was gone, so every later "Read Your Report" click
-    // looked like it was generating from scratch again, even for a report
-    // that had already been written once. Fix: for a shared date, merge the
-    // two objects with the LOCAL fields taking priority — local always has
-    // everything the server does (it's the source every push comes from)
-    // plus anything generated since the last successful push, so it can
-    // only ever be equal to or richer than the server's copy.
-    var localByDate = {};
-    localSessions.forEach(function(s) { if (s && s.date) localByDate[s.date] = s; });
-    var merged = serverSessions.map(function(s) {
-      if (s && s.date && localByDate[s.date]) return Object.assign({}, s, localByDate[s.date]);
-      return s;
-    }).filter(function(s) { return s && s.date; });
-    var mergedDates = {};
-    merged.forEach(function(s) { mergedDates[s.date] = true; });
-    localSessions.forEach(function(s) {
-      if (s && s.date && !mergedDates[s.date]) { merged.push(s); mergedDates[s.date] = true; }
-    });
-    merged.sort(function(a, b) { return a.date < b.date ? -1 : 1; });
-    if (merged.length > 100) merged = merged.slice(-100);
-
-    if (merged.length > localSessions.length) {
-      localStorage.setItem(localKey, JSON.stringify(merged));
-      console.log("[SAYCRD] Hydrated from server:", merged.length, "sessions (had", localSessions.length, "locally)");
-      // Trigger app re-read by firing a custom event React can listen to
-      try { window.dispatchEvent(new CustomEvent("saycrd-sessions-hydrated", { detail: { count: merged.length } })); } catch(e) {}
-    }
-
-    // Push any local-only sessions back to server
-    if (merged.length > serverSessions.length) {
-      await sbClient.from("user_data").upsert(
-        { user_id: uid, key: "sessions", value: merged },
-        { onConflict: "user_id,key" }
-      );
-      console.log("[SAYCRD] Pushed merged sessions back to server.");
-    }
-  } catch(e) {
-    console.warn("[SAYCRD] Hydration failed (not critical):", e);
-  }
-}
-
-window.storage = {
-  async get(key) {
-    await _authReady;
-    if (!currentUser) throw new Error("Not authenticated");
-    if (_storageMode() === "local") return _localGet(key);
-    try {
-      const { data, error } = await sbClient
-        .from("user_data")
-        .select("key, value")
-        .eq("user_id", currentUser.id)
-        .eq("key", key)
-        .limit(1);
-      if (error) { console.warn("Supabase get error for '" + key + "':", error.message); return _localGet(key); }
-      var row = data && data.length > 0 ? data[0] : null;
-      if (row) {
-        /* Got from Supabase — also update local cache */
-        var val = JSON.stringify(row.value);
-        _localSet(key, val);
-        return { key: row.key, value: val };
-      }
-      /* Supabase returned nothing — check if local has it (migration case) */
-      var local = _localGet(key);
-      if (local && local.value) {
-        /* Push local data up to Supabase */
-        try {
-          var parsed; try { parsed = JSON.parse(local.value); } catch(e) { parsed = local.value; }
-          await sbClient.from("user_data").upsert({ user_id: currentUser.id, key: key, value: parsed }, { onConflict: "user_id,key" });
-          console.log("Migrated '" + key + "' from local to Supabase");
-        } catch(e) { /* migration failed, no big deal */ }
-        return local;
-      }
-      return null;
-    } catch(e) { console.warn("Supabase get failed for '" + key + "':", e); return _localGet(key); }
-  },
-
-  async set(key, value) {
-    await _authReady;
-    if (!currentUser) throw new Error("Not authenticated");
-    /* Always write to localStorage as backup */
-    _localSet(key, value);
-    if (_storageMode() === "local") return { key: key, value: value };
-    try {
-      let parsed;
-      try { parsed = JSON.parse(value); } catch(e) { parsed = value; }
-      const { error } = await sbClient
-        .from("user_data")
-        .upsert({
-          user_id: currentUser.id,
-          key: key,
-          value: parsed
-        }, { onConflict: "user_id,key" });
-      if (error) { console.warn("Supabase set error for '" + key + "':", error.message); }
-      return { key: key, value: value };
-    } catch(e) { console.warn("Supabase set failed for '" + key + "':", e); return { key: key, value: value }; }
-  },
-
-  async delete(key) {
-    await _authReady;
-    if (!currentUser) throw new Error("Not authenticated");
-    _localDelete(key);
-    if (_storageMode() === "local") return { key: key, deleted: true };
-    try {
-      const { error } = await sbClient
-        .from("user_data")
-        .delete()
-        .eq("user_id", currentUser.id)
-        .eq("key", key);
-      if (error) console.warn("Supabase delete error:", error.message);
-    } catch(e) { console.warn("Supabase delete failed:", e); }
-    return { key: key, deleted: true };
-  },
-
-  async list(prefix) {
-    await _authReady;
-    if (!currentUser) throw new Error("Not authenticated");
-    if (_storageMode() === "local") return _localList(prefix);
-    try {
-      let query = sbClient
-        .from("user_data")
-        .select("key")
-        .eq("user_id", currentUser.id);
-      if (prefix) query = query.like("key", prefix + "%");
-      const { data, error } = await query;
-      if (error) { console.warn("Supabase list error:", error.message); return _localList(prefix); }
-      return { keys: (data || []).map(function(d) { return d.key; }) };
-    } catch(e) { console.warn("Supabase list failed:", e); return _localList(prefix); }
-  }
-};
-
-/* ====================================================================
-   Stage 3 (session-persistence-audit): the new relational
-   sessions/reports sync client (public/session-sync.js). Entirely
-   separate from window.storage above (that still runs, unchanged, as
-   the older single-blob "user_data" sync path) -- this is the bridge to
-   the JWT-verified /api/sessions, /api/session-complete, and
-   /api/reports routes that Stage 1/2 built and verified.
-   ==================================================================== */
-window._sessionSync = window.SessionSync && window.SessionSync.createSessionSync({
-  fetchImpl: function(url, opts) { return fetch(url, opts); },
-  getToken: async function() {
-    if (window._saycrdToken) return window._saycrdToken;
-    if (window.sbClient && window.sbClient.auth) {
-      try {
-        var ss = await window.sbClient.auth.getSession();
-        if (ss && ss.data && ss.data.session) return ss.data.session.access_token;
-      } catch(e) {}
-    }
-    return null;
-  },
-  storage: window.localStorage,
-  now: function() { return new Date().toISOString(); },
-});
-
-function _syncPendingSessionsToServer(uid) {
-  if (!window._sessionSync || !uid) return;
-  window._sessionSync.syncPendingSessions(uid).then(function(result) {
-    try { window.dispatchEvent(new CustomEvent("saycrd-sync-status", { detail: { pendingErrors: (result && result.failed) || 0 } })); } catch(e) {}
-  }).catch(function(e) { console.warn("[SAYCRD] Session sync failed:", e); });
-}
 
 /* ====================================================================
    FAILSAFE BYPASS — works even if Supabase is completely broken
    ==================================================================== */
 window._showAuthOverlay = function(onSuccess, opts) {
+  /* Start fetching the auth layer the moment the overlay opens, so the SDK is
+     already there by the time anyone finishes typing. Not awaited: the overlay
+     markup is static HTML and its show/hide, "Continue without account",
+     Escape, backdrop and close paths are all implemented right here, with no
+     Supabase dependency — so the overlay must appear instantly whether or not
+     this ever resolves. The form handlers await __saycrdSb() individually. */
+  if (window.__saycrdEnsureAuth) window.__saycrdEnsureAuth();
   var overlay = document.getElementById("auth-overlay");
   if (overlay) {
     /* The visitor is deliberately authenticating. app.jsx reads this to tell a
@@ -822,9 +592,16 @@ document.addEventListener("keydown", function(e) {
 
 window._localBypass = function() {
   if (window._authRequireAccount) return; /* hard wall: free guest sessions used up, no anonymous fallback */
-  currentUser = { id: "local-user", email: "local@saycrd" };
-  window.currentUser = currentUser;
-  if (_authResolve) _authResolve();
+  window.currentUser = { id: "local-user", email: "local@saycrd" };
+  /* This block is eager and auth-layer.js may never load (a guest needs no
+     Supabase), so neither name can be assumed to exist here.
+     `currentUser` is assigned bare on purpose: that targets auth-layer.js's own
+     `var currentUser` when the file IS loaded, and merely creates the global
+     when it is not, so the two can't drift apart. `_authResolve` has to go
+     through `window` instead, because a bare READ of an undeclared name throws
+     — which is exactly what a signed-out bypass would have hit. */
+  currentUser = window.currentUser;
+  if (window._authResolve) window._authResolve();
   /* storage already handles local mode via _storageMode() check */
   var overlay = document.getElementById("auth-overlay");
   if (overlay) {
@@ -843,148 +620,6 @@ window._localBypass = function() {
   window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
   console.log("LOCAL BYPASS ACTIVE — using localStorage");
 };
-
-/* ====================================================================
-   Session-pack paywall
-   Real accounts get 2 free sessions (tracked server-side), then must buy
-   a pack via Square Checkout. guardedStart() (in app.jsx) calls
-   _consumeSessionCredit() before letting a real account start a session
-   -- despite the name, this is a read-only eligibility check against
-   /api/session-start (it consumes nothing): it lets the client show the
-   paywall up front instead of the user investing time in a session that
-   can't be completed. The entitlement itself is only ever actually
-   consumed atomically, at session-complete time, by the
-   complete_session_and_consume_entitlement RPC (see
-   api/session-complete.js) -- so this check's answer is advisory only,
-   and a "yes" here followed by running out of entitlement before
-   completion (e.g. two tabs finishing concurrently) is handled safely by
-   session-complete.js, not by this function. Any network/server hiccup
-   here fails OPEN so an outage never strands a paying user mid-session.
-   ==================================================================== */
-window._consumeSessionCredit = async function() {
-  var tok = window._saycrdToken;
-  if (!tok && window.sbClient && window.sbClient.auth) {
-    try {
-      var ss = await window.sbClient.auth.getSession();
-      if (ss && ss.data && ss.data.session) tok = ss.data.session.access_token;
-    } catch(e) {}
-  }
-  if (!tok) return { ok: true }; /* no token shouldn't happen for a real account — fail open */
-  try {
-    var r = await fetch("/api/session-start", { method: "POST", headers: { "Authorization": "Bearer " + tok } });
-    if (r.status === 402) return { ok: false };
-    if (!r.ok) return { ok: true }; /* fail open on server error */
-    return await r.json();
-  } catch(e) {
-    return { ok: true }; /* fail open on network error */
-  }
-};
-
-window._showPaywall = function() {
-  window.dispatchEvent(new CustomEvent("saycrd-show-paywall"));
-};
-
-window._showAdminTiers = function() {
-  window.dispatchEvent(new CustomEvent("saycrd-show-admin-tiers"));
-};
-
-/* ── Auth: restore session + sign out (all form handlers are inline in HTML) ── */
-(function() {
-  try {
-    if (sbClient && sbClient.auth) {
-      sbClient.auth.getSession().then(function(result) {
-        if (result.data.session) {
-          currentUser = result.data.session.user;
-          window.currentUser = currentUser;
-          window._saycrdToken = result.data.session.access_token;
-          var o = document.getElementById("auth-overlay");
-          if (o) { o.classList.remove("is-visible"); o.style.transition = "opacity .4s ease"; setTimeout(function(){ o.style.display = "none"; }, 400); }
-          window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
-          console.log("Session restored for:", currentUser.email);
-          /* Resolve auth gate so storage ops proceed */
-          if (_authResolve) _authResolve();
-          /* Sync any local-only data up to Supabase */
-          _syncLocalToSupabase().catch(function(e) { console.warn("Sync failed:", e); });
-          /* Stage 3: retry anything left pending from a previous visit
-             (e.g. a save that failed mid-session last time). */
-          _syncPendingSessionsToServer(currentUser.id);
-        } else {
-          /* No session — resolve gate anyway so local mode works */
-          if (_authResolve) _authResolve();
-        }
-      }).catch(function(e) {
-        console.warn("Session restore failed:", e);
-        if (_authResolve) _authResolve();
-      });
-
-      sbClient.auth.onAuthStateChange(function(event, session) {
-        /* Password-recovery links log the user in via a special "recovery"
-           session so they can call updateUser() — but they still need to
-           actually pick a new password before we let them into the app.
-           Show the "set a new password" form instead of the normal
-           sign-in flow, and hold the overlay open until they've done so. */
-        if (event === "PASSWORD_RECOVERY") {
-          window._passwordRecoveryPending = true;
-          currentUser = session && session.user;
-          window.currentUser = currentUser;
-          if (session) window._saycrdToken = session.access_token;
-          if (_authResolve) _authResolve();
-          var ro = document.getElementById("auth-overlay");
-          if (ro) { ro.style.transition = "none"; ro.style.display = "flex"; ro.style.opacity = "1"; ro.classList.add("is-visible"); void ro.offsetHeight; ro.style.transition = ""; }
-          ["auth-login","auth-signup","auth-reset"].forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display="none"; });
-          var bypassRow = document.getElementById("auth-bypass-row"); if (bypassRow) bypassRow.style.display = "none";
-          var npForm = document.getElementById("auth-new-password"); if (npForm) npForm.style.display = "block";
-          setTimeout(function(){ var f=document.getElementById("auth-new-password-input"); if (f) f.focus(); }, 80);
-          return;
-        }
-        if (window._passwordRecoveryPending) return; /* don't let a stray event close the form early */
-        if (session && session.user) {
-          currentUser = session.user;
-          window.currentUser = currentUser;
-          window._saycrdToken = session.access_token;
-          var o = document.getElementById("auth-overlay");
-          if (o) { o.classList.remove("is-visible"); o.style.transition = "opacity .4s ease"; setTimeout(function(){ o.style.display = "none"; }, 400); }
-          window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
-          /* Resolve auth gate on sign-in too */
-          if (_authResolve) _authResolve();
-          /* On sign-in: hydrate from server first (new device recovery),
-             then push any local-only data up. Both are non-blocking. */
-          if (event === "SIGNED_IN") {
-            try { _migrateLegacyLocalKeys(session.user.id); } catch(e) { console.warn("[SAYCRD] Legacy key migration failed:", e); }
-            _hydrateFromServer().then(function() {
-              return _syncLocalToSupabase();
-            }).catch(function(e) { console.warn("[SAYCRD] Post-login sync failed:", e); });
-            /* Stage 3 (session-persistence-audit): the guest-to-account
-               transfer. Runs after _migrateLegacyLocalKeys so a
-               "Continue without account" guest's sessions have already
-               been merged under this real uid before syncing them up to
-               the relational sessions/reports API. */
-            _syncPendingSessionsToServer(session.user.id);
-          }
-        }
-      });
-    } else {
-      /* No supabase — resolve immediately */
-      if (_authResolve) _authResolve();
-    }
-  } catch(e) {
-    console.warn("Auth init:", e);
-    if (_authResolve) _authResolve();
-  }
-
-  function doSignOut() {
-    try { if (sbClient && sbClient.auth) sbClient.auth.signOut(); } catch(e) {}
-    currentUser = null;
-    window.currentUser = null;
-    /* Signing out is not an attempt to sign in: clear the intent flag so the
-       next background session resolution cannot be mistaken for a login. */
-    window._authUserInitiated = false;
-    window.dispatchEvent(new CustomEvent("saycrd-auth-change"));
-    var o = document.getElementById("auth-overlay");
-    if (o) { o.style.display = ""; o.style.opacity = "1"; }
-  }
-  window._signOut = doSignOut;
-})();
 </script>
 
 <script>

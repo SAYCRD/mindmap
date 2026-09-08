@@ -41,8 +41,24 @@ const HASHED_ASSETS = [
   'vendor/react.production.min.js',
   'vendor/react-dom.production.min.js',
   'session-sync.js',
+  'auth-layer.js',
+  'landing.compiled.js',
   'app.compiled.js',
 ];
+
+// Names index.html requests at runtime rather than through a src="" attribute, so
+// the HTML rewrite below cannot reach them. They are resolved by the boot loader
+// through window.__SAYCRD_ASSETS instead — see injectAssetMap.
+const RUNTIME_LOADED = [
+  'supabase-js.2.114.0.min.js',
+  'session-sync.js',
+  'auth-layer.js',
+  'landing.compiled.js',
+  'app.compiled.js',
+];
+
+const ASSET_MAP_BEGIN = '/* SAYCRD_ASSET_MAP_BEGIN */';
+const ASSET_MAP_END = '/* SAYCRD_ASSET_MAP_END */';
 
 const STATIC_DIR = 'static';
 const HASH_LENGTH = 16;
@@ -121,6 +137,36 @@ function findManualVersionQueries(html) {
   return html.match(/(?:src|href)="[^"]*\?v=[^"]*"/g) || [];
 }
 
+// Writes the runtime name -> hashed file map into index.html between the two
+// markers. Scripts injected by the boot loader have no src="" attribute in the
+// HTML for rewriteHtml to find, so this is how they reach their immutable URL.
+//
+// Idempotent by construction: everything between the markers is REPLACED, so
+// re-running converges instead of accumulating. Both markers must already exist —
+// silently appending a second map would leave the page with two, and the last one
+// to execute would win.
+//
+// env-config.js is intentionally absent: it is generated per deployment and served
+// no-store, so it stays at its unhashed name and needs no entry.
+function injectAssetMap(html, manifest, names) {
+  const wanted = names || RUNTIME_LOADED;
+  const start = html.indexOf(ASSET_MAP_BEGIN);
+  const end = html.indexOf(ASSET_MAP_END);
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error('[hash-assets] asset-map markers are missing from index.html; the boot loader would resolve every runtime script to its unhashed name');
+  }
+  const map = {};
+  for (const name of wanted) {
+    const entry = manifest.assets[name];
+    if (!entry) {
+      throw new Error('[hash-assets] "' + name + '" is loaded at runtime but has no manifest entry; add it to HASHED_ASSETS');
+    }
+    map[name] = { file: entry.file };
+  }
+  const body = 'window.__SAYCRD_ASSETS = ' + JSON.stringify(map) + ';';
+  return html.slice(0, start + ASSET_MAP_BEGIN.length) + body + html.slice(end);
+}
+
 function hashAssets(options) {
   const opts = options || {};
   const publicDir = opts.publicDir || path.join(__dirname, '..', 'public');
@@ -159,6 +205,9 @@ function hashAssets(options) {
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 
   const rewritten = rewriteHtml(fs.readFileSync(htmlPath, 'utf8'), manifest);
+  // Static src="" references first, then the runtime map for the scripts that have
+  // none. Both read from the same manifest, so the two can never disagree.
+  rewritten.html = injectAssetMap(rewritten.html, manifest, opts.runtimeAssets);
   const leftovers = findManualVersionQueries(rewritten.html);
   if (leftovers.length) {
     throw new Error('[hash-assets] manual ?v= cache-buster survived the rewrite: ' + leftovers.join(', '));
@@ -170,6 +219,10 @@ function hashAssets(options) {
 
 module.exports = {
   HASHED_ASSETS,
+  RUNTIME_LOADED,
+  ASSET_MAP_BEGIN,
+  ASSET_MAP_END,
+  injectAssetMap,
   STATIC_DIR,
   HASH_LENGTH,
   ALGORITHM,
