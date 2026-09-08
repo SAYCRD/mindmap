@@ -17,15 +17,15 @@
      Supabase SDK, env-config.js, session-sync.js and the application bundle. None
      of them are needed to read the homepage. env-config.js is served no-store, so
      it always cost a full round trip that nothing on this page depended on. -->
-<link rel="preload" href="static/react.production.min.4b4969fa4ef35943.js" as="script">
-<link rel="preload" href="static/react-dom.production.min.21758ed084cd0e37.js" as="script">
+<link rel="preload" href="vendor/react.production.min.js" as="script">
+<link rel="preload" href="vendor/react-dom.production.min.js" as="script">
 <!-- Written by build/hash-assets.js from public/asset-manifest.json. The scripts
      below are injected at runtime, so their hashed URLs cannot be rewritten as
      src="" attributes the way the static tags are; this map is how the loader
      resolves a logical name to the immutable file actually deployed. Inline
      because it changes with every build, and index.html is the one asset already
      served must-revalidate. -->
-<script>/* SAYCRD_ASSET_MAP_BEGIN */window.__SAYCRD_ASSETS = {"supabase-js.2.114.0.min.js":{"file":"static/supabase-js.2.114.0.min.0c05587928580a03.js"},"session-sync.js":{"file":"static/session-sync.ef371b7b468e3227.js"},"auth-layer.js":{"file":"static/auth-layer.1ca7f2058bf578db.js"},"landing.compiled.js":{"file":"static/landing.compiled.780ac5950fb5ac40.js"},"app.compiled.js":{"file":"static/app.compiled.5cc65d35bad7c7a5.js"}};/* SAYCRD_ASSET_MAP_END */</script>
+<script>/* SAYCRD_ASSET_MAP_BEGIN */window.__SAYCRD_ASSETS = {};/* SAYCRD_ASSET_MAP_END */</script>
 <script>
 /* ── Boot decision ────────────────────────────────────────────────────────────
    Picks ONE of two paths before a single byte of either is requested.
@@ -451,8 +451,8 @@ body{background:linear-gradient(160deg,#0A0A2E 0%,#1A1A4B 40%,#2D1B6B 100%);back
      truth, so the served URLs can be cached immutably. Do NOT add a ?v= query here:
      the hash replaces it, and a hand-maintained version under immutable caching
      would pin visitors to a stale bundle if it were ever forgotten. -->
-<script src="static/react.production.min.4b4969fa4ef35943.js"></script>
-<script src="static/react-dom.production.min.21758ed084cd0e37.js"></script>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
 <!-- landing.jsx and app.jsx are pre-compiled to plain JS at deploy time (see
      build/compile.js) instead of being transpiled in-browser via Babel Standalone on
      every visit. That in-browser compile of ~11k lines of JSX was taking ~30s on phones

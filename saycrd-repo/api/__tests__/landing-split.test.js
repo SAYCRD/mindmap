@@ -615,8 +615,35 @@ test('env-config.js is never content-hashed', () => {
   const map = src.index.match(/SAYCRD_ASSET_MAP_BEGIN\s*\*\/\s*window\.__SAYCRD_ASSETS\s*=\s*([\s\S]*?);\s*\/\*\s*SAYCRD_ASSET_MAP_END/);
   assert.ok(map, 'asset map not found in index.html');
   const assets = JSON.parse(map[1]);
-  assert.ok(Object.keys(assets).length >= 4, 'asset map is suspiciously small');
+
+  // The map in the committed source is an EMPTY placeholder that the build fills
+  // in, so asserting a minimum size here fails on a clean checkout, and asserting
+  // only "env-config.js is absent" passes trivially against `{}` — a blind test.
+  // The build's own HASHED_ASSETS list is the authoritative statement of what gets
+  // hashed and is present in both states, so the real claim is made against it.
+  const hashed = require(path.join(REPO, 'build', 'hash-assets.js')).HASHED_ASSETS;
+  assert.ok(hashed.length >= 4, 'the build hashes suspiciously few assets');
+  assert.ok(!hashed.some((a) => /(^|\/)env-config\.js$/.test(a)),
+    'env-config.js must not be in the build\'s hashed-asset list');
   assert.ok(!('env-config.js' in assets), 'env-config.js must not be hashed or cached');
+  // The map is NOT one-to-one with HASHED_ASSETS, and assuming it was is a real
+  // trap: React and React-DOM are plain <script> tags whose href the build
+  // rewrites in place, so they need no runtime lookup entry. Only the assets the
+  // boot loader injects by name have to be resolvable at runtime. The invariant is
+  // therefore "every map key is a hashed asset" plus "every injected asset is in
+  // the map" — an equality check fails on a correct build.
+  if (Object.keys(assets).length > 0) {
+    const base = (a) => a.split('/').pop();
+    const hashedBases = hashed.map(base);
+    for (const key of Object.keys(assets)) {
+      assert.ok(hashedBases.includes(key),
+        `the map lists ${key}, which the build does not hash`);
+    }
+    for (const injected of ['app.compiled.js', 'landing.compiled.js', 'auth-layer.js']) {
+      assert.ok(injected in assets,
+        `${injected} is injected by name at runtime, so it must be resolvable in the map`);
+    }
+  }
   assert.match(bootScript(), /"env-config\.js"/, 'the auth chain must still load env-config.js by its unhashed name');
 });
 
@@ -868,10 +895,13 @@ test('control: a Supabase client in the landing bundle fails the payload test', 
 });
 
 test('control: statically preloading the app bundle fails the preload test', () => {
+  // Prefix matched generically: the committed source preloads vendor/react…,
+  // the build rewrites it to static/react.<hash>…. A pattern pinned to either
+  // one no-ops in the other state and reports a broken control as a pass.
   const poisoned = mutate(
     src.index,
-    /(<link rel="preload" href="static\/react\.production[^"]*" as="script">)/,
-    '$1\n<link rel="preload" href="static/app.compiled.js" as="script">',
+    /(<link rel="preload" href="[\w./-]*?react\.production[^"]*" as="script">)/,
+    '$1\n<link rel="preload" href="app.compiled.js" as="script">',
     'preload: added app bundle'
   );
   assert.throws(() => assertNoStaticAuthPreloads(poisoned), /statically preloads/);

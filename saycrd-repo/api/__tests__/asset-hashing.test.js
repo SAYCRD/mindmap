@@ -418,8 +418,12 @@ test('negative control: a ?v= reference fails the no-manual-version test', () =>
   // href/src attribute at all, so the old anchor stopped matching and the control
   // went quietly green without mutating anything. React has to stay a static tag —
   // nothing renders without it — which makes it the stable anchor here.
+  //
+  // The directory is matched generically because the two states use DIFFERENT
+  // prefixes: the committed source says vendor/, the build rewrites it to static/.
+  // Hard-coding either one makes the mutation silently no-op in the other state.
   const broken = committedHtml.replace(
-    /(href|src)="((?:static\/)?react\.production\.min(?:\.[0-9a-f]{16})?\.js)"/,
+    /(href|src)="([\w./-]*?react\.production\.min(?:\.[0-9a-f]{16})?\.js)"/,
     '$1="$2?v=20260907-14"');
   assert.notStrictEqual(broken, committedHtml, 'the mutation did not land, so this control proves nothing');
   assert.throws(function () { assertNoManualVersionQuery(broken); }, /manual \?v= asset references remain/);
