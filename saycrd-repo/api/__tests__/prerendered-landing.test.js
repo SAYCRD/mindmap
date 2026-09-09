@@ -33,11 +33,12 @@
  *      split has already made that exact mistake once: an inlined copy of the
  *      shell lost the global @keyframes and every animation resolved to nothing.
  *
- * index.html has TWO valid states — the committed source (empty markers, empty
- * asset map, vendor/ paths) and the post-build output (a filled snapshot,
- * static/<hash> paths). Tests pinned to either one silently no-op in the other,
- * which has happened in this repo before, so everything here either works on
- * both or says which state it needs and skips otherwise.
+ * index.html has TWO valid states — the committed source (filled snapshot, empty
+ * asset map, vendor/ paths) and the post-build output (the same snapshot,
+ * static/<hash> paths). The snapshot used to be empty in source, which made every
+ * unbuilt preview wait for React before anything appeared — the 1–2s mobile
+ * blank. Tests pinned to either hashed-or-not silently no-op in the other, so
+ * everything here either works on both or says which state it needs.
  *
  * Structural claims are validator functions that THROW, so the negative controls
  * at the bottom can prove each one actually fails when the thing it protects is
@@ -200,9 +201,9 @@ test('the markers sit inside #root so React clears the snapshot itself', () => {
   );
 });
 
-test('the built HTML contains the homepage as text', (t) => {
+test('the HTML contains the homepage as text', () => {
   const snap = snapshotFromIndex(src.index);
-  if (!snap) return t.skip('index.html is in its committed source state (no snapshot injected yet)');
+  assert.ok(snap, 'prerender markers are empty — a phone would wait for React before anything appears');
   const text = prerender.visibleText(snap);
   assert.ok(text.includes('The space between your inner world and the next true move.'),
     'the h1 copy is not in the served HTML — view-source would show no homepage');
@@ -244,9 +245,9 @@ test('the outer phaseIn fade is never applied', () => {
     'phaseIn is still applied on some widths, so those visitors wait for React then watch the whole page fade in');
 });
 
-test('the injected snapshot is opaque and unanimated', (t) => {
+test('the injected snapshot is opaque and unanimated', () => {
   const snap = snapshotFromIndex(src.index);
-  if (!snap) return t.skip('index.html is in its committed source state');
+  assert.ok(snap, 'prerender markers are empty — a phone would wait for React before anything appears');
   assert.strictEqual(hiddenElementCount(snap), 0, 'the shipped snapshot has hidden elements');
   assert.doesNotMatch(snap, /animation:phaseIn/,
     'the shipped snapshot still fades in via phaseIn, so its content starts dimmed');
@@ -323,9 +324,9 @@ test('control: putting LoadApp back in <head> fails the head-loader test', () =>
   assert.throws(() => assertHeadDoesNotRunLoaders(poisoned), /__saycrdLoadApp is back in <head>/);
 });
 
-test('the snapshot markup carries no stylesheet of its own', (t) => {
+test('the snapshot markup carries no stylesheet of its own', () => {
   const snap = snapshotFromIndex(src.index);
-  if (!snap) return t.skip('index.html is in its committed source state');
+  assert.ok(snap, 'prerender markers are empty — a phone would wait for React before anything appears');
   // SaycrdShell renders a Google Fonts <link>. Left in the body it would block
   // rendering of the snapshot's own content, which comes after it in document
   // order — i.e. it would block the paint this whole step exists to deliver.
@@ -481,9 +482,9 @@ test('React is fetched on demand, and react-dom cannot execute before react', ()
 
 function assertReactStaysOffTheSnapshot(html) {
   const code = stripComments(html);
-  // Unbuilt source still needs the bundle (empty markers). A painted snapshot
-  // at ANY width must not fetch it: createRoot() would wipe the markup and the
-  // visitor would wait ~1s for React to put the same page back.
+  // A painted snapshot at ANY width must not fetch React: createRoot() would
+  // wipe the markup and the visitor would wait ~1s for React to put the same
+  // page back. Empty markers are a bug, not a valid source state.
   if (!/snapshotPainted = !!\(snap && snap\.querySelector\("\.saycrd-app-shell"\)\)/.test(code)) {
     throw new Error('the painted-snapshot probe is gone, so a visitor cannot keep the HTML');
   }
