@@ -21,6 +21,14 @@ function _isRealAccount() { return typeof window !== "undefined" && !!(window.cu
 
 var FREE_GUEST_SESSION_LIMIT = 2;
 
+/* Device-local complimentary ledger. Guest sessions live under
+   saycrd-local-*-sessions; account complimentary lives in free_sessions_used.
+   Those two counters never met, so an account that had used its 2 could log
+   out and "Continue without an account" for 2 more. This key is NOT uid-scoped,
+   so it survives logout. It only ever rises, never past 2, and never touches
+   purchased credits. Same string as index.html's _saycrdComplimentaryUsedOnDevice. */
+var COMPLIMENTARY_USED_KEY = "saycrd-complimentary-used";
+
 function _guestSessionCount() {
   var count = 0;
   try { count += JSON.parse(localStorage.getItem("saycrd-local-sessions") || "[]").length; } catch(e) {}
@@ -28,7 +36,28 @@ function _guestSessionCount() {
   return count;
 }
 
-function _canStartNewSession() { return _isRealAccount() || _guestSessionCount() < FREE_GUEST_SESSION_LIMIT; }
+function _readComplimentaryUsed() {
+  try {
+    var n = parseInt(localStorage.getItem(COMPLIMENTARY_USED_KEY) || "0", 10);
+    if (!isFinite(n) || n < 0) n = 0;
+    return Math.min(FREE_GUEST_SESSION_LIMIT, n);
+  } catch (e) { return 0; }
+}
+
+function _rememberComplimentaryUsed(n) {
+  try {
+    var next = Math.min(FREE_GUEST_SESSION_LIMIT, Math.max(_readComplimentaryUsed(), n | 0));
+    localStorage.setItem(COMPLIMENTARY_USED_KEY, String(next));
+  } catch (e) {}
+}
+
+function _complimentaryUsedOnDevice() {
+  return Math.max(_guestSessionCount(), _readComplimentaryUsed());
+}
+
+function _canStartNewSession() {
+  return _isRealAccount() || _complimentaryUsedOnDevice() < FREE_GUEST_SESSION_LIMIT;
+}
 
 /* The "what does it cost after the complimentary sessions" line. The figure is
    never written here: pack prices are admin-editable session_tiers rows and

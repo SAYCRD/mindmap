@@ -768,12 +768,13 @@ window._showAuthOverlay = function(onSuccess, opts) {
     overlay.classList.add("is-visible");
     void overlay.offsetHeight; /* force layout flush before re-enabling transitions */
     overlay.style.transition = "";
-    /* requireAccount: the hard wall shown once a guest has used up their
-       free local sessions. Hides "Continue without account" (there's no
-       anonymous fallback left) and shows an explanatory message. Also
+    /* requireAccount: the hard wall shown once complimentary sessions on
+       this device are used up — guest local sessions OR an account that
+       already spent its 2 (see _saycrdComplimentaryUsedOnDevice). Hides
+       "Continue without account" and shows an explanatory message. Also
        mirrored onto window._authRequireAccount so _localBypass refuses to
        grant a bypass even if triggered some other way while this is active. */
-    var requireAccount = !!(opts && opts.requireAccount);
+    var requireAccount = !!(opts && opts.requireAccount) || _saycrdComplimentaryUsedOnDevice() >= 2;
     window._authRequireAccount = requireAccount;
     var bypassRow = document.getElementById("auth-bypass-row");
     if (bypassRow) bypassRow.style.display = requireAccount ? "none" : "";
@@ -844,8 +845,22 @@ document.addEventListener("keydown", function(e) {
   if (overlay && overlay.classList.contains("is-visible")) window._closeAuthOverlay();
 });
 
+/* Same uid-less ledger landing.jsx writes. Duplicated here because this
+   overlay can open before landing.jsx has loaded. Must NOT read
+   saycrd-local-sessions: a boot-time guest-session probe hides the homepage
+   snapshot from signed-out visitors. Guest arrays are still counted in
+   landing.jsx; this only needs the key that survives logout. */
+function _saycrdComplimentaryUsedOnDevice() {
+  try {
+    var n = parseInt(localStorage.getItem("saycrd-complimentary-used") || "0", 10);
+    if (!isFinite(n) || n < 0) n = 0;
+    return n;
+  } catch (e) { return 0; }
+}
+
 window._localBypass = function() {
   if (window._authRequireAccount) return; /* hard wall: free guest sessions used up, no anonymous fallback */
+  if (_saycrdComplimentaryUsedOnDevice() >= 2) return; /* account already spent the shared 2 on this device */
   window.currentUser = { id: "local-user", email: "local@saycrd" };
   /* This block is eager and auth-layer.js may never load (a guest needs no
      Supabase), so neither name can be assumed to exist here.
