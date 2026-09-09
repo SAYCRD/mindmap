@@ -196,16 +196,16 @@ background:"#0A0914" }}>
 <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0, overflow:"hidden" }}>
 <div style={{ position:"absolute", top:"-10%", right:"-5%", width:800, height:800,
 borderRadius:"50%", background:"radial-gradient(circle, rgba(184,107,255,0.14), transparent 65%)",
-filter:"blur(120px)", animation:"floatWord 22s ease-in-out infinite" }} />
+animation:"floatWord 22s ease-in-out infinite" }} />
 <div style={{ position:"absolute", top:"30%", left:"-10%", width:700, height:700,
 borderRadius:"50%", background:"radial-gradient(circle, rgba(232,67,147,0.11), transparent 65%)",
-filter:"blur(100px)", animation:"floatWord 26s ease-in-out infinite", animationDelay:"-8s" }} />
+animation:"floatWord 26s ease-in-out infinite", animationDelay:"-8s" }} />
 <div style={{ position:"absolute", bottom:"-10%", right:"20%", width:600, height:600,
 borderRadius:"50%", background:"radial-gradient(circle, rgba(107,184,255,0.1), transparent 65%)",
-filter:"blur(90px)", animation:"floatWord 20s ease-in-out infinite", animationDelay:"-14s" }} />
+animation:"floatWord 20s ease-in-out infinite", animationDelay:"-14s" }} />
 <div style={{ position:"absolute", bottom:"20%", left:"20%", width:500, height:500,
 borderRadius:"50%", background:"radial-gradient(circle, rgba(107,255,184,0.07), transparent 65%)",
-filter:"blur(80px)", animation:"floatWord 18s ease-in-out infinite", animationDelay:"-4s" }} />
+animation:"floatWord 18s ease-in-out infinite", animationDelay:"-4s" }} />
 </div>
 
 <nav style={{ position:"sticky", top:0, zIndex:20, display:"flex", justifyContent:"center",

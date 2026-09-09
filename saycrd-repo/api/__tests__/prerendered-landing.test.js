@@ -314,6 +314,54 @@ test('bundle loaders run after the snapshot, not in <head>', () => {
   assertHeadDoesNotRunLoaders(src.index);
 });
 
+// A classic <script> after the snapshot still blocks first paint: the parser
+// must compile and run it before the renderer gets a turn, which is the
+// 1.5–2s white screen on a phone even when the homepage is already in the
+// markup. type=module (or defer/async) lets the parser finish the HTML and
+// paint, then run the loaders.
+function assertBodyScriptsDoNotBlock(html) {
+  const end = html.indexOf('SAYCRD_PRERENDER_END');
+  if (end === -1) throw new Error('prerender end marker is gone');
+  // Strip comments only AFTER the marker. The marker itself is an HTML
+  // comment, so stripping first deletes the only seam this check has.
+  const after = stripComments(html.slice(end)).replace(/<!--[\s\S]*?-->/g, '');
+  const tags = after.match(/<script\b[^>]*>/g) || [];
+  if (!tags.length) {
+    throw new Error('no scripts after the snapshot — this check would prove nothing');
+  }
+  const blocking = tags.filter(function (tag) {
+    return !/\btype\s*=\s*["']module["']/.test(tag)
+      && !/\bdefer\b/.test(tag)
+      && !/\basync\b/.test(tag);
+  });
+  if (blocking.length) {
+    throw new Error(
+      'a parser-blocking script after the snapshot delays first paint: ' + blocking.join(', ')
+    );
+  }
+  return tags.length;
+}
+
+test('scripts after the snapshot do not block first paint', () => {
+  assert.ok(
+    assertBodyScriptsDoNotBlock(src.index) >= 4,
+    'expected several deferred scripts after the snapshot'
+  );
+});
+
+test('control: a classic script after the snapshot fails the paint test', () => {
+  const poisoned = mutate(
+    src.index,
+    /<script type="module">\s*\/\* ── Script loaders/,
+    '<script>/* ── Script loaders',
+    'body scripts: loaders made parser-blocking again'
+  );
+  assert.throws(
+    () => assertBodyScriptsDoNotBlock(poisoned),
+    /parser-blocking script after the snapshot/
+  );
+});
+
 test('control: putting LoadApp back in <head> fails the head-loader test', () => {
   const poisoned = mutate(
     src.index,
@@ -322,6 +370,33 @@ test('control: putting LoadApp back in <head> fails the head-loader test', () =>
     'head loaders: re-added LoadApp next to the signed-in probe'
   );
   assert.throws(() => assertHeadDoesNotRunLoaders(poisoned), /__saycrdLoadApp is back in <head>/);
+});
+
+function assertNoHugeBlurOnFirstPaint(html) {
+  const snap = snapshotFromIndex(html);
+  if (!snap) throw new Error('prerender markers are empty — a phone would wait for React before anything appears');
+  const markup = snap.replace(/<style[^>]*>[\s\S]*?<\/style>/g, '');
+  if (/filter:\s*blur\((?:[8-9]\d|\d{3,})px\)/.test(markup)) {
+    throw new Error('an 80px+ blur on first paint is the white screen on a phone');
+  }
+  return true;
+}
+
+test('the snapshot does not rasterize huge blur filters on first paint', () => {
+  assertNoHugeBlurOnFirstPaint(src.index);
+});
+
+test('control: putting a huge blur back in the snapshot fails the paint test', () => {
+  const poisoned = mutate(
+    src.index,
+    'SAYCRD_PRERENDER_BEGIN -->',
+    'SAYCRD_PRERENDER_BEGIN --><div style="filter:blur(120px)">',
+    'snapshot: re-added a 120px blur inside the prerender markers'
+  );
+  assert.throws(
+    () => assertNoHugeBlurOnFirstPaint(poisoned),
+    /80px\+ blur on first paint/
+  );
 });
 
 test('the snapshot markup carries no stylesheet of its own', () => {
@@ -709,7 +784,7 @@ test('the build fails rather than ship an empty homepage', () => {
   assert.throws(() => prerender.verify('<div></div>'), /no <style> block/);
 });
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* ═══��═══════════════════════════════════════════════════════════════════════
    7. Negative controls — each claim above must be falsifiable
    ═══════════════════════════════════════════════════════════════════════ */
 
