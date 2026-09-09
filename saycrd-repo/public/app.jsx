@@ -190,15 +190,11 @@ function _isDebugSurface() {
   } catch (e) { return false; }
 }
 
-// Guests get a fixed number of free sessions on this device, then must
-// create a real account to continue. Counted across BOTH guest buckets
-// ("saycrd-local-sessions" for a never-bypassed anonymous visitor, and
-// "saycrd-local-user-sessions" for the "Continue without account" bypass —
-// virtually all real guest sessions land in the latter, since guardedStart
-// always routes through the bypass before a session can be saved) rather
-// than whatever bucket getCurrentUid() currently resolves to, since that
-// can be "local" again post-reload even after 2+ sessions were already
-// saved under "local-user".
+// Guests and accounts share one 2-session complimentary allowance on this
+// device (see COMPLIMENTARY_USED_KEY in landing.jsx). Guest sessions are
+// still counted across BOTH guest buckets so a reload that flips uid back
+// to "local" cannot mint extra sessions; account complimentary spent is
+// written onto the same uid-less key so logging out cannot either.
 
 
 
@@ -4246,11 +4242,14 @@ try {
 var sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]");
 var i = idx1based - 1;
 if (i >= 0 && i < sessions.length && reportObj) {
-sessions[i].fieldReport = reportObj;
-localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
-if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
-window.storage.set("sessions", JSON.stringify(sessions)).catch(function() {});
-}
+	sessions[i].fieldReport = reportObj;
+	localStorage.setItem(_sessionKey(), JSON.stringify(sessions));
+	if (!_isRealAccount() && typeof _rememberComplimentaryUsed === "function") {
+	  _rememberComplimentaryUsed(_guestSessionCount());
+	}
+	if (window.storage && window.currentUser && window.currentUser.id !== "local-user") {
+	window.storage.set("sessions", JSON.stringify(sessions)).catch(function() {});
+	}
 // Stage 3 (session-persistence-audit): the session was already synced
 // (or attempted) as a draft when it was first saved -- now that its
 // report exists, re-run the sync so the session+report pair actually
@@ -10417,6 +10416,12 @@ function useCredits() {
             var next = _parseCreditsPayload(d);
             // An unusable payload leaves `loaded` false, so nothing renders.
             if (!next) return;
+            // Persist complimentary spent on this device so logging out cannot
+            // reset the 2-session allowance. 2 - freeRemaining is freeUsed;
+            // purchased credits are not written here.
+            if (typeof _rememberComplimentaryUsed === "function") {
+              _rememberComplimentaryUsed(2 - next.freeRemaining);
+            }
             setCredits(next);
           })
         .catch(function(){ /* leaves `loaded` false so nothing is rendered */ });
