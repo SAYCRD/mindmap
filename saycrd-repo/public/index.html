@@ -925,7 +925,7 @@ window._localBypass = function() {
      display:none is the first rule, so the markup below cannot flash even if
      this block arrives a moment after the snapshot. -->
 <style>
-    .auth-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;padding:1.5rem;background:rgb(6,9,16);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;transition:opacity .35s ease}
+    .auth-overlay{position:fixed;inset:0;z-index:99999;display:none;align-items:safe center;justify-content:center;overflow-y:auto;padding:1.5rem;background:rgb(6,9,16);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);opacity:0;transition:opacity .35s ease}
     .auth-overlay.is-visible{opacity:1}
     .auth-card{position:relative;width:100%;max-width:380px;text-align:center;padding:2rem 1.75rem;background:rgba(12,15,22,.6);border:1px solid rgba(232,67,147,.15);border-radius:20px;box-shadow:0 24px 48px rgba(0,0,0,.4),0 0 0 1px rgba(184,107,255,.05);transform:translateY(8px);opacity:0;transition:transform .4s ease,opacity .4s ease}
     .auth-close{position:absolute;top:.35rem;right:.35rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:12px;color:rgba(247,241,231,.5);font-family:'DM Sans',sans-serif;font-size:1.5rem;line-height:1;cursor:pointer;transition:color .2s,background .2s;touch-action:manipulation}
@@ -935,9 +935,14 @@ window._localBypass = function() {
     .auth-back:hover{color:rgba(232,67,147,.9)}
     .auth-back:focus-visible{outline:2px solid rgba(232,67,147,.7);outline-offset:2px}
     .auth-overlay.is-visible .auth-card{transform:translateY(0);opacity:1}
-    .auth-logo-row{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem}
-    .auth-logo-mark{width:1.6rem;height:1.6rem;flex-shrink:0}
-    .auth-logo{font-family:'Space Grotesk',sans-serif;font-size:1.9rem;letter-spacing:.25em;background:linear-gradient(90deg,#E84393,#B86BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;font-weight:700;text-indent:.25em;margin-bottom:0}
+    /* The 44px close control sits in the top-right of this card. Without
+       side padding the letter-spaced wordmark runs into it, and the last T
+       plus the circular mark read as cut off. Trailing letter-spacing is
+       kept inside the box with padding-right (text-indent only ate width
+       on the left and did not protect the last glyph). */
+    .auth-logo-row{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.5rem;padding:0 1.75rem;overflow:visible;flex-wrap:nowrap}
+    .auth-logo-mark{width:2rem;height:2rem;padding:.12rem;box-sizing:border-box;flex-shrink:0;object-fit:contain;display:block}
+    .auth-logo{font-family:'Space Grotesk',sans-serif;font-size:1.65rem;letter-spacing:.16em;background:linear-gradient(90deg,#E84393,#B86BFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;font-weight:700;padding-right:.16em;margin-bottom:0;flex-shrink:0;overflow:visible;white-space:nowrap}
     .auth-sub{font-family:'DM Sans',sans-serif;font-size:1rem;color:rgba(232,67,147,.6);margin-bottom:2.5rem;font-weight:400}
     .auth-input{display:block;width:100%;background:rgba(14,17,21,.9);border:1px solid rgba(244,241,234,.12);border-radius:12px;color:rgba(247,241,231,.95);padding:.85rem 1rem;font-family:'Space Grotesk',sans-serif;font-size:.95rem;margin-bottom:.8rem;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box}
     .auth-input:focus{border-color:rgba(232,67,147,.5);box-shadow:0 0 0 3px rgba(232,67,147,.12)}
@@ -967,8 +972,10 @@ window._localBypass = function() {
     }
     @media (max-width: 480px){
       .auth-overlay{padding:0;background:rgb(6,9,16);backdrop-filter:none;-webkit-backdrop-filter:none;align-items:stretch;justify-content:stretch}
-      .auth-card{width:100%;height:100%;max-width:none;max-height:none;padding:calc(1.75rem + env(safe-area-inset-top,0px)) 1.5rem calc(1.75rem + env(safe-area-inset-bottom,0px));background:none;border:none;border-radius:0;box-shadow:none;transform:none;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:center}
+      .auth-card{width:100%;height:100%;max-width:none;max-height:none;padding:calc(1.75rem + env(safe-area-inset-top,0px)) 1.5rem calc(1.75rem + env(safe-area-inset-bottom,0px));background:none;border:none;border-radius:0;box-shadow:none;transform:none;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;justify-content:safe center}
       .auth-overlay.is-visible .auth-card{transform:none}
+      .auth-logo{font-size:1.35rem;letter-spacing:.12em;padding-right:.12em}
+      .auth-logo-mark{width:1.85rem;height:1.85rem}
     }
 </style>
 <script type="module">
