@@ -23,6 +23,7 @@ const path = require('node:path');
 
 const APP_JSX = path.join(__dirname, '..', '..', 'public', 'app.jsx');
 const LANDING_JSX = path.join(__dirname, '..', '..', 'public', 'landing.jsx');
+const INDEX_HTML = path.join(__dirname, '..', '..', 'public', 'index.html');
 
 // The application's source is landing.jsx + app.jsx, in that order — exactly the
 // two files build/compile.js concatenates into app.compiled.js. The landing
@@ -330,6 +331,76 @@ test('the entitlement balance and primary action remain on the dashboard', () =>
   const fn = extractFunction(SOURCE, 'JourneysPhase');
   assert.match(fn, /<SessionBalance credits=\{credits\}/, 'PR #49 balance UI must survive');
   assert.match(fn, /Start a new session/);
+});
+
+/* ── A real login never continues into a session ──
+   The overlay used to stash guardedStart/startSession as _authSuccessCallback
+   and fire it after sign-in. That raced the Dashboard route (setPhase(8)) and
+   won: a 400ms timeout called onStart → setPhase(1) / __SAYCRD_START_REQUESTED.
+   Login CTAs now open the overlay with no continuation; login/password-reset
+   success drop any stashed callback and load the app without the start flag.
+   Guest "Continue without an account" still fires the callback. */
+
+test('login CTAs open the overlay with no start-session continuation', () => {
+  const landing = fs.readFileSync(LANDING_JSX, 'utf8');
+  const clicks = [...landing.matchAll(/data-saycrd-boot="login"[^>]*onClick=\{function\(\)\{([^}]+)\}\}/g)];
+  assert.ok(clicks.length >= 2, 'expected the nav and offer login controls, found ' + clicks.length);
+  for (const m of clicks) {
+    assert.match(m[1], /_showAuthOverlay\(\)/, 'login must open the overlay with no callback');
+    assert.doesNotMatch(m[1], /guardedStart|onStart|startSession/,
+      'passing a start continuation is what put a real account into a new session');
+  }
+});
+
+test('a real login drops the start callback and loads the app without starting', () => {
+  const html = fs.readFileSync(INDEX_HTML, 'utf8');
+  const enterAt = html.indexOf('window._authEnterAccount = function');
+  assert.ok(enterAt > 0, '_authEnterAccount is gone');
+  const enter = html.slice(enterAt, enterAt + 500);
+  assert.match(enter, /_authSuccessCallback = null/,
+    'must drop any stashed start continuation so it cannot fire after login');
+  assert.match(enter, /__saycrdLoadApp\(\)/,
+    'must still load the application so the Dashboard can render');
+  assert.doesNotMatch(enter, /__SAYCRD_START_REQUESTED/,
+    'must not set the start-session flag — that is what beginSessionOrGate reads');
+
+  const loginAt = html.indexOf('id="auth-login-btn"');
+  assert.ok(loginAt > 0, 'the login button is gone');
+  const login = html.slice(loginAt, loginAt + 4000);
+  assert.match(login, /_authEnterAccount\(\)/, 'login success must enter the account, not the stashed callback');
+  assert.doesNotMatch(login, /_authSuccessCallback/,
+    'login success must not fire _authSuccessCallback');
+
+  const resetAt = html.indexOf('id="auth-new-password-btn"');
+  assert.ok(resetAt > 0, 'the password-update button is gone');
+  const reset = html.slice(resetAt, resetAt + 4000);
+  assert.match(reset, /_authEnterAccount\(\)/, 'password update must enter the account the same way');
+  assert.doesNotMatch(reset, /_authSuccessCallback/,
+    'password update must not fire _authSuccessCallback');
+});
+
+test('guest continue still fires the stashed start callback', () => {
+  const html = fs.readFileSync(INDEX_HTML, 'utf8');
+  const at = html.indexOf('window._localBypass = function');
+  assert.ok(at > 0, '_localBypass is gone');
+  const body = html.slice(at, at + 1800);
+  assert.match(body, /_authSuccessCallback[\s\S]{0,120}cb\(\)/,
+    'Continue without an account must still begin the session the visitor asked for');
+  assert.doesNotMatch(body, /_authEnterAccount/,
+    'guest continue is not a real login and must not take the Dashboard path');
+});
+
+test('control: restoring the login callback fire fails the no-start test', () => {
+  const html = fs.readFileSync(INDEX_HTML, 'utf8');
+  const poisoned = html.replace(
+    'if(window._authEnterAccount)window._authEnterAccount();',
+    'if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}'
+  );
+  assert.match(poisoned, /_authSuccessCallback/, 'the mutation must actually have landed');
+  const loginAt = poisoned.indexOf('id="auth-login-btn"');
+  const login = poisoned.slice(loginAt, loginAt + 4000);
+  assert.ok(/_authSuccessCallback/.test(login), 'poisoned login still fires the callback');
+  assert.ok(!/_authEnterAccount\(\)/.test(login), 'poisoned login no longer enters the account');
 });
 
 /* ── Negative controls: prove the harness can fail ──

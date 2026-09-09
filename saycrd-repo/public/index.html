@@ -470,20 +470,30 @@ button:active{transform:scale(0.97)}
      it was handed over from. The guest-session and credit checks are NOT
      duplicated here: LandingPhase's own guardedStart() already falls through to
      the handover whenever the app is not loaded yet, so the real check happens
-     once, in app.jsx's beginSessionOrGate(). Called only after the visitor
-     continues from the signup card — never from the homepage tap itself. */
+     once, in app.jsx's beginSessionOrGate(). Fired only by "Continue without an
+     account" — a real login drops this continuation and routes to the Dashboard. */
   function startSession() {
     window.__SAYCRD_START_REQUESTED = true;
     if (window.__saycrdLoadApp) window.__saycrdLoadApp();
   }
 
   /* Mirrors LandingPhase.guardedStart for a signed-out visitor: the static
-     signup card, then the application only if they continue (sign up, log in,
-     or "Continue without an account"). An early tap before _showAuthOverlay
-     exists is remembered and opened when that function is installed. */
+     signup card, then the application only if they continue as a guest.
+     An early tap before _showAuthOverlay exists is remembered and opened when
+     that function is installed. */
   function openAuthThenStart() {
     if (window._showAuthOverlay) window._showAuthOverlay(startSession);
     else window.__SAYCRD_OPEN_AUTH = startSession;
+  }
+
+  /* Log in / Sign up is intent to authenticate, not intent to start. Stashing
+     startSession here is what put a freshly signed-in account straight into a
+     new session. Open the card with no continuation; _authEnterAccount loads
+     the app without the start-session flag so SAYCRDFlow can route to the
+     Dashboard. */
+  function openAuthOnly() {
+    if (window._showAuthOverlay) window._showAuthOverlay();
+    else window.__SAYCRD_OPEN_AUTH = true;
   }
 
   pre.addEventListener("click", function (ev) {
@@ -492,8 +502,10 @@ button:active{transform:scale(0.97)}
     var action = el.getAttribute("data-saycrd-boot");
     if (action !== "start" && action !== "login" && action !== "concept" && action !== "legal") return;
     ev.preventDefault();
-    if (action === "start" || action === "login") {
+    if (action === "start") {
       openAuthThenStart();
+    } else if (action === "login") {
+      openAuthOnly();
     } else if (action === "legal") {
       /* Privacy / Terms / Disclaimer live in the landing bundle. Record which
          page and load that bundle; LandingShell reads __SAYCRD_LEGAL_PAGE on
@@ -774,12 +786,23 @@ window._showAuthOverlay = function(onSuccess, opts) {
        creating an account does. */
     var offer = document.getElementById("auth-offer");
     if (offer) offer.style.display = requireAccount ? "none" : "";
-    if (onSuccess) window._authSuccessCallback = onSuccess;
+    if (typeof onSuccess === "function") window._authSuccessCallback = onSuccess;
     setTimeout(function() {
       var first = document.getElementById("auth-email") || document.getElementById("auth-signup-email") || document.getElementById("auth-reset-email");
       if (first) first.focus();
     }, 120);
   }
+};
+
+/* A real login never continues into a session. The overlay may have been
+   opened from "start a session" with startSession/guardedStart stashed as
+   _authSuccessCallback; firing that would land on pour and can consume a
+   credit. Guest "Continue without an account" still fires the callback via
+   _localBypass. Drop it here, then load the application WITHOUT the
+   start-session flag so SAYCRDFlow routes to the Dashboard. */
+window._authEnterAccount = function() {
+  window._authSuccessCallback = null;
+  if (window.__saycrdLoadApp) window.__saycrdLoadApp();
 };
 
 /* Dismiss the auth overlay and hand the visitor back the page behind it.
@@ -1049,7 +1072,7 @@ window._toggleAuthPw = function _toggleAuthPw(inputId, btn) {
                 currentUser=r.data.user;window.currentUser=currentUser;
                 sb.auth.getSession().then(function(s){if(s.data.session)window._saycrdToken=s.data.session.access_token;});
                 if(window._authResolve)window._authResolve();
-                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}},400);
+                var o=document.getElementById('auth-overlay');o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';if(window._authEnterAccount)window._authEnterAccount();},400);
               }catch(e){err.textContent=e.message||'Login failed';btn.disabled=false;}
             })();
           ">Enter</button>
@@ -1163,7 +1186,7 @@ window._toggleAuthPw = function _toggleAuthPw(inputId, btn) {
                 setTimeout(function(){
                   var o=document.getElementById('auth-overlay');
                   if(o){o.classList.remove('is-visible');o.style.transition='opacity .4s ease';setTimeout(function(){o.style.display='none';},400);}
-                  if(window._authSuccessCallback){var cb=window._authSuccessCallback;window._authSuccessCallback=null;cb();}
+                  if(window._authEnterAccount)window._authEnterAccount();
                 },900);
               }catch(e){err.textContent=e.message||'Could not update password';btn.disabled=false;}
             })();
@@ -1202,7 +1225,8 @@ window._toggleAuthPw = function _toggleAuthPw(inputId, btn) {
   if (window.__SAYCRD_OPEN_AUTH && window._showAuthOverlay) {
     var _pendingAuth = window.__SAYCRD_OPEN_AUTH;
     window.__SAYCRD_OPEN_AUTH = null;
-    window._showAuthOverlay(_pendingAuth);
+    if (typeof _pendingAuth === "function") window._showAuthOverlay(_pendingAuth);
+    else window._showAuthOverlay();
   }
 })();
 </script>

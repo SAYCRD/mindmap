@@ -227,7 +227,7 @@ WebkitTextFillColor:"transparent", flexShrink:0 }}>BLINDSPOT</div>
 {(authUser.email || "").split("@")[0].charAt(0).toUpperCase() || "S"}
 </button>
 ) : (
-<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.9)", fontSize:13, fontWeight:600, fontFamily:FB, letterSpacing:"0.04em", cursor:"pointer" }}>
+	<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); }} style={{ flexShrink:0, padding:"8px 16px", borderRadius:999, border:"1px solid rgba(255,255,255,0.2)", background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.9)", fontSize:13, fontWeight:600, fontFamily:FB, letterSpacing:"0.04em", cursor:"pointer" }}>
 Log in / Sign up
 </button>
 )}
@@ -310,7 +310,7 @@ Create a free account to receive two complete BLINDSPOT sessions and save your m
 </div>
 )}
 </div>
-<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(guardedStart); }} style={{ marginTop: 12, fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
+	<button data-saycrd-boot="login" onClick={function(){ if (window._showAuthOverlay) window._showAuthOverlay(); }} style={{ marginTop: 12, fontSize: 14, fontFamily: FB, color: "rgba(232,67,147,0.85)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 4 }}>
 Log in or create an account to save your sessions
 </button>
 </div>

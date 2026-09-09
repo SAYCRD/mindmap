@@ -717,22 +717,35 @@ test('the bridge starts a session exactly the way the shell does', () => {
 test('the bridge opens the real login overlay', () => {
   const bridge = stripComments(src.index);
   assert.match(bridge, /if \(window\._showAuthOverlay\) window\._showAuthOverlay\(startSession\)/,
-    'the bridge must open the overlay with the same "sign in, then begin" continuation LandingPhase uses');
+    'start still stashes the guest continuation so Continue without an account can begin');
+  assert.match(bridge, /function openAuthOnly\(\)/,
+    'login must have its own overlay opener, not reuse the start continuation');
+  const onlyAt = bridge.indexOf('function openAuthOnly()');
+  const only = bridge.slice(onlyAt, onlyAt + 280);
+  assert.match(only, /window\._showAuthOverlay\(\)/,
+    'login opens the card with no continuation');
+  assert.doesNotMatch(only, /startSession/,
+    'login must not stash startSession — that is what put a real account into a new session');
 });
 
 test('a homepage start tap opens signup and does not fetch the application', () => {
   const bridge = stripComments(src.index);
-  const startAt = bridge.indexOf('if (action === "start"');
+  const startAt = bridge.indexOf('if (action === "start")');
   assert.ok(startAt > 0, 'the start action is gone from the bridge');
-  const legalAt = bridge.indexOf('else if (action === "legal")', startAt);
-  assert.ok(legalAt > startAt, 'the legal branch is gone, so the start-handler slice would be unbounded');
-  const untilLegal = bridge.slice(startAt, legalAt);
-  assert.match(untilLegal, /openAuthThenStart\(\)/,
+  const loginAt = bridge.indexOf('else if (action === "login")', startAt);
+  assert.ok(loginAt > startAt, 'login must be its own branch, not folded into start');
+  const legalAt = bridge.indexOf('else if (action === "legal")', loginAt);
+  assert.ok(legalAt > loginAt, 'the legal branch is gone, so the start-handler slice would be unbounded');
+  const startBranch = bridge.slice(startAt, loginAt);
+  const loginBranch = bridge.slice(loginAt, legalAt);
+  assert.match(startBranch, /openAuthThenStart\(\)/,
     'start must open the static signup card, not load 598KB of application');
-  assert.doesNotMatch(untilLegal, /__saycrdLoadApp/,
+  assert.match(loginBranch, /openAuthOnly\(\)/,
+    'login must open the card without the start-session continuation');
+  assert.doesNotMatch(startBranch, /__saycrdLoadApp/,
     'start is fetching the application again before the visitor has chosen to continue');
-  assert.match(bridge, /action === "start" \|\| action === "login"/,
-    'start and login share the signup card; splitting them reintroduces a path that skips it');
+  assert.doesNotMatch(loginBranch, /__saycrdLoadApp/,
+    'login is fetching the application before the visitor has authenticated');
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
