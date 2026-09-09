@@ -11832,10 +11832,11 @@ setTimeout(function() { setPhase(6); setFieldTransition(false); }, 1200);
 }
 
 // Gate for beginning a session: shows the one-time "before we begin"
-// disclaimer only immediately before a person's very first session ever
-// (no saved sessions yet + not already acknowledged). Every later "start a
-// new session" entry point (from complete/journeys) already implies at
-// least one saved session, so it passes straight through.
+// disclaimer only immediately before a person's very first session
+// (no saved sessions yet + not already acknowledged), from every start
+// — homepage, Dashboard, and post-session. Later starts have a saved
+// session (or an ack) and pass through. MapPhase onBack is not a start
+// and must not come through here.
 function beginSessionOrGate(next) {
 var sessions = [];
 try { sessions = JSON.parse(localStorage.getItem(_sessionKey()) || "[]"); } catch(e) {}
@@ -11874,8 +11875,8 @@ setPhase(3);
 {cp==="cosynth"&&<CoSynthPhase rawText={rawText} synthesisData={synthesisData} mapResponses={mapResponses} onSynthesis={setSynthesisData} onComplete={function(){setPhase(5);}}/>}
 {cp==="session"&&<SessionPhase onComplete={function(sData){setSessionData(sData||{});enterField();}} synthesisData={synthesisData} onPatchSynthesis={onPatchSynthesis}/>}
 {cp==="field"&&<FieldPhase synthesisData={synthesisData} rawText={rawText} mapResponses={mapResponses} sessionData={sessionData} onSessionComplete={function(){completionAuthorized.current = true;setPhase(7);}} onNavigateToJourneys={function(){setPhase(8);}}/>}
-{cp==="complete"&&<CompletionPhase onStart={function(){setPhase(1);}} onNavigateToJourneys={function(){setPhase(8);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
-{cp==="journeys"&&<JourneysPhase onStart={function(){setPhase(1);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
+{cp==="complete"&&<CompletionPhase onStart={function(){beginSessionOrGate(function(){setPhase(1);});}} onNavigateToJourneys={function(){setPhase(8);}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
+{cp==="journeys"&&<JourneysPhase onStart={function(){beginSessionOrGate(function(){setPhase(1);});}} onNavigateToReport={function(idx){setReportSessionIndex(idx);setPhase(9);}}/>}
 {cp==="report"&&<ReportViewerPhase sessionIndex={reportSessionIndex} onBack={function(){setPhase(8);}}/>}
 {fieldTransition && <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center", animation: "morphIn 0.4s ease both" }}>
 <div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.4em", color: "rgba(255,255,255,0.2)", textTransform: "uppercase", animation: "pulse 1.5s ease infinite" }}>entering the field</div>
