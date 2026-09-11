@@ -93,6 +93,24 @@ export function createAuthSignupHandler({ getServiceClient, sendSignupConfirmati
         return res.status(500).json({ error: "signup_failed" });
       }
 
+      // Auto-confirm the email at signup time, independent of whether the
+      // branded confirmation email goes out. Login must never be blocked
+      // on Resend/DNS being healthy — that's an email-delivery concern,
+      // not an account-eligibility one. The confirmation link is still
+      // sent (below) as a nice-to-have / verification trail, but nobody
+      // is stuck locked out of an account they just created because a
+      // third-party mailer had a bad day.
+      const userId = data && data.user && data.user.id;
+      if (userId) {
+        try {
+          await sb.auth.admin.updateUserById(userId, { email_confirm: true });
+        } catch (confirmErr) {
+          console.error("auth-signup: failed to auto-confirm email, account created anyway:", confirmErr.message);
+        }
+      } else {
+        console.error("auth-signup: generateLink returned no user id, could not auto-confirm");
+      }
+
       // The account is created at this point regardless of what happens
       // next. A broken email provider (bad API key, unverified sending
       // domain, provider outage, etc.) must never turn into a failed

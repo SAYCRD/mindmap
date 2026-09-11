@@ -3,16 +3,31 @@ import assert from "node:assert/strict";
 import { createAuthSignupHandler } from "../auth-signup.js";
 import { makeReq, makeRes } from "./_http.js";
 
-function fakeServiceClient({ error = null, actionLink = "https://blindspotup.com/verify?token=abc" } = {}) {
+function fakeServiceClient({
+  error = null,
+  actionLink = "https://blindspotup.com/verify?token=abc",
+  userId = "user-123",
+  confirmThrows = false,
+} = {}) {
   const calls = [];
+  const confirmCalls = [];
   return {
     calls,
+    confirmCalls,
     auth: {
       admin: {
         async generateLink(params) {
           calls.push(params);
           if (error) return { data: null, error };
-          return { data: { properties: { action_link: actionLink } }, error: null };
+          return {
+            data: { user: userId ? { id: userId } : null, properties: { action_link: actionLink } },
+            error: null,
+          };
+        },
+        async updateUserById(id, attrs) {
+          confirmCalls.push({ id, attrs });
+          if (confirmThrows) throw new Error("boom: could not auto-confirm");
+          return { data: { user: { id } }, error: null };
         },
       },
     },
@@ -85,6 +100,29 @@ test("auth-signup: creates the user via generateLink and emails the action_link 
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].to, "new@example.com");
   assert.equal(sender.sent[0].actionLink, "https://blindspotup.com/verify?token=xyz");
+  assert.equal(sb.confirmCalls.length, 1);
+  assert.equal(sb.confirmCalls[0].id, "user-123");
+  assert.deepEqual(sb.confirmCalls[0].attrs, { email_confirm: true });
+});
+
+test("auth-signup: auto-confirms the email so login is never blocked on the confirmation link, regardless of email delivery", async () => {
+  const sb = fakeServiceClient();
+  const sender = fakeEmailSender({ throws: true });
+  const res = makeRes();
+  await handlerFor(sb, sender)(makeReq({ method: "POST", body: { ...VALID_BODY, email: "unconfirmed-but-fine@example.com" } }), res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { ok: true, emailSent: false });
+  assert.equal(sb.confirmCalls.length, 1);
+  assert.deepEqual(sb.confirmCalls[0].attrs, { email_confirm: true });
+});
+
+test("auth-signup: signup still succeeds even if the auto-confirm call itself throws", async () => {
+  const sb = fakeServiceClient({ confirmThrows: true });
+  const sender = fakeEmailSender();
+  const res = makeRes();
+  await handlerFor(sb, sender)(makeReq({ method: "POST", body: { ...VALID_BODY, email: "confirm-throws@example.com" } }), res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { ok: true, emailSent: true });
 });
 
 test("auth-signup: lowercases and trims the email before calling generateLink", async () => {
