@@ -892,13 +892,19 @@ window._localBypass = function() {
 </script>
 
 <script type="module">
+  // Applied to every prompt regardless of what the user writes about (including
+  // when they describe someone else using "she"/"he") — the model must never
+  // infer or assign a gender to the person the reflection is about. This is the
+  // single choke point all ~18 call sites in app.jsx route through, so fixing it
+  // here covers every generated card/summary without editing each prompt.
+  var NO_GENDER_PRONOUNS_RULE = "\n\nHARD RULE: Never use gendered pronouns (she/her/hers/he/him/his) to refer to the person this reflection is about, even if their own words describe someone else using those pronouns. Refer to them only as \"you\", \"they/them\", or by rephrasing to avoid a pronoun entirely. This applies to every field you generate.";
   window.callClaude = async function(sys, usr, max) {
     try {
       var maxTokens = max || 3500;
       var body = JSON.stringify({
         model: "claude-sonnet-4-5-20250929",
         max_tokens: maxTokens,
-        messages: [{ role: "user", content: sys + "\n\n---\n\nUser text:\n\n" + (usr || "") }]
+        messages: [{ role: "user", content: sys + NO_GENDER_PRONOUNS_RULE + "\n\n---\n\nUser text:\n\n" + (usr || "") }]
       });
       var endpoint = (window.SAYCRD_CONFIG && window.SAYCRD_CONFIG.API_ENDPOINT) || "/api/claude";
       var headers = { "Content-Type": "application/json" };
