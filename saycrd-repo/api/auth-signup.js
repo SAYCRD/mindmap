@@ -93,8 +93,20 @@ export function createAuthSignupHandler({ getServiceClient, sendSignupConfirmati
         return res.status(500).json({ error: "signup_failed" });
       }
 
-      await sendSignupConfirmationEmail({ to: email, actionLink });
-      return res.status(200).json({ ok: true });
+      // The account is created at this point regardless of what happens
+      // next. A broken email provider (bad API key, unverified sending
+      // domain, provider outage, etc.) must never turn into a failed
+      // signup for the user — it only means the confirmation email didn't
+      // go out. Swallow and log the email error, report success either way.
+      let emailSent = true;
+      try {
+        await sendSignupConfirmationEmail({ to: email, actionLink });
+      } catch (emailErr) {
+        emailSent = false;
+        console.error("auth-signup: confirmation email failed, account created anyway:", emailErr.message);
+      }
+
+      return res.status(200).json({ ok: true, emailSent });
     } catch (err) {
       console.error("auth-signup failed:", err.message);
       return res.status(500).json({ error: "signup_failed" });

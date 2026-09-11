@@ -85,7 +85,17 @@ export function createAuthResetHandler({ getServiceClient, sendPasswordResetEmai
         return res.status(500).json({ error: "reset_failed" });
       }
 
-      await sendPasswordResetEmail({ to: email, actionLink });
+      // Same reasoning as auth-signup.js: a broken email provider must
+      // never surface as a failure here — the recovery link was minted
+      // successfully. Swallow and log the email error, report success
+      // either way (this also preserves the non-revealing "always success"
+      // behavior for unknown emails above).
+      try {
+        await sendPasswordResetEmail({ to: email, actionLink });
+      } catch (emailErr) {
+        console.error("auth-reset: reset email failed:", emailErr.message);
+      }
+
       return res.status(200).json({ ok: true });
     } catch (err) {
       console.error("auth-reset failed:", err.message);

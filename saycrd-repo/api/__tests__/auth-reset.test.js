@@ -98,13 +98,14 @@ test("auth-reset: surfaces any other generateLink error as a generic 500", async
   assert.equal(res.body.error, "reset_failed");
 });
 
-test("auth-reset: returns 500 (not a leaked stack trace) when the Resend send itself fails", async () => {
+test("auth-reset: still reports success when the Resend send itself fails — a broken email provider must never surface as a reset failure", async () => {
   const sb = fakeServiceClient();
   const sender = fakeEmailSender({ throws: true });
   const res = makeRes();
   await handlerFor(sb, sender)(makeReq({ method: "POST", body: { ...VALID_BODY, email: "resend-fails@example.com" } }), res);
-  assert.equal(res.statusCode, 500);
-  assert.equal(res.body.error, "reset_failed");
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { ok: true });
+  assert.equal(sb.calls.length, 1);
 });
 
 test("auth-reset: rate-limits repeated reset attempts for the same email, but still reports success", async () => {
