@@ -78,7 +78,7 @@ test("auth-signup: creates the user via generateLink and emails the action_link 
   await handlerFor(sb, sender)(makeReq({ method: "POST", body: VALID_BODY }), res);
 
   assert.equal(res.statusCode, 200);
-  assert.deepEqual(res.body, { ok: true });
+  assert.deepEqual(res.body, { ok: true, emailSent: true });
   assert.equal(sb.calls.length, 1);
   assert.equal(sb.calls[0].type, "signup");
   assert.equal(sb.calls[0].email, "new@example.com");
@@ -116,13 +116,14 @@ test("auth-signup: surfaces any other generateLink error as a generic 500", asyn
   assert.equal(sender.sent.length, 0);
 });
 
-test("auth-signup: returns 500 (not a leaked stack trace) when the Resend send itself fails", async () => {
+test("auth-signup: account creation still succeeds (emailSent: false) when the Resend send itself fails — a broken email provider must never block signup", async () => {
   const sb = fakeServiceClient();
   const sender = fakeEmailSender({ throws: true });
   const res = makeRes();
   await handlerFor(sb, sender)(makeReq({ method: "POST", body: { ...VALID_BODY, email: "resend-fails@example.com" } }), res);
-  assert.equal(res.statusCode, 500);
-  assert.equal(res.body.error, "signup_failed");
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { ok: true, emailSent: false });
+  assert.equal(sb.calls.length, 1);
 });
 
 test("auth-signup: rate-limits repeated signup attempts for the same email within the window", async () => {
@@ -143,4 +144,24 @@ test("auth-signup: rate-limits repeated signup attempts for the same email withi
   assert.equal(blockedRes.statusCode, 429);
   assert.equal(blockedRes.body.error, "rate_limited");
   assert.equal(sender.sent.length, 3);
+});
+
+test("auth-signup: repeated attempts after an email-provider failure still count toward the rate limit", async () => {
+  const sb = fakeServiceClient();
+  const sender = fakeEmailSender({ throws: true });
+  const handler = handlerFor(sb, sender);
+  const email = "rate-limited-broken-email-" + Date.now() + "@example.com";
+  const body = { ...VALID_BODY, email };
+
+  for (let i = 0; i < 3; i++) {
+    const res = makeRes();
+    await handler(makeReq({ method: "POST", body }), res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { ok: true, emailSent: false });
+  }
+
+  const blockedRes = makeRes();
+  await handler(makeReq({ method: "POST", body }), blockedRes);
+  assert.equal(blockedRes.statusCode, 429);
+  assert.equal(blockedRes.body.error, "rate_limited");
 });
