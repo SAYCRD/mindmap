@@ -18,9 +18,17 @@
 import { createHmac } from "node:crypto";
 
 export function createSquareTestClient(opts = {}) {
-  const { tiers = [], insertError = null, rpc: rpcHandlers = {} } = opts;
+  const {
+    tiers = [],
+    insertError = null,
+    rpc: rpcHandlers = {},
+    // The buyer the receipt is addressed to. Either may be nulled to
+    // exercise the "credits granted but we cannot email" path.
+    paymentUserId = "user-1",
+    userEmail = "buyer@example.com",
+  } = opts;
 
-  const calls = { rpc: [], inserted: [], updated: [], tables: [] };
+  const calls = { rpc: [], inserted: [], updated: [], tables: [], usersFetched: [] };
 
   function builder(table) {
     const state = { filters: [], mode: "select", payload: null };
@@ -46,6 +54,9 @@ export function createSquareTestClient(opts = {}) {
         if (table === "session_tiers") {
           const row = tiers.find((t) => state.filters.every(([c, v]) => t[c] === v));
           return { data: row || null, error: null };
+        }
+        if (table === "square_payments") {
+          return { data: paymentUserId ? { user_id: paymentUserId } : null, error: null };
         }
         return { data: null, error: null };
       },
@@ -75,6 +86,14 @@ export function createSquareTestClient(opts = {}) {
     from(table) {
       calls.tables.push(table);
       return builder(table);
+    },
+    auth: {
+      admin: {
+        async getUserById(id) {
+          calls.usersFetched.push(id);
+          return { data: { user: userEmail ? { id, email: userEmail } : null }, error: null };
+        },
+      },
     },
     async rpc(name, params) {
       calls.rpc.push({ name, params });

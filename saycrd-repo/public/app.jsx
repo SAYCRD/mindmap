@@ -11299,6 +11299,15 @@ return (
 })}
 </div>
 )}
+{/* Shown before payment, not only on the receipt: BLINDSPOT bills through
+    the Sedona Heartfelt Journeys Square account, and a card statement the
+    buyer does not recognise is a leading cause of chargebacks. Keep this
+    name in step with CARD_STATEMENT_NAME in api/_email.js. */}
+{!loadingTiers && tiers.length > 0 && (
+<div style={{ marginTop: 18, fontFamily: FB, fontSize: 12, lineHeight: 1.6, color: "rgba(255,255,255,0.45)", textAlign: "center" }}>
+Charges appear on your statement as <span style={{ color: "rgba(255,255,255,0.7)" }}>Sedona Heartfelt Journeys</span>.
+</div>
+)}
 {error && <div style={{ marginTop: 16, fontFamily: FB, fontSize: 13, color: "#E84393", textAlign: "center" }}>{error}</div>}
 </>
 )}

@@ -47,6 +47,7 @@
 // running total that exceeds the purchase price is answered 409 and flagged.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getServiceClient, setCors } from "./_lib.js";
+import { sendPurchaseReceiptEmail } from "./_email.js";
 import {
   detectRefundSignal,
   fetchSquareRefund,
@@ -311,6 +312,7 @@ export function createSquareWebhookHandler({
   env = process.env,
   readRawBody = getRawBody,
   fetchRefundImpl = fetch,
+  sendReceiptImpl = sendPurchaseReceiptEmail,
 }) {
   return async function handler(req, res) {
     setCors(res);
@@ -462,6 +464,44 @@ export function createSquareWebhookHandler({
           `square-webhook: repaired a previously partial payment for order ${summary.order_id} (credits already granted, status corrected)`
         );
       }
+      // Only on "credited". "already_processed" means this exact purchase was
+      // banked on an earlier delivery, so emailing again would tell the buyer
+      // they had been charged twice.
+      //
+      // Nothing in here may change the response: the credits are committed, and
+      // answering non-200 because an email failed would make Square retry a
+      // payment that is already settled. A missing receipt is recoverable; a
+      // retry storm over settled money is not.
+      if (code === "credited") {
+        try {
+          const { data: payRow } = await sb
+            .from("square_payments")
+            .select("user_id")
+            .eq("square_order_id", summary.order_id)
+            .maybeSingle();
+          const userId = payRow && payRow.user_id;
+          if (!userId) throw new Error("no user_id on payment row");
+
+          const { data: userRes, error: userErr } = await sb.auth.admin.getUserById(userId);
+          if (userErr) throw userErr;
+          const to = userRes && userRes.user && userRes.user.email;
+          if (!to) throw new Error("no email on user " + userId);
+
+          await sendReceiptImpl({
+            to,
+            sessions: result.credits,
+            amountCents: summary.amount_cents,
+            receiptUrl: summary.receipt_url,
+            squarePaymentId: summary.payment_id,
+          });
+        } catch (mailErr) {
+          console.error(
+            `square-webhook: credits granted for order ${summary.order_id} but receipt email failed:`,
+            mailErr.message
+          );
+        }
+      }
+
       return res.status(200).json({
         ok: true,
         result: code,

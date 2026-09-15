@@ -36,7 +36,10 @@ function actionLinkIdempotencyKey(prefix, actionLink) {
   return `${prefix}/${hash}`;
 }
 
-function shell(title, bodyHtml) {
+// footerText is overridable because the default ("you can safely ignore
+// this") is advice for an unrequested auth email and is actively wrong on a
+// receipt — a buyer must never be told to ignore a charge they just paid.
+function shell(title, bodyHtml, footerText) {
   return `<!doctype html>
 <html>
   <body style="margin:0;padding:0;background:#0b0d12;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
@@ -53,7 +56,7 @@ function shell(title, bodyHtml) {
             </tr>
             <tr>
               <td style="padding:0 40px 32px;text-align:center;">
-                <div style="font-size:12px;color:rgba(255,255,255,0.3);">If you didn't request this, you can safely ignore this email.</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.3);">${footerText || "If you didn't request this, you can safely ignore this email."}</div>
               </td>
             </tr>
           </table>
@@ -93,6 +96,40 @@ export async function sendPasswordResetEmail({ to, actionLink }) {
     subject: "Reset your password — BLINDSPOT",
     html,
     idempotencyKey: actionLinkIdempotencyKey("password-reset", actionLink),
+  });
+}
+
+// The name that appears on the buyer's card statement. BLINDSPOT bills
+// through the Sedona Heartfelt Journeys Square account, so the statement
+// never says "Blindspot". An unrecognised descriptor is a leading cause of
+// chargebacks, so we name it explicitly here and again on the paywall
+// before payment (see PaywallModal in public/app.jsx — keep the two in step).
+export const CARD_STATEMENT_NAME = "SEDONA HEARTFELT JOURNEYS";
+
+export async function sendPurchaseReceiptEmail({ to, sessions, amountCents, receiptUrl, squarePaymentId }) {
+  const amount = "$" + (Number(amountCents || 0) / 100).toFixed(2);
+  const count = Number(sessions) || 0;
+  const noun = count === 1 ? "session" : "sessions";
+  const html = shell(
+    "Payment received",
+    `<div style="font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:8px;">
+       ${amount} — <strong style="color:#f2f2f5;">${count} ${noun}</strong> added to your account.
+     </div>
+     <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6;margin:20px 0 4px;padding:14px 16px;background:rgba(232,67,147,0.08);border-radius:10px;text-align:left;">
+       On your card statement this will appear as
+       <strong style="color:#f2f2f5;">${CARD_STATEMENT_NAME}</strong>,
+       not BLINDSPOT. Both are the same business.
+     </div>
+     ${receiptUrl ? button(receiptUrl, "View Square receipt") : ""}`,
+    "Questions about this charge? Reply to this email."
+  );
+  return sendMail({
+    to,
+    subject: `Payment received — ${count} ${noun} — BLINDSPOT`,
+    html,
+    // Square retries a webhook until it gets a 2xx, so key on the payment
+    // itself: retries of the same purchase collapse to one email.
+    idempotencyKey: `purchase-receipt/${squarePaymentId}`,
   });
 }
 
