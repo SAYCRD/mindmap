@@ -10543,11 +10543,22 @@ function SessionBalance({ credits, variant }) {
   var accent = total > 0 ? "rgba(184,107,255,0.95)" : "rgba(255,255,255,0.5)";
   var headline = total === 0 ? "No sessions available" : (total === 1 ? "1 session available" : total + " sessions available");
 
+  // Until this button existed the paywall could only be reached by running out
+  // — guardedStart's 402 and consumeSessionCredit were its only two callers —
+  // so someone who still held sessions had no way to buy more. Buying is
+  // deliberately allowed at any balance: topping up before you run dry is a
+  // normal thing to want, and refusing it just loses the sale.
+  var buyLabel = total === 0 ? "Get sessions" : "Add more";
+  function openPaywall() {
+    try { window.dispatchEvent(new CustomEvent("saycrd-show-paywall")); } catch (e) {}
+  }
+
   if (variant === "menu") {
     return (
       <div style={{ padding: "0 16px 10px" }}>
         <div style={{ fontSize: 12, fontFamily: FB, fontWeight: 600, color: accent }}>{headline}</div>
         {detail && <div style={{ fontSize: 11, fontFamily: FB, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>{detail}</div>}
+        <button onClick={openPaywall} style={{ marginTop: 7, padding: 0, border: "none", background: "none", fontSize: 11, fontFamily: FB, fontWeight: 600, color: "rgba(184,107,255,0.9)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>{buyLabel}</button>
       </div>
     );
   }
@@ -10558,6 +10569,7 @@ function SessionBalance({ credits, variant }) {
         <span style={{ fontSize: 12, letterSpacing: "0.16em", fontFamily: FB, fontWeight: 600, color: accent, textTransform: "uppercase" }}>{headline}</span>
       </div>
       {detail && <div style={{ fontSize: 13, fontFamily: FD, fontStyle: "italic", color: "rgba(255,255,255,0.45)" }}>{detail}</div>}
+      <button onClick={openPaywall} style={{ marginTop: 3, padding: "5px 14px", borderRadius: 999, border: "1px solid rgba(184,107,255,0.35)", background: "transparent", fontSize: 11, letterSpacing: "0.12em", fontFamily: FB, fontWeight: 600, color: "rgba(184,107,255,0.9)", textTransform: "uppercase", cursor: "pointer" }}>{buyLabel}</button>
     </div>
   );
 }
@@ -11199,6 +11211,14 @@ var [purchasingId, setPurchasingId] = useState(null);
 var [error, setError] = useState(null);
 var [confirming, setConfirming] = useState(false);
 var [succeeded, setSucceeded] = useState(false);
+var [hasSessions, setHasSessions] = useState(false);
+
+// Balance as it stood before this purchase. Survives the Square redirect in
+// sessionStorage because that redirect is a full page reload — see
+// pollForCredits, which needs it to tell "my new credits landed" apart from
+// "I already had credits before I paid".
+var BALANCE_BEFORE_KEY = "saycrd_balance_before_checkout";
+var balanceBefore = useRef(null);
 
 function loadTiers() {
 setLoadingTiers(true);
@@ -11206,6 +11226,16 @@ fetch("/api/session-tiers")
 .then(function(r){ return r.json(); })
 .then(function(d){ setTiers((d && d.tiers) || []); setLoadingTiers(false); })
 .catch(function(){ setLoadingTiers(false); });
+
+var tok = window._saycrdToken;
+fetch("/api/credits", { headers: tok ? { Authorization: "Bearer " + tok } : {} })
+.then(function(r){ return r.ok ? r.json() : null; })
+.then(function(d){
+if (!d || typeof d.balance !== "number") return;
+balanceBefore.current = d.balance;
+setHasSessions(d.balance + (d.freeRemaining || 0) > 0);
+})
+.catch(function(){});
 }
 
 // No `visible` guard here on purpose — Square's hosted checkout redirect is
@@ -11217,16 +11247,34 @@ fetch("/api/session-tiers")
 function pollForCredits() {
 setConfirming(true);
 var tries = 0;
+
+// Wait for the balance to RISE, not merely to be positive. A buyer who
+// already held sessions passes "balance > 0" on the very first poll, so the
+// old test declared "You're all set" instantly — before the webhook had
+// credited anything — and would have said the same had the payment failed.
+// With no recorded baseline (an older tab, or sessionStorage unavailable)
+// fall back to the previous test rather than hanging forever.
+var before = null;
+try {
+var raw = sessionStorage.getItem(BALANCE_BEFORE_KEY);
+if (raw !== null && raw !== "") { var n = parseInt(raw, 10); if (!isNaN(n)) before = n; }
+} catch (e) {}
+
+function settle() {
+try { sessionStorage.removeItem(BALANCE_BEFORE_KEY); } catch (e) {}
+}
+
 function attempt() {
 tries++;
 var tok = window._saycrdToken;
 fetch("/api/credits", { headers: tok ? { Authorization: "Bearer " + tok } : {} })
 .then(function(r){ return r.ok ? r.json() : null; })
 .then(function(d){
-if (d && d.balance > 0) { setConfirming(false); setSucceeded(true); try { window.dispatchEvent(new CustomEvent("saycrd-credits-changed")); } catch(e) {} return; }
-if (tries < 10) setTimeout(attempt, 1500); else setConfirming(false);
+var landed = d && typeof d.balance === "number" && (before === null ? d.balance > 0 : d.balance > before);
+if (landed) { settle(); setConfirming(false); setSucceeded(true); try { window.dispatchEvent(new CustomEvent("saycrd-credits-changed")); } catch(e) {} return; }
+if (tries < 10) setTimeout(attempt, 1500); else { settle(); setConfirming(false); }
 })
-.catch(function(){ if (tries < 10) setTimeout(attempt, 1500); else setConfirming(false); });
+.catch(function(){ if (tries < 10) setTimeout(attempt, 1500); else { settle(); setConfirming(false); } });
 }
 attempt();
 }
@@ -11256,6 +11304,9 @@ setError((res.data && res.data.error) || "Could not start checkout");
 setPurchasingId(null);
 return;
 }
+if (balanceBefore.current !== null) {
+try { sessionStorage.setItem(BALANCE_BEFORE_KEY, String(balanceBefore.current)); } catch (e) {}
+}
 window.location.href = res.data.url;
 })
 .catch(function(){ setError("Could not start checkout"); setPurchasingId(null); });
@@ -11283,8 +11334,12 @@ return (
 </div>
 ) : (
 <>
-<div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.35em", color: "rgba(184,107,255,0.75)", textTransform: "uppercase", marginBottom: 10, textAlign: "center" }}>Your free sessions are used up</div>
-<div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 24, textAlign: "center" }}>Choose a session pack to keep going.</div>
+{/* The modal is no longer only reached by running out, so it must not
+    assert that the buyer has. `hasSessions` comes from the balance read in
+    loadTiers and stays false until that read confirms otherwise, which
+    keeps the out-of-sessions wording as the safe default. */}
+<div style={{ fontFamily: FB, fontSize: 11, letterSpacing: "0.35em", color: "rgba(184,107,255,0.75)", textTransform: "uppercase", marginBottom: 10, textAlign: "center" }}>{hasSessions ? "Add more sessions" : "Your free sessions are used up"}</div>
+<div style={{ fontFamily: FB, fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 24, textAlign: "center" }}>{hasSessions ? "Sessions you buy are added to your balance." : "Choose a session pack to keep going."}</div>
 {loadingTiers ? (
 <div style={{ textAlign: "center", padding: "20px 0", fontFamily: FB, fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Loading packs…</div>
 ) : (
