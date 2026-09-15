@@ -1760,6 +1760,10 @@ if (prev > 0 && nodes.length > prev) setPos({});
 const [fieldSize, setFieldSize] = useState(null);
 const fieldRef = useRef(null);
 const NR = 50;
+// A connection's line and its label are both hidden when its two nodes sit
+// closer than this, centre to centre. Initial layout has to clear it, or the
+// map arrives with its connections invisible - the one thing it asks you to tap.
+const LINK_VISIBLE_DIST = 90;
 
 useLayoutEffect(() => {
 var attempts = 0;
@@ -1797,6 +1801,8 @@ var NODE_W = 120;
 var NODE_H = 40; 
 var PAD_X = NODE_W / 2 + 10;
 var PAD_Y = NODE_H / 2 + 10;
+// Horizontal separation target, and the budget MARGIN_X sizes itself against.
+var MIN_SEP_X = NODE_W + 48;
 
 var adj = {};
 displayNodes.forEach(function(_, i) { adj[i] = []; });
@@ -1847,8 +1853,20 @@ var K_ATTRACT = 0.022;
 var K_REPEL = 32000;
 var K_CENTER = 0.006; 
 var K_DAMP = 0.72;
-var MARGIN_X = PAD_X + 20;
+// The x clamp below already subtracts NODE_W on its upper bound, so PAD_X's
+// half-node term was charged twice: a 375px screen kept just 75px of travel
+// where MIN_SEP_X needs 168, putting horizontal separation out of reach and
+// collapsing every phone map into one vertical stack. Keep the wide gutter
+// where the width can spare it, hand it back where it cannot.
+var MARGIN_X = Math.min(PAD_X + 20, Math.max(24, (W - NODE_W - MIN_SEP_X) / 2));
 var MARGIN_Y = PAD_Y + 20;
+// Vertical target, raised towards LINK_VISIBLE_DIST so a pair parted only on Y
+// clears the cutoff instead of settling at 76px just inside it - but never past
+// what the column has left to give. Asking for room that is not there makes the
+// relax pass thrash and piles nodes up worse than a modest target would.
+var _cols = Math.max(1, Math.floor((W - 2 * MARGIN_X - NODE_W) / MIN_SEP_X) + 1);
+var _rowGap = (H - 2 * MARGIN_Y - NODE_H) / Math.max(1, Math.ceil(n / _cols) - 1);
+var MIN_SEP_Y = Math.max(NODE_H + 36, Math.min(LINK_VISIBLE_DIST + 12, _rowGap));
 
 var STEPS = (nodes.length === 0 ? 60 : 250);
 for (var step = 0; step < STEPS; step++) {
@@ -1908,10 +1926,8 @@ for (var a = 0; a < n; a++) {
 for (var b = a + 1; b < n; b++) {
 var dx = positions[b].x - positions[a].x;
 var dy = positions[b].y - positions[a].y;
-var minSepX = NODE_W + 48;
-var minSepY = NODE_H + 36;
-var overlapX = minSepX - Math.abs(dx);
-var overlapY = minSepY - Math.abs(dy);
+var overlapX = MIN_SEP_X - Math.abs(dx);
+var overlapY = MIN_SEP_Y - Math.abs(dy);
 if (overlapX > 0 && overlapY > 0) {
 moved = true;
 if (overlapX < overlapY) {
@@ -2154,7 +2170,7 @@ background: "linear-gradient(180deg, #060810 0%, #080c18 25%, #0a0e1c 50%, #070a
 var k=K(c), resp=responses[k], ep=edgePt(c.from,c.to);
 var _sva=pos[c.from],_svb=pos[c.to];
 if(!_sva||!_svb)return null;
-{var _svdx=(_svb.x+60)-(_sva.x+60),_svdy=(_svb.y+20)-(_sva.y+20);if(Math.sqrt(_svdx*_svdx+_svdy*_svdy)<90)return null;}
+{var _svdx=(_svb.x+60)-(_sva.x+60),_svdy=(_svb.y+20)-(_sva.y+20);if(Math.sqrt(_svdx*_svdx+_svdy*_svdy)<LINK_VISIBLE_DIST)return null;}
 const isAct = activeConn && K(activeConn)===k;
 let stroke="rgba(255,255,255,0.32)", sw=2, dash="8 5", op=1, glowStroke="rgba(255,255,255,0.12)";
 if(resp?.value==="yes"){stroke="rgba(107,211,198,0.88)";sw=3;dash="none";glowStroke="rgba(107,211,198,0.25)";}
@@ -2187,7 +2203,7 @@ var isUserDefined = resp && resp.value==="no" && resp.comment && resp.comment.tr
 var isExp = !!resp; var accent = isUserDefined ? "#D6B264" : c.color;
 var _lpa=pos[c.from],_lpb=pos[c.to];
 if(!_lpa||!_lpb)return null;
-{var _ldx=(_lpb.x+60)-(_lpa.x+60),_ldy=(_lpb.y+20)-(_lpa.y+20);if(Math.sqrt(_ldx*_ldx+_ldy*_ldy)<90)return null;}
+{var _ldx=(_lpb.x+60)-(_lpa.x+60),_ldy=(_lpb.y+20)-(_lpa.y+20);if(Math.sqrt(_ldx*_ldx+_ldy*_ldy)<LINK_VISIBLE_DIST)return null;}
 return (
 <div key={k} onClick={function(e){e.stopPropagation();setActiveConn(c);}} style={{
 position: "absolute", left: m.x, top: m.y, transform: "translate(-50%, -50%)",
