@@ -25,12 +25,18 @@ function rpcReturning(result) {
   return { process_square_payment: () => ({ data: result, error: null }) };
 }
 
-async function run({ event = completedPaymentEvent(), env = baseEnv(), sb, reqOpts } = {}) {
+async function run({ event = completedPaymentEvent(), env = baseEnv(), sb, reqOpts, sendReceipt } = {}) {
   const client = sb || createSquareTestClient({ rpc: rpcReturning({ ok: true, result: "credited", credits: 1 }) });
-  const handler = createSquareWebhookHandler({ getServiceClient: () => client, env });
+  const receipts = [];
+  const sendReceiptImpl =
+    sendReceipt ||
+    (async (args) => {
+      receipts.push(args);
+    });
+  const handler = createSquareWebhookHandler({ getServiceClient: () => client, env, sendReceiptImpl });
   const res = makeRes();
   await handler(makeWebhookReq(event, reqOpts), res);
-  return { res, sb: client };
+  return { res, sb: client, receipts };
 }
 
 test("square-webhook: rejects an unsupported method with 405", async () => {
@@ -148,7 +154,57 @@ test("square-webhook: credits through exactly one RPC call and writes no tables 
   assert.equal(processCalls.length, 1);
   assert.deepEqual(sb._calls.inserted, [], "no direct inserts");
   assert.deepEqual(sb._calls.updated, [], "no direct updates");
-  assert.deepEqual(sb._calls.tables, [], "no table should be touched outside the RPC");
+  // The money path still writes nothing outside the RPC (asserted above).
+  // The one permitted table touch is a read of square_payments to learn who
+  // to address the receipt to, after the credit has already committed.
+  // Anything else appearing here means a write path has grown around the RPC.
+  assert.deepEqual(sb._calls.tables, ["square_payments"], "only the receipt lookup may touch a table");
+});
+
+// BLINDSPOT bills through the Sedona Heartfelt Journeys Square account, so a
+// buyer's statement never says BLINDSPOT. The receipt names the descriptor.
+test("square-webhook: emails a receipt to the buyer after crediting", async () => {
+  const { receipts, sb } = await run();
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].to, "buyer@example.com");
+  assert.equal(receipts[0].sessions, 1);
+  assert.equal(receipts[0].squarePaymentId, "PAY-XYZ789");
+  assert.deepEqual(sb._calls.usersFetched, ["user-1"]);
+});
+
+// A replay means the buyer was emailed on the first delivery. Emailing again
+// would read as a second charge.
+test("square-webhook: does not re-send the receipt on a replay", async () => {
+  const sb = createSquareTestClient({
+    rpc: rpcReturning({ ok: true, result: "already_processed", credits: 1, repaired: false }),
+  });
+  const { res, receipts } = await run({ sb });
+  assert.equal(res.statusCode, 200);
+  assert.equal(receipts.length, 0);
+});
+
+// The credits are committed before the email is attempted. Answering anything
+// but 200 here would make Square retry a payment that has already settled.
+test("square-webhook: a failed receipt email still returns 200 with the credits", async () => {
+  const { res } = await run({
+    sendReceipt: async () => {
+      throw new Error("resend_send_failed: service down");
+    },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.result, "credited");
+  assert.equal(res.body.credits, 1);
+});
+
+test("square-webhook: a buyer with no resolvable email still returns 200", async () => {
+  const sb = createSquareTestClient({
+    rpc: rpcReturning({ ok: true, result: "credited", credits: 1 }),
+    userEmail: null,
+  });
+  const { res, receipts } = await run({ sb });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.credits, 1);
+  assert.equal(receipts.length, 0);
 });
 
 // session_tiers must not be consulted at credit time — that was the mutable
