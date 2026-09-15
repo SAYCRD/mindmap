@@ -1754,11 +1754,16 @@ useEffect(function() {
 var prev = prevNodeCount.current;
 if (nodes.length !== prev) {
 prevNodeCount.current = nodes.length;
-if (prev > 0 && nodes.length > prev) setPos({});
+if (prev > 0 && nodes.length > prev) { setPos({}); draggedKeys.current = {}; }
 }
 }, [nodes.length]);
 const [fieldSize, setFieldSize] = useState(null);
 const fieldRef = useRef(null);
+const fieldSizeRef = useRef(fieldSize);
+fieldSizeRef.current = fieldSize;
+// Nodes the user has moved by hand. A re-layout may discard computed
+// positions freely, but not these.
+const draggedKeys = useRef({});
 const NR = 50;
 // A connection's line and its label are both hidden when its two nodes sit
 // closer than this, centre to centre. Initial layout has to clear it, or the
@@ -1787,6 +1792,45 @@ tryMeasure();
 
 return function() { if (rafId) cancelAnimationFrame(rafId); };
 }, [nodes.length, displayNodes.length]);
+
+// That measure only re-runs when the node count changes, so a window resized
+// after load keeps the coordinates computed for the old width and the nodes
+// sit clipped outside the field. Width only, deliberately: height alone moves
+// when a mobile URL bar collapses, and re-laying out on that would make the
+// map jump while the page is merely being scrolled. Rotation changes width,
+// so it is still covered.
+useEffect(() => {
+var el = fieldRef.current;
+if (!el || typeof ResizeObserver === "undefined") return;
+var ro = new ResizeObserver(function() {
+var w = el.offsetWidth, h = el.offsetHeight;
+if (w < 50 || h < 50) return;
+var prev = fieldSizeRef.current;
+if (!prev) { setFieldSize({ w: w, h: h }); return; }
+if (Math.abs(prev.w - w) < 24) return;
+if (Object.keys(draggedKeys.current).length) {
+// Hand-placed nodes: carry the arrangement across proportionally and
+// clamp it, rather than throwing away work the user can see.
+var sx = (w - 120) / Math.max(1, prev.w - 120);
+var sy = (h - 40) / Math.max(1, prev.h - 40);
+setPos(function(p) {
+var next = {};
+Object.keys(p).forEach(function(k) {
+next[k] = {
+x: Math.max(0, Math.min(p[k].x * sx, w - 120)),
+y: Math.max(0, Math.min(p[k].y * sy, h - 40))
+};
+});
+return next;
+});
+} else {
+setPos({});
+}
+setFieldSize({ w: w, h: h });
+});
+ro.observe(el);
+return function() { ro.disconnect(); };
+}, [displayNodes.length]);
 
 useLayoutEffect(() => {
 if (displayNodes.length === 0 || !fieldSize) return;
@@ -2060,6 +2104,7 @@ const cx = ex - r.left - dragging.ox;
 const cy = ey - r.top - dragging.oy;
 const newX = Math.max(0, Math.min(cx, r.width - 120));
 const newY = Math.max(0, Math.min(cy, r.height - 40));
+draggedKeys.current[dragging.key] = true;
 setPos(p => ({...p, [dragging.key]: {x: newX, y: newY}}));
 const dragCtr = { x: newX + 50, y: newY + 18 };
 let closest = null, closeDist = Infinity;
